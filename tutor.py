@@ -71,6 +71,19 @@ def _last_step(state: dict) -> dict:
     return state["history"][-1]
 
 
+def _last_correct_step_text(state: dict) -> str:
+    """
+    Retorna el text del darrer pas correcte (correcte_progres o inicial).
+    Si no n'hi ha cap, retorna l'enunciat. Usat per al judici de progrés
+    quan el pas previ és un error: prenem com a referència el darrer estat
+    "vàlid" de la resolució, no l'estat erroni.
+    """
+    for h in reversed(state["history"]):
+        if h["verdict"] in ("correcte_progres", "inicial"):
+            return h["text"]
+    return state["problem"]["equacio_text"]
+
+
 def _push_msg(state, kind: str, text: str):
     """
     kind: 'system' | 'feedback' | 'hint' | 'warning' | 'prereq' | 'discrepancy'
@@ -166,9 +179,9 @@ def process_turn(state: dict, raw_input: str) -> dict:
 # ------------------------------------------------------------
 def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
     last = _last_step(state)
-    prev_eq = V.parse_equation(last["text"])
     new_eq = V.parse_equation(raw_text)
     original_text = state["problem"]["equacio_text"]
+    original_eq = V.parse_equation(original_text)
     target_sol = str(state["problem"]["solucio"])
 
     # Cas error_format: SymPy no parseja
@@ -180,10 +193,8 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
             return state
 
         if ia["verdict"] == "no_eq":
-            # Tractar com a contingut no matemàtic
             return _handle_inappropriate(state, raw_text, ia_already_judged=True)
 
-        # Reconstrucció disponible: registrar el torn
         text_to_record = ia.get("reconstruction") or raw_text
         verdict_map = {
             "correcte_progres": "correcte_progres",
@@ -196,8 +207,11 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
         _post_verdict_bookkeeping(state, v, original_text)
         return state
 
-    # SymPy parseja: comprovem equivalència
-    equivalent = V.equations_equivalent(prev_eq, new_eq)
+    # IMPORTANT: comparem amb l'equació ORIGINAL, no amb la prèvia.
+    # Així, si un pas anterior va ser erroni, un pas correcte posterior
+    # rescata l'alumne. L'equivalència és una propietat absoluta del
+    # problema, no relativa al pas previ (que pot estar mal).
+    equivalent = V.equations_equivalent(new_eq, original_eq)
 
     if equivalent:
         # Cas trivial: ha repetit literalment l'última
@@ -208,9 +222,8 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
             _post_verdict_bookkeeping(state, "correcte_estancat", original_text)
             return state
 
-        # PRIMER: comprovació determinista de terminal.
-        # Si l'alumne ha escrit x = c i c és la solució correcta,
-        # el problema queda resolt sense necessitat de cridar la IA.
+        # Comprovació determinista de terminal:
+        # si x = c i c és la solució correcta, problema resolt sense IA.
         if V.is_terminal(new_eq):
             sol = V.solve_for_x(new_eq)
             if str(sol) == target_sol:
@@ -221,9 +234,13 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
                           f"Correcte. x = {sol}. Problema resolt.")
                 return state
 
-        # Crida IA: jutjar progrés
+        # Per al judici de progrés sí que comparem amb la prèvia
+        # (té sentit pedagògicament: estem avançant respecte d'on érem?).
+        # Si la prèvia va ser un error, prenem com a referència de progrés
+        # el darrer pas correcte (o l'enunciat).
+        ref_text = _last_correct_step_text(state)
         try:
-            jp = L.judge_progress(last["text"], raw_text, target_sol)
+            jp = L.judge_progress(ref_text, raw_text, target_sol)
         except Exception as e:
             _push_msg(state, "warning", f"Error de connexió amb la IA: {e}")
             return state
@@ -241,10 +258,10 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
         _post_verdict_bookkeeping(state, v, original_text)
         return state
 
-    # No equivalent: és un error
+    # No equivalent a l'original: és un error
     try:
         ce = L.classify_error(
-            last["text"], raw_text,
+            original_text, raw_text,
             PB.ERROR_CATALOG,
             state["problem"]["dependencies"],
         )

@@ -247,16 +247,19 @@ def judge_progress(prev_eq_text, new_eq_text, target_solution):
 # ============================================================
 # Crida 2: classificar error
 # ============================================================
-def classify_error(prev_eq_text, attempted_eq_text, error_catalog, problem_dependencies):
+def classify_error(original_eq_text, attempted_eq_text, error_catalog, problem_dependencies):
     catalog_str = "\n".join(f"  - {k}: {v}" for k, v in error_catalog.items())
     deps_str = ", ".join(problem_dependencies) if problem_dependencies else "(none)"
 
     system = (
         "You are a math tutor's error classifier for linear equations at age-13 level. "
-        "The student wrote an equation that is NOT equivalent to the previous one. "
-        "Identify the most likely error from the catalog, and decide whether it is a "
-        "PROCEDURAL slip (computation/transposition mistake the student knows how to fix) "
-        "or a CONCEPTUAL gap (a definition or rule they don't really master)."
+        "The student is trying to solve an ORIGINAL equation. They have written an "
+        "equation that is NOT equivalent to the original (their attempt has a different "
+        "solution for x). Identify the most likely error from the catalog, and decide "
+        "whether it is a PROCEDURAL slip (computation/transposition mistake the student "
+        "knows how to fix) or a CONCEPTUAL gap (a definition or rule they don't really master)."
+        "\n\nNote: do NOT assume the previous step is correct. Compare the student's "
+        "attempt directly to the original equation."
         "\n\nError catalog:\n" + catalog_str +
         "\n\nIf the error is conceptual and matches one of the problem's dependencies, "
         "set is_conceptual=true and dep_id to that dependency id. "
@@ -272,7 +275,7 @@ def classify_error(prev_eq_text, attempted_eq_text, error_catalog, problem_depen
         "}"
     )
     user = (
-        f"Previous equation: {prev_eq_text}\n"
+        f"Original equation: {original_eq_text}\n"
         f"Student's attempt: {attempted_eq_text}\n\n"
         f"Classify the error."
     )
