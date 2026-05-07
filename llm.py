@@ -9,29 +9,74 @@ Client a l'API de Google Gemini. Implementa les 4 crides definides a la Fase 0:
 També inclou:
 - diagnose_dependency   — quina dependència del graf li falta
 
-SDK: google-genai (l'SDK unificat que reemplaça google-generativeai, deprecat).
-Variable d'entorn requerida: GEMINI_API_KEY
+SDK: google-genai. Variable d'entorn requerida: GEMINI_API_KEY
 
-Sobre thinking models (IMPORTANT):
-- gemini-2.5-flash: thinking opcional. Aquí el desactivem (thinking_budget=0)
-  per a màxima fiabilitat amb max_output_tokens petits.
-- gemini-2.5-pro: thinking obligatori (no es pot desactivar). Si l'usuari
-  el tria, augmentem max_output_tokens automàticament per donar marge.
+Sobre thinking models:
+- gemini-2.5-pro (DEFAULT): thinking obligatori, latència alta, qualitat alta.
+- gemini-2.5-flash: thinking opcional (aquí desactivat). Més ràpid i barat.
+
+Robustesa:
+- Retry automàtic amb exponential backoff (3 intents) per a errors transitoris
+  (503 UNAVAILABLE, 429 RATE_LIMIT, 500, timeouts).
+- Tota crida queda registrada al log (api_logger.py).
 """
 
 import json
 import os
 import re
+import time
+import uuid
 
 from google import genai
 from google.genai import types
 
-MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+import api_logger
+
+MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-pro")
 MAX_TOKENS = 400
 
-# Pro és thinking model obligatori → necessita molt més pressupost
 IS_THINKING_MODEL = "pro" in MODEL.lower()
 TOKEN_MULTIPLIER = 10 if IS_THINKING_MODEL else 1
+
+# Retry config
+MAX_ATTEMPTS = 3
+BACKOFF_BASE_S = 1.5  # 1.5s → 3s → 6s
+
+# Errors HTTP/API que considerem retriables
+RETRIABLE_PATTERNS = (
+    "503", "UNAVAILABLE",
+    "429", "RATE_LIMIT", "RESOURCE_EXHAUSTED",
+    "500", "INTERNAL",
+    "DEADLINE_EXCEEDED",
+    "timeout", "Timeout",
+)
+
+# Session id per al log (un per execució del procés)
+_SESSION_ID = uuid.uuid4().hex[:8]
+
+# Callback opcional perquè la UI pugui mostrar avisos durant els retries.
+# Signatura: fn(message: str). El defineix `app.py`.
+_progress_callback = None
+
+
+def set_progress_callback(callback):
+    """Permet a la UI rebre avisos quan estem reintentant."""
+    global _progress_callback
+    _progress_callback = callback
+
+
+def _notify(msg: str):
+    if _progress_callback is not None:
+        try:
+            _progress_callback(msg)
+        except Exception:
+            pass
+
+
+def _is_retriable(err: Exception) -> bool:
+    s = str(err)
+    return any(p in s for p in RETRIABLE_PATTERNS)
+
 
 _client = None
 
@@ -44,7 +89,6 @@ def _get_client():
 
 
 def _build_config(system: str, max_tokens: int, json_mode: bool, temperature: float):
-    """Construeix la configuració, gestionant thinking segons el model."""
     cfg = {
         "system_instruction": system,
         "max_output_tokens": max_tokens * TOKEN_MULTIPLIER,
@@ -53,47 +97,93 @@ def _build_config(system: str, max_tokens: int, json_mode: bool, temperature: fl
     if json_mode:
         cfg["response_mime_type"] = "application/json"
     if not IS_THINKING_MODEL:
-        # Flash: desactivem thinking per tenir respostes ràpides i fiables
         cfg["thinking_config"] = types.ThinkingConfig(thinking_budget=0)
-    # Pro: thinking és obligatori; el budget ja queda absorbit pel multiplicador
     return types.GenerateContentConfig(**cfg)
 
 
-def _call_json(system: str, user: str, max_tokens: int = MAX_TOKENS) -> str:
+def _do_call(system: str, user: str, max_tokens: int,
+             json_mode: bool, temperature: float) -> str:
+    """Una crida única (sense retry). Pot llançar excepció."""
     client = _get_client()
-    config = _build_config(system, max_tokens, json_mode=True, temperature=0.2)
+    config = _build_config(system, max_tokens, json_mode, temperature)
     response = client.models.generate_content(
         model=MODEL, contents=user, config=config,
     )
     text = response.text or ""
     if not text.strip():
-        finish = getattr(response.candidates[0], "finish_reason", "?") if response.candidates else "?"
+        finish = "?"
+        if response.candidates:
+            finish = getattr(response.candidates[0], "finish_reason", "?")
         raise RuntimeError(
-            f"Resposta buida del model {MODEL} (finish_reason={finish}). "
-            "Si fas servir gemini-2.5-pro, prova amb gemini-2.5-flash, "
-            "que és més robust per a respostes curtes estructurades."
+            f"Resposta buida del model {MODEL} (finish_reason={finish})."
         )
     return text
 
 
-def _call_text(system: str, user: str, max_tokens: int = MAX_TOKENS) -> str:
-    client = _get_client()
-    config = _build_config(system, max_tokens, json_mode=False, temperature=0.4)
-    response = client.models.generate_content(
-        model=MODEL, contents=user, config=config,
+def _call_with_retry(function_name: str, system: str, user: str,
+                     max_tokens: int, json_mode: bool,
+                     temperature: float) -> str:
+    """Crida amb retry exponential backoff. Loga cada intent."""
+    last_error = None
+    input_data = {
+        "system_preview": system[:200],
+        "user": user,
+        "max_tokens": max_tokens,
+        "json_mode": json_mode,
+        "temperature": temperature,
+    }
+
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        t0 = time.time()
+        try:
+            text = _do_call(system, user, max_tokens, json_mode, temperature)
+            elapsed = time.time() - t0
+            api_logger.log_call(
+                session_id=_SESSION_ID, function=function_name,
+                model=MODEL, attempt=attempt, ok=True,
+                elapsed_s=elapsed, input_data=input_data,
+                output_data={"text_preview": text[:500], "len": len(text)},
+            )
+            return text
+        except Exception as e:
+            elapsed = time.time() - t0
+            err_str = str(e)
+            api_logger.log_call(
+                session_id=_SESSION_ID, function=function_name,
+                model=MODEL, attempt=attempt, ok=False,
+                elapsed_s=elapsed, input_data=input_data,
+                error=err_str,
+            )
+            last_error = e
+
+            if attempt < MAX_ATTEMPTS and _is_retriable(e):
+                backoff = BACKOFF_BASE_S * (2 ** (attempt - 1))
+                _notify(
+                    f"L'API ha donat un error temporal (intent {attempt}/{MAX_ATTEMPTS}). "
+                    f"Reintentant en {backoff:.0f}s..."
+                )
+                time.sleep(backoff)
+                continue
+            break
+
+    raise RuntimeError(
+        f"L'API ha fallat després de {MAX_ATTEMPTS} intents. Últim error: {last_error}"
     )
-    text = response.text or ""
-    if not text.strip():
-        finish = getattr(response.candidates[0], "finish_reason", "?") if response.candidates else "?"
-        raise RuntimeError(
-            f"Resposta buida del model {MODEL} (finish_reason={finish}). "
-            "Si fas servir gemini-2.5-pro, prova amb gemini-2.5-flash."
-        )
-    return text
+
+
+def _call_json(system: str, user: str, max_tokens: int = MAX_TOKENS,
+               function_name: str = "unknown") -> str:
+    return _call_with_retry(function_name, system, user, max_tokens,
+                            json_mode=True, temperature=0.2)
+
+
+def _call_text(system: str, user: str, max_tokens: int = MAX_TOKENS,
+               function_name: str = "unknown") -> str:
+    return _call_with_retry(function_name, system, user, max_tokens,
+                            json_mode=False, temperature=0.4)
 
 
 def _extract_json(text: str) -> dict:
-    """Amb response_mime_type='application/json' Gemini retorna JSON net."""
     if text is None:
         return {}
     text = text.strip()
@@ -146,9 +236,9 @@ def judge_progress(prev_eq_text, new_eq_text, target_solution):
         f"New equation: {new_eq_text}\n\n"
         f"Decide: progres or estancat?"
     )
-    raw = _call_json(system, user, max_tokens=200)
+    raw = _call_json(system, user, max_tokens=200, function_name="judge_progress")
     data = _extract_json(raw)
-    verdict = data.get("verdict", "progres")  # default canviat: si JSON arriba mal, suposem progrés
+    verdict = data.get("verdict", "progres")
     if verdict not in ("progres", "estancat"):
         verdict = "progres"
     return {"verdict": verdict, "reason": data.get("reason", "")}
@@ -186,7 +276,7 @@ def classify_error(prev_eq_text, attempted_eq_text, error_catalog, problem_depen
         f"Student's attempt: {attempted_eq_text}\n\n"
         f"Classify the error."
     )
-    raw = _call_json(system, user, max_tokens=350)
+    raw = _call_json(system, user, max_tokens=350, function_name="classify_error")
     data = _extract_json(raw)
     return {
         "error_label": data.get("error_label", "GEN_other"),
@@ -221,7 +311,7 @@ def interpret_input(raw_text, prev_eq_text, original_eq_text):
         f"Previous step: {prev_eq_text}\n"
         f"Student raw input: {raw_text}"
     )
-    raw = _call_json(system, user, max_tokens=300)
+    raw = _call_json(system, user, max_tokens=300, function_name="interpret_input")
     data = _extract_json(raw)
     verdict = data.get("verdict", "no_eq")
     if verdict not in ("correcte_progres", "correcte_estancat", "error", "no_eq"):
@@ -257,7 +347,7 @@ def generate_hint(original_eq_text, history_text, target_solution):
         f"Target solution (do NOT reveal): x = {target_solution}\n\n"
         f"Write the hint."
     )
-    raw = _call_text(system, user, max_tokens=150)
+    raw = _call_text(system, user, max_tokens=150, function_name="generate_hint")
     return raw.strip()
 
 
@@ -278,7 +368,7 @@ def diagnose_dependency(prev_eq_text, attempted_eq_text, candidate_deps):
         f"Previous: {prev_eq_text}\n"
         f"Student wrote: {attempted_eq_text}"
     )
-    raw = _call_json(system, user, max_tokens=80)
+    raw = _call_json(system, user, max_tokens=80, function_name="diagnose_dependency")
     data = _extract_json(raw)
     dep = data.get("dep_id")
     return dep if dep in candidate_deps else None

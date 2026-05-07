@@ -2,7 +2,7 @@
 Tutor d'equacions lineals — UI Streamlit.
 
 Per executar:
-    export GEMINI_API_KEY=sk-ant-...
+    export GEMINI_API_KEY=...
     streamlit run app.py
 
 L'estat de la sessió viu a st.session_state. La lògica viu a tutor.py.
@@ -13,10 +13,25 @@ import streamlit as st
 
 import problems as PB
 import tutor as T
+import llm as L
+import api_logger
 
 st.set_page_config(
     page_title="Tutor IA — equacions lineals",
     layout="centered",
+)
+
+# CSS per reduir espai entre l'enunciat i la cadena de la sessió,
+# i ajustar marges generals.
+st.markdown(
+    """
+    <style>
+      hr { margin: 0.6rem 0 !important; }
+      .block-container h3 { margin-top: 0.3rem !important; }
+      .block-container { padding-top: 2rem !important; }
+    </style>
+    """,
+    unsafe_allow_html=True,
 )
 
 
@@ -28,15 +43,25 @@ def init_state():
         st.session_state.session = None
     if "input_counter" not in st.session_state:
         st.session_state.input_counter = 0
+    if "retry_messages" not in st.session_state:
+        st.session_state.retry_messages = []
 
 
 def start_session(problem_id: str):
     st.session_state.session = T.new_session_state(problem_id)
-    st.session_state.input_counter += 1  # força reset del text_input
+    st.session_state.input_counter += 1
+
+
+# Callback per a la UI: rep avisos de l'API durant els retries
+def _on_api_retry(message: str):
+    st.session_state.retry_messages.append(message)
+
+
+L.set_progress_callback(_on_api_retry)
 
 
 # ------------------------------------------------------------
-# Sidebar: selecció de problema i estat
+# Sidebar
 # ------------------------------------------------------------
 def render_sidebar():
     with st.sidebar:
@@ -46,6 +71,9 @@ def render_sidebar():
         if not os.environ.get("GEMINI_API_KEY"):
             st.error("Falta GEMINI_API_KEY.")
             st.stop()
+
+        # Info del model actiu (útil mentre depurem)
+        st.caption(f"Model actiu: `{L.MODEL}`")
 
         st.markdown("---")
         st.markdown("**Selecciona problema**")
@@ -57,8 +85,6 @@ def render_sidebar():
                 st.rerun()
 
         st.markdown("---")
-
-        # Senyals d'escapament
         st.markdown("**Senyals especials**")
         st.markdown(
             "- `?` — demanar pista\n"
@@ -67,7 +93,6 @@ def render_sidebar():
         )
 
         st.markdown("---")
-        # Mostra de l'estat agregat
         s = st.session_state.session
         if s is not None:
             st.markdown("**Estat de la sessió**")
@@ -79,9 +104,12 @@ def render_sidebar():
             if s["active_prereq"]:
                 st.text(f"En prerequisit:  {s['active_prereq']}")
 
+        st.markdown("---")
+        st.caption(f"Log: `{api_logger.get_log_path()}`")
+
 
 # ------------------------------------------------------------
-# Pantalla central: enunciat + cadena d'equacions + input
+# Pantalla central
 # ------------------------------------------------------------
 def render_main():
     s = st.session_state.session
@@ -97,13 +125,15 @@ def render_main():
         )
         return
 
-    # Capçalera del problema
+    # Capçalera del problema (compactada)
     st.markdown(f"### Problema {s['problem_id']}")
-    st.markdown(f"**Nivell {s['problem']['nivell']} · {s['problem']['tema']}**")
     st.markdown(
+        f"**Nivell {s['problem']['nivell']} · {s['problem']['tema']}**  \n"
         f"**Resol:** `{s['problem']['equacio_text']}`"
     )
-    st.markdown("---")
+
+    # Separador suau
+    st.markdown("<hr>", unsafe_allow_html=True)
 
     # Cadena d'equacions
     st.markdown("**Cadena de la sessió**")
@@ -117,13 +147,13 @@ def render_main():
 
     # Missatges del torn anterior
     if s.get("messages"):
-        st.markdown("---")
+        st.markdown("<hr>", unsafe_allow_html=True)
         for m in s["messages"]:
             _render_message(m)
 
-    # Si la sessió està tancada, no acceptem més input
+    # Sessió tancada
     if s["verdict_final"] is not None:
-        st.markdown("---")
+        st.markdown("<hr>", unsafe_allow_html=True)
         if s["verdict_final"] == "resolt":
             st.success("Sessió completada amb èxit.")
         elif s["verdict_final"] == "abandonat":
@@ -134,23 +164,38 @@ def render_main():
         return
 
     # Input
-    st.markdown("---")
+    st.markdown("<hr>", unsafe_allow_html=True)
     if s["active_prereq"] is not None:
         prereq = PB.get_prerequisite(s["active_prereq"])
         st.markdown(f"**Pregunta del prerequisit:** {prereq['question']}")
 
-    key = f"input_{st.session_state.input_counter}"
-    raw = st.text_input("La teva resposta:", key=key, placeholder="ex: 3x = 15")
-
-    cols = st.columns([1, 1, 4])
-    with cols[0]:
-        submit = st.button("Enviar", type="primary")
-    with cols[1]:
-        end = st.button("Sortir (!!)")
+    # Form: tecla Enter equival a clicar Enviar (millora 4)
+    key_in = f"input_{st.session_state.input_counter}"
+    key_form = f"form_{st.session_state.input_counter}"
+    with st.form(key=key_form, clear_on_submit=False):
+        raw = st.text_input("La teva resposta:", key=key_in)
+        cols = st.columns([1, 1, 4])
+        with cols[0]:
+            submit = st.form_submit_button("Enviar", type="primary")
+        with cols[1]:
+            end = st.form_submit_button("Sortir (!!)")
 
     if submit and raw:
-        with st.spinner("Avaluant..."):
+        # Reset retry messages abans de cada torn
+        st.session_state.retry_messages = []
+        spinner_text = (
+            "Avaluant... (amb gemini-2.5-pro pot trigar uns segons; el model "
+            "fa raonament intern abans de respondre)"
+            if "pro" in L.MODEL.lower()
+            else "Avaluant..."
+        )
+        with st.spinner(spinner_text):
+            # Si hi ha retries, els mostrem visualment fent un placeholder
+            placeholder = st.empty()
             T.process_turn(s, raw)
+            # Si han arribat avisos durant la crida, els registrem com a missatges
+            for msg in st.session_state.retry_messages:
+                placeholder.warning(msg)
         st.session_state.input_counter += 1
         st.rerun()
 
@@ -160,7 +205,7 @@ def render_main():
 
 
 # ------------------------------------------------------------
-# Helpers de presentació
+# Helpers
 # ------------------------------------------------------------
 def _verdict_badge(v: str) -> str:
     return {
