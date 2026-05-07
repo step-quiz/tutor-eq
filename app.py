@@ -104,6 +104,14 @@ def render_sidebar():
             if s["active_prereq"]:
                 st.text(f"En prerequisit:  {s['active_prereq']}")
 
+            # Botó Sortir (només si la sessió està activa)
+            if s["verdict_final"] is None:
+                if st.button("Sortir de la sessió (!!)",
+                             key="exit_btn",
+                             use_container_width=True):
+                    T.process_turn(s, "!!")
+                    st.rerun()
+
         st.markdown("---")
         st.caption(f"Log: `{api_logger.get_log_path()}`")
 
@@ -125,25 +133,28 @@ def render_main():
         )
         return
 
-    # Capçalera del problema (compactada)
+    # Capçalera del problema
     st.markdown(f"### Problema {s['problem_id']}")
-    st.markdown(
-        f"**Nivell {s['problem']['nivell']} · {s['problem']['tema']}**  \n"
-        f"**Resol:** `{s['problem']['equacio_text']}`"
-    )
+    st.caption(f"Nivell {s['problem']['nivell']} · {s['problem']['tema']}")
 
-    # Separador suau
     st.markdown("<hr>", unsafe_allow_html=True)
 
-    # Cadena d'equacions
+    # Cadena d'equacions (l'enunciat és la primera línia, ja no es duplica
+    # com a capçalera "Resol:")
     st.markdown("**Cadena de la sessió**")
-    for h in s["history"]:
+    visible_history = _filter_superseded_errors(s["history"])
+    for h in visible_history:
         if h["step"] == 0:
             st.markdown(f"`{h['text']}`  · *enunciat*")
         else:
             badge = _verdict_badge(h["verdict"])
             err = f" · {h['error_label']}" if h.get("error_label") else ""
             st.markdown(f"`{h['text']}`  · {badge}{err}")
+
+    # Indicador discret si hi ha errors amagats
+    n_hidden = len(s["history"]) - len(visible_history)
+    if n_hidden > 0:
+        st.caption(f"({n_hidden} intent{'s' if n_hidden > 1 else ''} previ{'s' if n_hidden > 1 else ''} superat{'s' if n_hidden > 1 else ''} · visible al rastre JSON)")
 
     # Missatges del torn anterior
     if s.get("messages"):
@@ -174,11 +185,7 @@ def render_main():
     key_form = f"form_{st.session_state.input_counter}"
     with st.form(key=key_form, clear_on_submit=False):
         raw = st.text_input("La teva resposta:", key=key_in)
-        cols = st.columns([1, 1, 4])
-        with cols[0]:
-            submit = st.form_submit_button("Enviar", type="primary")
-        with cols[1]:
-            end = st.form_submit_button("Sortir (!!)")
+        submit = st.form_submit_button("Enviar", type="primary")
 
     if submit and raw:
         # Reset retry messages abans de cada torn
@@ -190,23 +197,41 @@ def render_main():
             else "Avaluant..."
         )
         with st.spinner(spinner_text):
-            # Si hi ha retries, els mostrem visualment fent un placeholder
             placeholder = st.empty()
             T.process_turn(s, raw)
-            # Si han arribat avisos durant la crida, els registrem com a missatges
             for msg in st.session_state.retry_messages:
                 placeholder.warning(msg)
         st.session_state.input_counter += 1
-        st.rerun()
-
-    if end:
-        T.process_turn(s, "!!")
         st.rerun()
 
 
 # ------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------
+def _filter_superseded_errors(history: list) -> list:
+    """
+    Amaga els errors que han estat superats per un pas correcte posterior.
+    Estratègia: recorrem la història; quan trobem un pas correcte, eliminem
+    de la llista visible tots els errors immediatament anteriors fins al
+    darrer pas correcte (o l'enunciat). Els passos de tipus 'no_math'
+    (avisos d'ús inadequat) també queden amagats si han estat superats.
+
+    El JSON sencer es manté al rastre per al professorat.
+    """
+    visible = []
+    for h in history:
+        v = h["verdict"]
+        if v in ("correcte_progres", "correcte_estancat"):
+            # Aquest pas correcte supera els errors previs encara visibles.
+            # Eliminem els errors fins al darrer pas correcte/inicial.
+            while visible and visible[-1]["verdict"] in ("error", "no_math"):
+                visible.pop()
+            visible.append(h)
+        else:
+            visible.append(h)
+    return visible
+
+
 def _verdict_badge(v: str) -> str:
     return {
         "correcte_progres": "✓ progrés",
