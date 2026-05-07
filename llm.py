@@ -26,7 +26,7 @@ from google.genai import types
 
 # Model per defecte. Alternatives: gemini-2.5-pro (més capaç),
 # gemini-2.5-flash-lite (més barat encara, qualitat lleugerament inferior).
-MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-pro")
 MAX_TOKENS = 400
 
 _client = None
