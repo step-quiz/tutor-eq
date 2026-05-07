@@ -208,6 +208,19 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
             _post_verdict_bookkeeping(state, "correcte_estancat", original_text)
             return state
 
+        # PRIMER: comprovació determinista de terminal.
+        # Si l'alumne ha escrit x = c i c és la solució correcta,
+        # el problema queda resolt sense necessitat de cridar la IA.
+        if V.is_terminal(new_eq):
+            sol = V.solve_for_x(new_eq)
+            if str(sol) == target_sol:
+                _record_step(state, raw_text, parsed_ok=True,
+                             verdict="correcte_progres")
+                state["verdict_final"] = "resolt"
+                _push_msg(state, "feedback",
+                          f"Correcte. x = {sol}. Problema resolt.")
+                return state
+
         # Crida IA: jutjar progrés
         try:
             jp = L.judge_progress(last["text"], raw_text, target_sol)
@@ -219,14 +232,6 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
         _record_step(state, raw_text, parsed_ok=True, verdict=v)
 
         if v == "correcte_progres":
-            # Comprovar terminal
-            if V.is_terminal(new_eq):
-                sol = V.solve_for_x(new_eq)
-                if str(sol) == target_sol:
-                    state["verdict_final"] = "resolt"
-                    _push_msg(state, "feedback",
-                              f"Correcte. x = {sol}. Problema resolt.")
-                    return state
             _push_msg(state, "feedback", f"Correcte. {jp.get('reason','')}".strip())
         else:
             _push_msg(state, "feedback",

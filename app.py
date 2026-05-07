@@ -2,7 +2,7 @@
 Tutor d'equacions lineals — UI Streamlit.
 
 Per executar:
-    export ANTHROPIC_API_KEY=sk-ant-...
+    export GEMINI_API_KEY=sk-ant-...
     streamlit run app.py
 
 L'estat de la sessió viu a st.session_state. La lògica viu a tutor.py.
@@ -43,8 +43,8 @@ def render_sidebar():
         st.markdown("### Tutor IA — equacions lineals")
         st.caption("Pilot 2n d'ESO — mode professor")
 
-        if not os.environ.get("ANTHROPIC_API_KEY"):
-            st.error("Falta ANTHROPIC_API_KEY.")
+        if not os.environ.get("GEMINI_API_KEY"):
+            st.error("Falta GEMINI_API_KEY.")
             st.stop()
 
         st.markdown("---")

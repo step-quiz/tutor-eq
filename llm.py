@@ -8,13 +8,15 @@ Client a l'API de Google Gemini. Implementa les 4 crides definides a la Fase 0:
 
 També inclou:
 - diagnose_dependency   — quina dependència del graf li falta
-  (subcrida usada dins classify_error si l'error és conceptual)
-
-Tots els prompts són en anglès (Fase 0, §1). El text que torna a l'alumne
-es genera en català per als casos de pista.
 
 SDK: google-genai (l'SDK unificat que reemplaça google-generativeai, deprecat).
 Variable d'entorn requerida: GEMINI_API_KEY
+
+Sobre thinking models (IMPORTANT):
+- gemini-2.5-flash: thinking opcional. Aquí el desactivem (thinking_budget=0)
+  per a màxima fiabilitat amb max_output_tokens petits.
+- gemini-2.5-pro: thinking obligatori (no es pot desactivar). Si l'usuari
+  el tria, augmentem max_output_tokens automàticament per donar marge.
 """
 
 import json
@@ -24,10 +26,12 @@ import re
 from google import genai
 from google.genai import types
 
-# Model per defecte. Alternatives: gemini-2.5-pro (més capaç),
-# gemini-2.5-flash-lite (més barat encara, qualitat lleugerament inferior).
-MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-pro")
+MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 MAX_TOKENS = 400
+
+# Pro és thinking model obligatori → necessita molt més pressupost
+IS_THINKING_MODEL = "pro" in MODEL.lower()
+TOKEN_MULTIPLIER = 10 if IS_THINKING_MODEL else 1
 
 _client = None
 
@@ -35,60 +39,70 @@ _client = None
 def _get_client():
     global _client
     if _client is None:
-        # llegeix GEMINI_API_KEY de l'entorn automàticament
         _client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
     return _client
 
 
+def _build_config(system: str, max_tokens: int, json_mode: bool, temperature: float):
+    """Construeix la configuració, gestionant thinking segons el model."""
+    cfg = {
+        "system_instruction": system,
+        "max_output_tokens": max_tokens * TOKEN_MULTIPLIER,
+        "temperature": temperature,
+    }
+    if json_mode:
+        cfg["response_mime_type"] = "application/json"
+    if not IS_THINKING_MODEL:
+        # Flash: desactivem thinking per tenir respostes ràpides i fiables
+        cfg["thinking_config"] = types.ThinkingConfig(thinking_budget=0)
+    # Pro: thinking és obligatori; el budget ja queda absorbit pel multiplicador
+    return types.GenerateContentConfig(**cfg)
+
+
 def _call_json(system: str, user: str, max_tokens: int = MAX_TOKENS) -> str:
-    """Crida amb sortida forçada a JSON (response_mime_type)."""
     client = _get_client()
+    config = _build_config(system, max_tokens, json_mode=True, temperature=0.2)
     response = client.models.generate_content(
-        model=MODEL,
-        contents=user,
-        config=types.GenerateContentConfig(
-            system_instruction=system,
-            max_output_tokens=max_tokens,
-            response_mime_type="application/json",
-            temperature=0.2,
-        ),
+        model=MODEL, contents=user, config=config,
     )
-    return response.text
+    text = response.text or ""
+    if not text.strip():
+        finish = getattr(response.candidates[0], "finish_reason", "?") if response.candidates else "?"
+        raise RuntimeError(
+            f"Resposta buida del model {MODEL} (finish_reason={finish}). "
+            "Si fas servir gemini-2.5-pro, prova amb gemini-2.5-flash, "
+            "que és més robust per a respostes curtes estructurades."
+        )
+    return text
 
 
 def _call_text(system: str, user: str, max_tokens: int = MAX_TOKENS) -> str:
-    """Crida amb sortida lliure (per a la pista, que no és JSON)."""
     client = _get_client()
+    config = _build_config(system, max_tokens, json_mode=False, temperature=0.4)
     response = client.models.generate_content(
-        model=MODEL,
-        contents=user,
-        config=types.GenerateContentConfig(
-            system_instruction=system,
-            max_output_tokens=max_tokens,
-            temperature=0.4,
-        ),
+        model=MODEL, contents=user, config=config,
     )
-    return response.text
+    text = response.text or ""
+    if not text.strip():
+        finish = getattr(response.candidates[0], "finish_reason", "?") if response.candidates else "?"
+        raise RuntimeError(
+            f"Resposta buida del model {MODEL} (finish_reason={finish}). "
+            "Si fas servir gemini-2.5-pro, prova amb gemini-2.5-flash."
+        )
+    return text
 
 
 def _extract_json(text: str) -> dict:
-    """
-    Amb response_mime_type='application/json' Gemini retorna JSON net.
-    Mantenim _extract_json com a xarxa de seguretat per si algun cop
-    el model afegeix codi del marcador o text al voltant.
-    """
+    """Amb response_mime_type='application/json' Gemini retorna JSON net."""
     if text is None:
         return {}
     text = text.strip()
-    # Treu ``` si hi és
     text = re.sub(r"^```(?:json)?\s*", "", text)
     text = re.sub(r"\s*```$", "", text)
-    # Intent directe primer
     try:
         return json.loads(text)
     except Exception:
         pass
-    # Fallback: busca el primer { i l'aparellat
     start = text.find("{")
     if start == -1:
         return {}
@@ -107,14 +121,9 @@ def _extract_json(text: str) -> dict:
 
 
 # ============================================================
-# Crida 1: jutjar progrés (equació equivalent)
+# Crida 1: jutjar progrés
 # ============================================================
-def judge_progress(prev_eq_text: str,
-                   new_eq_text: str,
-                   target_solution: str) -> dict:
-    """
-    Retorn: {'verdict': 'progres'|'estancat', 'reason': str (curt)}
-    """
+def judge_progress(prev_eq_text, new_eq_text, target_solution):
     system = (
         "You are a math tutor's classifier for linear equations at age-13 level. "
         "You receive two equivalent linear equations (proven equivalent by symbolic computation). "
@@ -139,19 +148,16 @@ def judge_progress(prev_eq_text: str,
     )
     raw = _call_json(system, user, max_tokens=200)
     data = _extract_json(raw)
-    verdict = data.get("verdict", "estancat")
+    verdict = data.get("verdict", "progres")  # default canviat: si JSON arriba mal, suposem progrés
     if verdict not in ("progres", "estancat"):
-        verdict = "estancat"
+        verdict = "progres"
     return {"verdict": verdict, "reason": data.get("reason", "")}
 
 
 # ============================================================
-# Crida 2: classificar error (equació no equivalent)
+# Crida 2: classificar error
 # ============================================================
-def classify_error(prev_eq_text: str,
-                   attempted_eq_text: str,
-                   error_catalog: dict,
-                   problem_dependencies: list) -> dict:
+def classify_error(prev_eq_text, attempted_eq_text, error_catalog, problem_dependencies):
     catalog_str = "\n".join(f"  - {k}: {v}" for k, v in error_catalog.items())
     deps_str = ", ".join(problem_dependencies) if problem_dependencies else "(none)"
 
@@ -191,11 +197,9 @@ def classify_error(prev_eq_text: str,
 
 
 # ============================================================
-# Crida 3: interpretar input (SymPy no parseja)
+# Crida 3: interpretar input
 # ============================================================
-def interpret_input(raw_text: str,
-                    prev_eq_text: str,
-                    original_eq_text: str) -> dict:
+def interpret_input(raw_text, prev_eq_text, original_eq_text):
     system = (
         "You are a math tutor's input interpreter for linear equations at age-13 level. "
         "The symbolic parser (SymPy) could not parse the student's input. "
@@ -230,11 +234,9 @@ def interpret_input(raw_text: str,
 
 
 # ============================================================
-# Crida 4: generar pista contextualitzada (text lliure, no JSON)
+# Crida 4: generar pista
 # ============================================================
-def generate_hint(original_eq_text: str,
-                  history_text: str,
-                  target_solution: str) -> str:
+def generate_hint(original_eq_text, history_text, target_solution):
     system = (
         "You are a math tutor for a 13-year-old student working on linear equations. "
         "The student typed '?' to request help. "
@@ -260,11 +262,9 @@ def generate_hint(original_eq_text: str,
 
 
 # ============================================================
-# (Opcional) Crida auxiliar: diagnosticar dependència
+# Auxiliar: diagnosticar dependència
 # ============================================================
-def diagnose_dependency(prev_eq_text: str,
-                        attempted_eq_text: str,
-                        candidate_deps: list):
+def diagnose_dependency(prev_eq_text, attempted_eq_text, candidate_deps):
     if not candidate_deps:
         return None
     deps_str = ", ".join(candidate_deps)
