@@ -42,6 +42,35 @@ ERROR_CATALOG = {
 }
 
 
+# Mapatge etiqueta d'error → dependència conceptual implicada.
+# Algunes etiquetes són, per definició, indicatives d'un buit conceptual
+# concret (no són lapsus procedimentals): si un alumne fa una distribució
+# parcial, és perquè no domina la propietat distributiva — això no depèn
+# del judici de la IA. Aquest mapatge s'usa com a fallback determinista a
+# tutor.py per activar el retrocés a prerequisits sense dependre que el
+# model marqui correctament `is_conceptual` a cada classificació.
+#
+# Les etiquetes que NO apareixen aquí (L1_sign_error, L2_*, L3_combine_terms,
+# GEN_*) es consideren procedimentals per defecte: la IA encara pot pujar-les
+# a conceptuals en casos clars, però no hi ha fallback automàtic.
+_ERROR_TO_DEPENDENCY = {
+    "L1_inverse_op":           "operacions_inverses",
+    "L3_distribution_partial": "prop_distributiva",
+    "L3_minus_paren":          "regla_signes_parens",
+    "L4_mcm_partial":          "def_mcm",
+    "L4_minus_fraction":       "regla_signes_parens",
+    "L4_illegal_cancel":       "def_fraccions_equiv",
+}
+
+
+def implied_dependency_for_error(error_label):
+    """
+    Retorna la dependència conceptual que una etiqueta d'error implica,
+    o None si l'error es considera procedimental.
+    """
+    return _ERROR_TO_DEPENDENCY.get(error_label)
+
+
 # ---------- Graf de dependències (Fase 0, §3) ----------
 # Cada dependència: keywords per al test ràpid + prerequisit associat
 DEPENDENCIES = {

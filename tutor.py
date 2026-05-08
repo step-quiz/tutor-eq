@@ -299,6 +299,18 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
                  verdict="error", error_label=ce["error_label"])
     _push_msg(state, "feedback", ce["short_msg"])
 
+    # Fallback determinista per al retrocés a prerequisits.
+    # Si l'etiqueta d'error implica clarament un concepte (per exemple
+    # L3_distribution_partial ⇒ prop_distributiva) i aquest concepte és
+    # prerequisit d'aquest problema, tractem l'error com a conceptual
+    # encara que la IA hagi posat is_conceptual=false. Així el retrocés
+    # no depèn que el model ompli bé aquest camp en cada classificació.
+    implied_dep = PB.implied_dependency_for_error(ce["error_label"])
+    if implied_dep and implied_dep in state["problem"]["dependencies"]:
+        if not ce["is_conceptual"] or not ce["dep_id"]:
+            ce["is_conceptual"] = True
+            ce["dep_id"] = implied_dep
+
     # Si és conceptual i tenim prerequisit, fer retrocés
     if ce["is_conceptual"] and ce["dep_id"]:
         dep = PB.get_dependency(ce["dep_id"])
