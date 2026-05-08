@@ -28,6 +28,12 @@ ERROR_CATALOG = {
     # Nivell 2
     "L2_order": "wrong order: divided/multiplied before adding/subtracting the constant term",
     "L2_transpose_sign": "transposed a term to the other side keeping the same sign instead of inverting it",
+    "L2_one_side_only": (
+        "applied an operation to only ONE side of the equation, breaking equivalence. "
+        "Example: from 3x = 21 writing 3x = 7 (divided RHS by 3 but kept LHS as 3x). "
+        "The arithmetic on the modified side may be correct, but the equation is no "
+        "longer equivalent because the same operation wasn't done on both sides."
+    ),
     # Nivell 3
     "L3_distribution_partial": "incomplete distribution: a(x+b) = ax+b instead of ax+ab",
     "L3_minus_paren": "sign error after a minus sign in front of parenthesis: -(x-3) = -x-3 instead of -x+3",
@@ -55,6 +61,8 @@ ERROR_CATALOG = {
 # a conceptuals en casos clars, però no hi ha fallback automàtic.
 _ERROR_TO_DEPENDENCY = {
     "L1_inverse_op":           "operacions_inverses",
+    "L2_transpose_sign":       "principi_equiv",
+    "L2_one_side_only":        "principi_equiv",
     "L3_distribution_partial": "prop_distributiva",
     "L3_minus_paren":          "regla_signes_parens",
     "L4_mcm_partial":          "def_mcm",
@@ -184,6 +192,29 @@ PREREQUISITES = {
         # encara que de retruc inclogui "/3" o similar.
         "forbidden_keywords": ["multiplic", "sumar", "restar"],
         "explanation": "Per desfer una multiplicació per 3, dividim entre 3 als dos costats.",
+    },
+    "PRE-EQUIV": {
+        "id": "PRE-EQUIV",
+        "concept": "principi_equiv",
+        # Aquest prereq cobreix dos errors germans:
+        #   - L2_transpose_sign: moure un terme sense canviar-ne el signe
+        #     (que és el snare de "fer la mateixa cosa als dos costats").
+        #   - L2_one_side_only: aplicar una operació només a un costat.
+        # La pregunta força explicitar l'operació I la simetria.
+        "question": "Tens 3x − 5 = 10 i vols passar el −5 a l'altre costat. Quina operació fas, i a quants costats l'apliques?",
+        # Conjugacions comunes del verb "sumar" en respostes d'alumne:
+        # infinitiu, 1a persona present (la més freqüent), 2a, 3a, 1a plural,
+        # més sinònim "afegir" en diverses formes, més notació "+5".
+        "keywords_required": [
+            "sumar", "sumo", "sumes", "suma", "sumem",
+            "afegir", "afegeix", "afegim", "afegeixo",
+            "+5", "+ 5",
+        ],
+        # Operacions equivocades: cal incloure conjugacions explícites de
+        # "restar" perquè els altres stems ("multiplic", "divid") ja cobreixen
+        # totes les seves variants.
+        "forbidden_keywords": ["restar", "resto", "resta", "restem", "multiplic", "divid"],
+        "explanation": "Per moure el −5, sumem 5 als DOS costats: 3x − 5 + 5 = 10 + 5, és a dir 3x = 15. La clau és aplicar la mateixa operació als dos costats.",
     },
 }
 
