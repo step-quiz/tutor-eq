@@ -160,14 +160,17 @@ PREREQUISITES = {
         "concept": "prop_distributiva",
         "question": "Desenvolupa: 5(x + 2)",
         "expected_equation_or_expr": "5*x + 10",
-        "explanation": "El factor de fora multiplica cada terme de dins: 5·x + 5·2.",
+        # Format de l'explicació: "<equació original> = <resultat>, perquè
+        # <raó operativa>". L'alumne ha de veure el RESULTAT complet i el
+        # PERQUÈ, no només la regla abstracta.
+        "explanation": "5·(x + 2) = 5x + 10, perquè el factor 5 multiplica la x i també el 2.",
     },
     "PRE-SIGNES": {
         "id": "PRE-SIGNES",
         "concept": "regla_signes_parens",
         "question": "Treu el parèntesi: −(x − 3)",
         "expected_equation_or_expr": "-x + 3",
-        "explanation": "El menys davant canvia el signe de cada terme de dins: −x i +3.",
+        "explanation": "−(x − 3) = −x + 3, perquè el menys de davant canvia el signe de cada terme de dins: la x passa a −x i el −3 passa a +3.",
     },
     "PRE-INV": {
         "id": "PRE-INV",
@@ -177,7 +180,7 @@ PREREQUISITES = {
         # Operacions equivocades per a aquest cas (additiu): rebutgem
         # respostes que parlin de multiplicar o dividir aquí.
         "forbidden_keywords": ["multiplic", "divid"],
-        "explanation": "Per desfer un +3, restem 3 als dos costats.",
+        "explanation": "3 + x = 10 → x = 10 − 3 = 7. Per desfer el +3 restem 3 als dos costats.",
     },
     "PRE-INV-MULT": {
         "id": "PRE-INV-MULT",
@@ -191,7 +194,7 @@ PREREQUISITES = {
         # contesta "multiplico", "sumar" o "restar", la resposta és falsa
         # encara que de retruc inclogui "/3" o similar.
         "forbidden_keywords": ["multiplic", "sumar", "restar"],
-        "explanation": "Per desfer una multiplicació per 3, dividim entre 3 als dos costats.",
+        "explanation": "3·x = 12 → x = 12 : 3 = 4. Per desfer una multiplicació per 3 dividim entre 3 als dos costats.",
     },
     "PRE-EQUIV": {
         "id": "PRE-EQUIV",
