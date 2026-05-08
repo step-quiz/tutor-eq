@@ -119,7 +119,8 @@ def _recent_errors(state: dict, limit: int = 3) -> list:
 def _push_msg(state, kind: str, text: str, target: str = "main"):
     """
     kind:   'system' | 'feedback' | 'hint' | 'warning' | 'prereq' |
-            'discrepancy' | 'worked_example' | 'concrete_step'
+            'discrepancy' | 'worked_example' | 'concrete_step' |
+            'prereq_resolved' | 'prereq_failed'
     target: 'main' (panell principal) | 'prereq' (panell dret quan hi ha
             sub-tasca activa).
     El render decideix on mostrar cada missatge segons el target.
@@ -331,6 +332,13 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
         )
     except Exception as e:
         _push_msg(state, "warning", f"Error de connexió amb la IA: {e}")
+        # IMPORTANT: encara que la IA falli, l'intent ÉS un error (sabem
+        # per equivalència que no és correcte). Hem de gravar-lo a la
+        # història amb una etiqueta genèrica, perquè si no, _last_correct
+        # i el debug runner llegirien el pas previ com a últim — donant
+        # falsament la sensació que aquest intent ha passat com a correcte.
+        _record_step(state, raw_text, parsed_ok=True, verdict="error",
+                     error_label="GEN_other")
         return state
 
     _record_step(state, raw_text, parsed_ok=True,
@@ -524,26 +532,38 @@ def _start_prereq(state, prereq_id, dep_id):
 def _process_prereq_turn(state, raw_text):
     prereq = PB.get_prerequisite(state["active_prereq"])
     correct = _check_prereq_answer(prereq, raw_text)
+    explanation = prereq.get("explanation", "")
+    prereq_id = prereq.get("id", state["active_prereq"])
 
     if correct:
+        # Feedback al panell del prereq abans que es tanqui (l'alumne
+        # encara el veu un instant). El missatge auxiliar persistent va
+        # al viewport principal.
         _push_msg(state, "feedback",
-                  f"Correcte. {prereq.get('explanation','')}",
+                  f"Correcte. {explanation}",
                   target="prereq")
         state["active_prereq"] = None
         state["active_prereq_depth"] = max(0, state["active_prereq_depth"] - 1)
-        # Aquest missatge ja és per al fil principal: el prerequisit s'ha tancat
-        _push_msg(state, "system",
-                  "Has superat el prerequisit. Torna al problema principal.",
+        # Caixa auxiliar visible al viewport principal: l'alumne ha de
+        # quedar amb constància que ha resolt el prereq, però en una
+        # presentació petita perquè no es confongui amb un pas de la
+        # resolució principal de l'equació.
+        _push_msg(state, "prereq_resolved",
+                  f"Prereq {prereq_id}: superat correctament. {explanation}",
                   target="main")
     else:
         _push_msg(state, "feedback",
-                  f"Encara no. {prereq.get('explanation','')}",
+                  f"Encara no. {explanation}",
                   target="prereq")
         state["active_prereq"] = None
         state["active_prereq_depth"] = max(0, state["active_prereq_depth"] - 1)
-        _push_msg(state, "system",
-                  "Tanquem el prerequisit. Continua amb el problema principal "
-                  "tenint en compte l'explicació anterior.",
+        # Cas crític: si la resposta del prereq era incorrecta, NO podem
+        # tancar-ho com si no hagués passat res — l'alumne ha de veure
+        # explícitament que la seva resposta no era correcta i quina era
+        # l'explicació esperada. Aquesta caixa persisteix al viewport.
+        _push_msg(state, "prereq_failed",
+                  f"Prereq {prereq_id}: la teva resposta no era correcta. "
+                  f"L'explicació esperada era — {explanation}",
                   target="main")
     return state
 

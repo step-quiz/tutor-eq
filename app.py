@@ -19,7 +19,7 @@ import api_logger
 st.set_page_config(
     page_title="Tutor IA — equacions lineals",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 # CSS per reduir espai entre l'enunciat i la cadena de la sessió,
@@ -439,6 +439,16 @@ def _render_message(m: dict):
         # Escalada nivell 2: ni el prereq ni l'exemple no han desencallat
         # l'alumne. Donem el pas concret de manera molt directa.
         st.info(f"🎯 **Pas concret:** {text}")
+    elif kind == "prereq_resolved":
+        # Caixa auxiliar de "encert al prereq". Petita, verda, clarament
+        # diferent dels passos del problema principal. L'alumne sap que
+        # ha resolt una tasca paral·lela, no un pas de l'equació original.
+        st.success(f"✓ {text}")
+    elif kind == "prereq_failed":
+        # Caixa auxiliar de "fracàs al prereq". Persistent al viewport
+        # (a diferència del missatge dins del panell del prereq, que es
+        # tanca). Amb l'explicació de la resposta correcta.
+        st.warning(f"✗ {text}")
     elif kind == "warning":
         st.warning(text)
     elif kind == "system":
