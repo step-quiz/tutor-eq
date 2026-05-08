@@ -18,21 +18,73 @@ import api_logger
 
 st.set_page_config(
     page_title="Tutor IA — equacions lineals",
-    layout="centered",
+    layout="wide",
+    initial_sidebar_state="auto",
 )
 
 # CSS per reduir espai entre l'enunciat i la cadena de la sessió,
-# i ajustar marges generals.
+# ajustar marges, i marcar errors en vermell burdeus.
 st.markdown(
     """
     <style>
       hr { margin: 0.6rem 0 !important; }
       .block-container h3 { margin-top: 0.3rem !important; }
       .block-container { padding-top: 2rem !important; }
+
+      /* Equacions amb error: text en vermell burdeus i fons subtil */
+      .eq-error code {
+          background-color: #fbe9eb !important;
+          color: #8a1c2b !important;
+          border: 1px solid #e6b8be;
+          font-weight: 500;
+      }
+      .eq-error .err-label {
+          color: #8a1c2b;
+          font-weight: 500;
+      }
+      /* Limitar amplada del bloc central perquè no s'estiri massa
+         en el layout wide quan no hi ha prerequisit actiu */
+      .main-narrow { max-width: 720px; }
+
+      /* Desactivar autocompletat suggerit del navegador al text_input */
+      input[type="text"] {
+          autocomplete: off;
+      }
     </style>
     """,
     unsafe_allow_html=True,
 )
+
+
+def _collapse_sidebar():
+    """
+    Plega la barra lateral via JS. Streamlit no exposa una API directa per
+    fer-ho dinàmicament, però podem clicar el botó de col·lapse si està
+    visible. S'invoca quan s'inicia una sessió perquè el problema agafi
+    espai central.
+    """
+    st.markdown(
+        """
+        <script>
+          (function() {
+            const tryCollapse = () => {
+              const btn = window.parent.document.querySelector(
+                  '[data-testid="stSidebarCollapseButton"], '
+                  + '[data-testid="stSidebarCollapsedControl"]');
+              if (btn) { btn.click(); return true; }
+              return false;
+            };
+            // Intent immediat i alguns reintents perquè Streamlit pot
+            // re-renderitzar el botó després.
+            if (!tryCollapse()) {
+              setTimeout(tryCollapse, 100);
+              setTimeout(tryCollapse, 300);
+            }
+          })();
+        </script>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 # ------------------------------------------------------------
@@ -45,11 +97,15 @@ def init_state():
         st.session_state.input_counter = 0
     if "retry_messages" not in st.session_state:
         st.session_state.retry_messages = []
+    if "just_started" not in st.session_state:
+        st.session_state.just_started = False
 
 
 def start_session(problem_id: str):
     st.session_state.session = T.new_session_state(problem_id)
     st.session_state.input_counter += 1
+    # Senyalem que cal plegar la sidebar al pròxim render
+    st.session_state.just_started = True
 
 
 # Callback per a la UI: rep avisos de l'API durant els retries
@@ -121,6 +177,12 @@ def render_sidebar():
 # ------------------------------------------------------------
 def render_main():
     s = st.session_state.session
+
+    # Plega la sidebar al primer render després d'iniciar sessió
+    if st.session_state.just_started:
+        _collapse_sidebar()
+        st.session_state.just_started = False
+
     if s is None:
         st.title("Tutor d'equacions lineals")
         st.write("Tria un problema a la barra lateral per començar.")
@@ -133,14 +195,31 @@ def render_main():
         )
         return
 
+    # Decidim layout: si hi ha prerequisit actiu, partim en dues columnes.
+    has_prereq = s["active_prereq"] is not None and s["verdict_final"] is None
+
+    if has_prereq:
+        col_main, col_prereq = st.columns([3, 2], gap="large")
+        with col_main:
+            _render_problem_main(s, input_disabled=True)
+        with col_prereq:
+            _render_prereq_panel(s)
+    else:
+        # Una sola columna centrada (no full-width amb layout=wide)
+        _, col_center, _ = st.columns([1, 3, 1])
+        with col_center:
+            _render_problem_main(s, input_disabled=False)
+
+
+def _render_problem_main(s, input_disabled: bool):
+    """Renderitza el problema principal: capçalera, cadena, missatges, input."""
     # Capçalera del problema
     st.markdown(f"### Problema {s['problem_id']}")
     st.caption(f"Nivell {s['problem']['nivell']} · {s['problem']['tema']}")
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
-    # Cadena d'equacions (l'enunciat és la primera línia, ja no es duplica
-    # com a capçalera "Resol:")
+    # Cadena d'equacions
     st.markdown("**Cadena de la sessió**")
     visible_history = _filter_superseded_errors(s["history"])
     for h in visible_history:
@@ -148,18 +227,31 @@ def render_main():
             st.markdown(f"`{h['text']}`  · *enunciat*")
         else:
             badge = _verdict_badge(h["verdict"])
-            err = f" · {h['error_label']}" if h.get("error_label") else ""
-            st.markdown(f"`{h['text']}`  · {badge}{err}")
+            err_label = h.get("error_label")
+            err = f"<span class='err-label'> · {err_label}</span>" if err_label else ""
+            css_class = "eq-error" if h["verdict"] == "error" else ""
+            st.markdown(
+                f"<div class='{css_class}'>"
+                f"<code>{h['text']}</code>  · {badge}{err}"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
 
     # Indicador discret si hi ha errors amagats
     n_hidden = len(s["history"]) - len(visible_history)
     if n_hidden > 0:
-        st.caption(f"({n_hidden} intent{'s' if n_hidden > 1 else ''} previ{'s' if n_hidden > 1 else ''} superat{'s' if n_hidden > 1 else ''} · visible al rastre JSON)")
+        plural = "s" if n_hidden > 1 else ""
+        st.caption(
+            f"({n_hidden} intent{plural} previ{plural} superat{plural} "
+            f"· visible al rastre JSON)"
+        )
 
-    # Missatges del torn anterior
-    if s.get("messages"):
+    # Missatges del torn anterior dirigits al fil principal
+    main_msgs = [m for m in s.get("messages", [])
+                 if m.get("target", "main") == "main"]
+    if main_msgs:
         st.markdown("<hr>", unsafe_allow_html=True)
-        for m in s["messages"]:
+        for m in main_msgs:
             _render_message(m)
 
     # Sessió tancada
@@ -174,21 +266,56 @@ def render_main():
         _render_trace(s)
         return
 
-    # Input
-    st.markdown("<hr>", unsafe_allow_html=True)
-    if s["active_prereq"] is not None:
-        prereq = PB.get_prerequisite(s["active_prereq"])
-        st.markdown(f"**Pregunta del prerequisit:** {prereq['question']}")
+    if input_disabled:
+        # Hi ha prerequisit actiu: l'input principal queda desactivat,
+        # l'alumne ha de respondre primer al panell dret.
+        st.markdown("<hr>", unsafe_allow_html=True)
+        st.caption(
+            "Respon primer la pregunta del prerequisit a la dreta. "
+            "Després tornaràs a aquest problema."
+        )
+        return
 
-    # Form: tecla Enter equival a clicar Enviar (millora 4)
-    key_in = f"input_{st.session_state.input_counter}"
-    key_form = f"form_{st.session_state.input_counter}"
-    with st.form(key=key_form, clear_on_submit=False):
-        raw = st.text_input("La teva resposta:", key=key_in)
+    # Input principal
+    st.markdown("<hr>", unsafe_allow_html=True)
+    _render_input_form(s, key_prefix="main")
+
+
+def _render_prereq_panel(s):
+    """Panell dret per a la sub-tasca del prerequisit."""
+    prereq = PB.get_prerequisite(s["active_prereq"])
+    st.markdown("### ↻ Prerequisit")
+    st.caption(prereq.get("concept", ""))
+
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.markdown(f"**{prereq['question']}**")
+
+    # Missatges propis del prerequisit
+    prereq_msgs = [m for m in s.get("messages", [])
+                   if m.get("target", "main") == "prereq"]
+    for m in prereq_msgs:
+        _render_message(m)
+
+    st.markdown("<hr>", unsafe_allow_html=True)
+    _render_input_form(s, key_prefix="prereq")
+
+
+def _render_input_form(s, key_prefix: str):
+    """Form d'input. Comú al fil principal i al prerequisit."""
+    key_in = f"input_{key_prefix}_{st.session_state.input_counter}"
+    key_form = f"form_{key_prefix}_{st.session_state.input_counter}"
+    with st.form(key=key_form, clear_on_submit=True):
+        # autocomplete="new-password" és el truc canònic per dir al navegador
+        # que NO mostri valors anteriors. "off" tot sol és ignorat per molts
+        # navegadors moderns (Chrome especialment).
+        raw = st.text_input(
+            "La teva resposta:",
+            key=key_in,
+            autocomplete="new-password",
+        )
         submit = st.form_submit_button("Enviar", type="primary")
 
     if submit and raw:
-        # Reset retry messages abans de cada torn
         st.session_state.retry_messages = []
         spinner_text = (
             "Avaluant... (amb gemini-2.5-pro pot trigar uns segons; el model "

@@ -84,11 +84,15 @@ def _last_correct_step_text(state: dict) -> str:
     return state["problem"]["equacio_text"]
 
 
-def _push_msg(state, kind: str, text: str):
+def _push_msg(state, kind: str, text: str, target: str = "main"):
     """
-    kind: 'system' | 'feedback' | 'hint' | 'warning' | 'prereq' | 'discrepancy'
+    kind:   'system' | 'feedback' | 'hint' | 'warning' | 'prereq' | 'discrepancy'
+    target: 'main' (panell principal) | 'prereq' (panell dret quan hi ha
+            sub-tasca activa).
+    El render decideix on mostrar cada missatge segons el target.
     """
-    state["messages"].append({"kind": kind, "text": text, "ts": time.time()})
+    state["messages"].append({"kind": kind, "text": text,
+                              "target": target, "ts": time.time()})
 
 
 def _record_step(state, text, parsed_ok, verdict, error_label=None):
@@ -325,10 +329,10 @@ def _post_verdict_bookkeeping(state, verdict, original_text):
 # ------------------------------------------------------------
 def _handle_help(state):
     if state["active_prereq"] is not None:
-        # Pista al context del prerequisit (simple)
         prereq = PB.get_prerequisite(state["active_prereq"])
         _push_msg(state, "hint", prereq.get("explanation",
-                  "Pensa en la definició del concepte."))
+                  "Pensa en la definició del concepte."),
+                  target="prereq")
         state["hints_requested"].append({
             "step_after": len(state["history"]) - 1,
             "context": "prerequisit",
@@ -378,7 +382,8 @@ def _start_prereq(state, prereq_id, dep_id):
 
     prereq = PB.get_prerequisite(prereq_id)
     _push_msg(state, "prereq",
-              f"Treballem primer un prerequisit: {prereq['question']}")
+              "Cal treballar abans un prerequisit (panell dret).",
+              target="main")
 
 
 def _process_prereq_turn(state, raw_text):
@@ -387,19 +392,24 @@ def _process_prereq_turn(state, raw_text):
 
     if correct:
         _push_msg(state, "feedback",
-                  f"Correcte. {prereq.get('explanation','')}")
-        _push_msg(state, "system",
-                  "Tornem al problema original.")
+                  f"Correcte. {prereq.get('explanation','')}",
+                  target="prereq")
         state["active_prereq"] = None
         state["active_prereq_depth"] = max(0, state["active_prereq_depth"] - 1)
+        # Aquest missatge ja és per al fil principal: el prerequisit s'ha tancat
+        _push_msg(state, "system",
+                  "Has superat el prerequisit. Torna al problema principal.",
+                  target="main")
     else:
         _push_msg(state, "feedback",
-                  f"Encara no. {prereq.get('explanation','')}")
-        # En aquest MVP, no fem retrocés en cadena dins del prerequisit:
-        # tanquem amb l'explicació mostrada i tornem al problema.
-        _push_msg(state, "system", "Tornem al problema original.")
+                  f"Encara no. {prereq.get('explanation','')}",
+                  target="prereq")
         state["active_prereq"] = None
         state["active_prereq_depth"] = max(0, state["active_prereq_depth"] - 1)
+        _push_msg(state, "system",
+                  "Tanquem el prerequisit. Continua amb el problema principal "
+                  "tenint en compte l'explicació anterior.",
+                  target="main")
     return state
 
 
