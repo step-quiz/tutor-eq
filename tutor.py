@@ -7,6 +7,7 @@ No depèn de Streamlit (es podria provar des d'un script o des d'un test).
 Funció principal: process_turn(state, raw_input) → updated state.
 """
 
+import copy
 import json
 import time
 from datetime import datetime, timezone
@@ -576,3 +577,121 @@ def build_trace(state: dict) -> dict:
 
 def serialize_trace(state: dict) -> str:
     return json.dumps(build_trace(state), ensure_ascii=False, indent=2)
+
+
+# ------------------------------------------------------------
+# Mode debug: test exhaustiu del flux end-to-end
+# ------------------------------------------------------------
+def run_exhaustive_test(problem_id: str, on_progress=None) -> list:
+    """
+    Executa una bateria de rondes de prova contra el tutor per a un
+    problema. Per a cada ronda:
+      - Es prova cada input contra una còpia profunda del baseline.
+      - El primer input de cada ronda ha de ser una resposta correcta.
+      - Després dels tests, el baseline avança usant aquesta resposta
+        correcta i passem a la ronda següent.
+
+    No modifica cap estat compartit: tot es fa sobre còpies. El baseline
+    parteix sempre de l'enunciat (no de l'estat actual de la sessió),
+    perquè els tests siguin reproduïbles.
+
+    `on_progress(round_idx, n_rounds, input_idx, n_inputs)`: callback
+    opcional que la UI pot usar per mostrar progrés (cada input pot
+    trigar segons depenent del model).
+
+    Retorna una llista de dicts (un per ronda) amb la forma:
+        {
+          "round": int,
+          "from_eq": str,        # equació de partida d'aquesta ronda
+          "items": [
+              {
+                "input": str,
+                "expected": "correct" | "error",
+                "verdict": str,
+                "error_label": str | None,
+                "feedback": str,
+                "prereq_triggered": str | None,
+                "prereq_question": str | None,
+                "match": bool,    # esperat coincideix amb obtingut?
+                "exception": str | None,
+              },
+              ...
+          ]
+        }
+    """
+    rounds = PB.get_test_cases(problem_id)
+    if not rounds:
+        return []
+
+    baseline = new_session_state(problem_id, student_id="__debug__")
+    all_results = []
+
+    for round_idx, round_inputs in enumerate(rounds, start=1):
+        from_eq = baseline["history"][-1]["text"]
+        round_data = {"round": round_idx, "from_eq": from_eq, "items": []}
+
+        for input_idx, raw_input in enumerate(round_inputs):
+            if on_progress is not None:
+                try:
+                    on_progress(round_idx, len(rounds),
+                                input_idx + 1, len(round_inputs))
+                except Exception:
+                    pass
+
+            expected = "correct" if input_idx == 0 else "error"
+            test_state = copy.deepcopy(baseline)
+            item = {
+                "input": raw_input,
+                "expected": expected,
+                "verdict": None,
+                "error_label": None,
+                "feedback": "",
+                "prereq_triggered": None,
+                "prereq_question": None,
+                "match": False,
+                "exception": None,
+            }
+            try:
+                process_turn(test_state, raw_input)
+            except Exception as e:
+                item["exception"] = str(e)
+                round_data["items"].append(item)
+                continue
+
+            last = test_state["history"][-1] if test_state["history"] else {}
+            verdict = last.get("verdict", "?")
+            item["verdict"] = verdict
+            item["error_label"] = last.get("error_label")
+
+            feedbacks = [m["text"] for m in test_state.get("messages", [])
+                         if m.get("kind") == "feedback"]
+            item["feedback"] = feedbacks[0] if feedbacks else ""
+
+            prereq_id = test_state.get("active_prereq")
+            item["prereq_triggered"] = prereq_id
+            if prereq_id:
+                pq = PB.get_prerequisite(prereq_id)
+                if pq:
+                    item["prereq_question"] = pq.get("question")
+
+            # Coincidència esperat vs obtingut: simplifiquem a "correcte"
+            # vs "error". Distingim una excepció, que sempre és un mismatch.
+            is_correct = verdict in ("correcte_progres", "correcte_estancat")
+            is_error = verdict in ("error", "no_math")
+            if expected == "correct":
+                item["match"] = is_correct
+            else:
+                item["match"] = is_error
+
+            round_data["items"].append(item)
+
+        all_results.append(round_data)
+
+        # Avançar el baseline amb la resposta correcta cap a la ronda
+        # següent. Si falla, no té sentit continuar.
+        try:
+            process_turn(baseline, round_inputs[0])
+        except Exception:
+            break
+
+    return all_results

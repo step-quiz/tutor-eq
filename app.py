@@ -105,11 +105,20 @@ def init_state():
         st.session_state.input_counter = 0
     if "retry_messages" not in st.session_state:
         st.session_state.retry_messages = []
+    if "test_results" not in st.session_state:
+        st.session_state.test_results = None
+    if "test_problem_id" not in st.session_state:
+        st.session_state.test_problem_id = None
 
 
 def start_session(problem_id: str):
     st.session_state.session = T.new_session_state(problem_id)
     st.session_state.input_counter += 1
+    # Si canviem de problema, els resultats del test anterior ja no
+    # corresponen — els netegem.
+    if st.session_state.test_problem_id != problem_id:
+        st.session_state.test_results = None
+        st.session_state.test_problem_id = None
 
 
 # Callback per a la UI: rep avisos de l'API durant els retries
@@ -172,8 +181,48 @@ def render_sidebar():
                     T.process_turn(s, "!!")
                     st.rerun()
 
+            # Mode debug: test exhaustiu
+            st.markdown("---")
+            st.markdown("**Mode debug**")
+            n_rounds = len(PB.get_test_cases(s["problem_id"]) or [])
+            if n_rounds == 0:
+                st.caption("No hi ha casos de test definits per a aquest problema.")
+            else:
+                st.caption(
+                    f"Executa {n_rounds} ronda(es) amb inputs sintètics. "
+                    "Fa moltes crides a la IA — pot trigar i té cost."
+                )
+                if st.button("🧪 Test exhaustiu",
+                             key="test_btn",
+                             use_container_width=True):
+                    _run_test_and_store(s["problem_id"])
+                    st.rerun()
+                if st.session_state.get("test_results"):
+                    if st.button("Tanca resultats del test",
+                                 key="clear_test_btn",
+                                 use_container_width=True):
+                        st.session_state.test_results = None
+                        st.rerun()
+
         st.markdown("---")
         st.caption(f"Log: `{api_logger.get_log_path()}`")
+
+
+def _run_test_and_store(problem_id: str):
+    """Executa el test exhaustiu i guarda els resultats a session_state."""
+    progress_box = st.empty()
+
+    def on_progress(r_idx, n_rounds, i_idx, n_inputs):
+        progress_box.info(
+            f"Test exhaustiu: ronda {r_idx}/{n_rounds}, "
+            f"input {i_idx}/{n_inputs}..."
+        )
+
+    with st.spinner("Executant test exhaustiu (pot trigar uns minuts)..."):
+        results = T.run_exhaustive_test(problem_id, on_progress=on_progress)
+    progress_box.empty()
+    st.session_state.test_results = results
+    st.session_state.test_problem_id = problem_id
 
 
 # ------------------------------------------------------------
@@ -208,6 +257,12 @@ def render_main():
         _, col_center, _ = st.columns([1, 3, 1])
         with col_center:
             _render_problem_main(s, input_disabled=False)
+
+    # Si hi ha resultats d'un test exhaustiu per a aquest problema, els
+    # mostrem sota la columna principal (full-width perquè la taula respiri).
+    if (st.session_state.get("test_results")
+            and st.session_state.get("test_problem_id") == s["problem_id"]):
+        _render_test_results(st.session_state.test_results)
 
 
 def _render_problem_main(s, input_disabled: bool):
@@ -391,6 +446,59 @@ def _render_message(m: dict):
 def _render_trace(s):
     with st.expander("Veure rastre JSON de la sessió"):
         st.code(T.serialize_trace(s), language="json")
+
+
+def _render_test_results(rounds: list):
+    """
+    Mostra els resultats del test exhaustiu sota la columna principal.
+    Cada ronda és una secció: una capçalera amb l'equació de partida i
+    una taula de fila per input amb veredicte i comparació esperat/got.
+    """
+    st.markdown("---")
+    n_total = sum(len(r["items"]) for r in rounds)
+    n_match = sum(1 for r in rounds for it in r["items"] if it["match"])
+    title_emoji = "✅" if n_match == n_total else "⚠️"
+    st.markdown(f"### {title_emoji} Test exhaustiu — {n_match}/{n_total} OK")
+    st.caption(
+        "Cada ronda parteix d'un estat fresc del problema (no afecta la "
+        "sessió actual). El primer input és la resposta correcta esperada; "
+        "els altres són errors versemblants. ✅ = veredicte coherent amb "
+        "l'esperat; ❌ = mismatch que cal investigar."
+    )
+
+    for r in rounds:
+        st.markdown(
+            f"**Ronda {r['round']}** — des de `{r['from_eq']}`"
+        )
+        for it in r["items"]:
+            mark = "✅" if it["match"] else "❌"
+            verdict = it.get("verdict") or "?"
+            label = it.get("error_label")
+            label_str = f" · `{label}`" if label else ""
+            expected = it["expected"]
+            exp_short = "correcte" if expected == "correct" else "error"
+
+            line = (
+                f"{mark} `{it['input']}`  →  **{verdict}**{label_str}  "
+                f"_(esperat: {exp_short})_"
+            )
+            st.markdown(line)
+            if it.get("feedback"):
+                st.markdown(
+                    f"<div style='margin-left:1.6rem;color:#555;"
+                    f"font-size:0.9em'>↳ {it['feedback']}</div>",
+                    unsafe_allow_html=True,
+                )
+            if it.get("prereq_triggered"):
+                st.markdown(
+                    f"<div style='margin-left:1.6rem;color:#555;"
+                    f"font-size:0.9em'>↻ Prereq <b>{it['prereq_triggered']}</b>: "
+                    f"{it.get('prereq_question','')}</div>",
+                    unsafe_allow_html=True,
+                )
+            if it.get("exception"):
+                st.error(f"Excepció: {it['exception']}")
+        st.markdown("")
 
 
 # ------------------------------------------------------------

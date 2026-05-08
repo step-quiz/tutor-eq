@@ -247,3 +247,47 @@ def get_prerequisite(prereq_id):
 
 def get_dependency(dep_id):
     return DEPENDENCIES.get(dep_id)
+
+
+# ---------- Casos de test per al mode debug ("Test exhaustiu") ----------
+# Cada problema té una llista de rondes. Cada ronda és una llista d'inputs:
+# el PRIMER ha de ser una resposta correcta que avança cap a la solució;
+# els altres són errors versemblants. El test runner usa el primer per
+# avançar el baseline d'una ronda a la següent.
+#
+# Aquests casos es trien per cobrir els errors típics del catàleg:
+# distribució parcial, transposició sense canvi de signe, confusió
+# d'operació inversa, errors aritmètics/tipogràfics, variable aliena, etc.
+TEST_CASES = {
+    "EQ1-A-001": [
+        # Des de x + 7 = 12  (solució: x = 5)
+        ["x = 5", "x = 19", "x = -5", "x + 7 = 5", "y = 5"],
+    ],
+    "EQ2-A-001": [
+        # Des de 3x − 5 = 10
+        ["3x = 15", "3x = 5", "3x = -15", "3x - 5 = 15"],
+        # Des de 3x = 15
+        ["x = 5", "x = -5", "x = 12", "x = 45", "3x = 5"],
+    ],
+    "EQ3-A-001": [
+        # Des de 3(x − 4) = 9
+        ["3x - 12 = 9", "3x - 7 = 9", "3x + 12 = 9", "3z - 12 = 9", "3x - 12 = 8"],
+        # Des de 3x − 12 = 9
+        ["3x = 21", "3x = -21", "-9x = 9", "3x = 108"],
+        # Des de 3x = 21
+        ["x = 7", "3x = -7", "x = 18", "3x = -18", "x = 21"],
+    ],
+    "EQ4-B-001": [
+        # Des de x/2 + x/3 = 5  (mcm = 6)
+        ["3x + 2x = 30", "3x + 2x = 5", "x + x = 30", "5x = 5"],
+        # Des de 3x + 2x = 30
+        ["5x = 30", "5x = 5", "6x = 30", "x^2 = 30"],
+        # Des de 5x = 30
+        ["x = 6", "x = 25", "x = -6", "x = 35", "5x = 6"],
+    ],
+}
+
+
+def get_test_cases(problem_id):
+    """Retorna la llista de rondes de test per a un problema, o None."""
+    return TEST_CASES.get(problem_id)
