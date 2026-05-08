@@ -46,11 +46,24 @@ st.markdown(
          en el layout wide quan no hi ha prerequisit actiu */
       .main-narrow { max-width: 720px; }
 
-      /* Desactivar autocompletat suggerit del navegador al text_input */
-      input[type="text"] {
-          autocomplete: off;
-      }
     </style>
+    <script>
+    /* Desactivar l'autocompletat del navegador als text_input de Streamlit.
+       Streamlit no exposa l'atribut 'autocomplete' directament, per tant
+       cal injectar-lo via JS amb un MutationObserver que vigili el DOM. */
+    (function() {
+        function applyNoAutocomplete() {
+            document.querySelectorAll('input[type="text"]').forEach(function(el) {
+                if (el.getAttribute('autocomplete') !== 'off') {
+                    el.setAttribute('autocomplete', 'off');
+                }
+            });
+        }
+        var observer = new MutationObserver(applyNoAutocomplete);
+        observer.observe(document.body, { childList: true, subtree: true });
+        applyNoAutocomplete();
+    })();
+    </script>
     """,
     unsafe_allow_html=True,
 )
@@ -267,13 +280,10 @@ def _render_input_form(s, key_prefix: str):
     key_in = f"input_{key_prefix}_{st.session_state.input_counter}"
     key_form = f"form_{key_prefix}_{st.session_state.input_counter}"
     with st.form(key=key_form, clear_on_submit=True):
-        # autocomplete="new-password" és el truc canònic per dir al navegador
-        # que NO mostri valors anteriors. "off" tot sol és ignorat per molts
-        # navegadors moderns (Chrome especialment).
+        # L'autocomplete es desactiva via el MutationObserver injectat a la capçalera.
         raw = st.text_input(
             "La teva resposta:",
             key=key_in,
-            autocomplete="new-password",
         )
         submit = st.form_submit_button("Enviar", type="primary")
 
