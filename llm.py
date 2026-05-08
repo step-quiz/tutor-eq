@@ -31,8 +31,7 @@ from google import genai
 from google.genai import types
 
 import api_logger
-
-MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-pro")
+MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 MAX_TOKENS = 400
 
 IS_THINKING_MODEL = "pro" in MODEL.lower()
