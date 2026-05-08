@@ -45,14 +45,51 @@ st.markdown(
       /* Limitar amplada del bloc central perquè no s'estiri massa
          en el layout wide quan no hi ha prerequisit actiu */
       .main-narrow { max-width: 720px; }
-
-      /* Desactivar autocompletat suggerit del navegador al text_input */
-      input[type="text"] {
-          autocomplete: off;
-      }
     </style>
     """,
     unsafe_allow_html=True,
+)
+
+
+# Injecció de JS per desactivar les suggerències del navegador i del teclat
+# del mòbil als camps de text. Els atributs `autocorrect`, `autocapitalize`
+# i `spellcheck` no es poden passar a `st.text_input`, per això els fixem
+# directament al DOM amb un MutationObserver. A més, randomitzem el `name`
+# de cada input perquè els navegadors no associïn entrades antigues amb
+# el camp actual (és el principal motiu pel qual s'arribaven a veure
+# valors com "x=5", "3x-12=9", etc. al teclat del mòbil).
+import streamlit.components.v1 as _components
+
+_components.html(
+    """
+    <script>
+    (function() {
+        const targetDoc = window.parent.document;
+        function suppressSuggestions() {
+            const inputs = targetDoc.querySelectorAll(
+                'input[type="text"], textarea'
+            );
+            inputs.forEach((input) => {
+                if (input.dataset.noSuggest === '1') return;
+                input.setAttribute('autocomplete', 'off');
+                input.setAttribute('autocorrect', 'off');
+                input.setAttribute('autocapitalize', 'off');
+                input.setAttribute('spellcheck', 'false');
+                // Nom aleatori: derrota la coincidència per historial.
+                input.setAttribute(
+                    'name',
+                    'in_' + Math.random().toString(36).slice(2)
+                );
+                input.dataset.noSuggest = '1';
+            });
+        }
+        suppressSuggestions();
+        const obs = new MutationObserver(suppressSuggestions);
+        obs.observe(targetDoc.body, { childList: true, subtree: true });
+    })();
+    </script>
+    """,
+    height=0,
 )
 
 
@@ -267,13 +304,14 @@ def _render_input_form(s, key_prefix: str):
     key_in = f"input_{key_prefix}_{st.session_state.input_counter}"
     key_form = f"form_{key_prefix}_{st.session_state.input_counter}"
     with st.form(key=key_form, clear_on_submit=True):
-        # autocomplete="new-password" és el truc canònic per dir al navegador
-        # que NO mostri valors anteriors. "off" tot sol és ignorat per molts
-        # navegadors moderns (Chrome especialment).
+        # `autocomplete="off"` ja s'aplica també des del JS injectat al cap
+        # de l'app (juntament amb autocorrect / autocapitalize / spellcheck
+        # i un name aleatori). El passem aquí com a defensa redundant per
+        # si el script no s'arriba a executar.
         raw = st.text_input(
             "La teva resposta:",
             key=key_in,
-            autocomplete="new-password",
+            autocomplete="off",
         )
         submit = st.form_submit_button("Enviar", type="primary")
 

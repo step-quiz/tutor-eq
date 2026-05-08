@@ -14,8 +14,17 @@ Ref: Document de disseny - Fase 0, seccions 2, 3, 4.
 # Cada entrada: id -> descripció breu (en anglès, per als prompts a la IA)
 ERROR_CATALOG = {
     # Nivell 1
-    "L1_inverse_op": "confused inverse operation (subtracted instead of added or vice versa)",
-    "L1_sign_error": "sign error in basic transposition",
+    "L1_inverse_op": (
+        "confused inverse operation: applied an additive inverse where a "
+        "multiplicative one was needed (or vice versa). E.g. from 3x = 21 "
+        "writing x = 18 (subtracted 3 instead of dividing by 3), or from "
+        "x + 5 = 12 writing x = 17 (added 5 instead of subtracting). The "
+        "TYPE of operation chosen is wrong, not just its sign."
+    ),
+    "L1_sign_error": (
+        "sign error in basic transposition or division: the right operation "
+        "was chosen but the result has the wrong sign (e.g. 5x = 30 → x = -6)"
+    ),
     # Nivell 2
     "L2_order": "wrong order: divided/multiplied before adding/subtracting the constant term",
     "L2_transpose_sign": "transposed a term to the other side keeping the same sign instead of inverting it",
