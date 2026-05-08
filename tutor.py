@@ -91,6 +91,31 @@ def _last_correct_step_text(state: dict) -> str:
     return state["problem"]["equacio_text"]
 
 
+def _recent_errors(state: dict, limit: int = 3) -> list:
+    """
+    Retorna els darrers `limit` intents amb veredicte 'error', en ordre
+    cronològic (el més recent al final), cadascun com a dict
+    {"text": ..., "error_label": ...}.
+
+    Aquesta funció dóna a la IA visió del PATRÓ de la sessió: amb la
+    classificació individual d'errors no es pot detectar que l'alumne
+    està repetint el mateix tipus de fallada; passant els errors recents
+    com a context, la IA pot pujar-li la confiança al diagnòstic
+    conceptual i adaptar el missatge ("tornes a fer el mateix tipus
+    d'error" en lloc de "has fallat").
+    """
+    out = []
+    for h in reversed(state["history"]):
+        if h.get("verdict") == "error":
+            out.append({
+                "text": h["text"],
+                "error_label": h.get("error_label"),
+            })
+            if len(out) >= limit:
+                break
+    return list(reversed(out))
+
+
 def _push_msg(state, kind: str, text: str, target: str = "main"):
     """
     kind:   'system' | 'feedback' | 'hint' | 'warning' | 'prereq' |
@@ -292,12 +317,17 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
     # es centri en la transformació local (last_correct → attempt) i no
     # confongui errors aritmètics simples amb errors de distribució a
     # només perquè l'enunciat tingui parèntesis.
+    # També li passem els errors recents (Move 1): així pot detectar
+    # patrons (p. ex. tres distribucions parcials seguides) i ajustar
+    # tant la classificació com el to del missatge.
     last_correct = _last_correct_step_text(state)
+    recent_err = _recent_errors(state, limit=3)
     try:
         ce = L.classify_error(
             original_text, last_correct, raw_text,
             PB.ERROR_CATALOG,
             state["problem"]["dependencies"],
+            recent_errors=recent_err,
         )
     except Exception as e:
         _push_msg(state, "warning", f"Error de connexió amb la IA: {e}")
@@ -344,9 +374,16 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
             elif streak == 2:
                 # 2a errada del mateix concepte: el prereq no ha
                 # desbloquejat l'alumne; canvi de tàctica a exemple resolt.
+                # Passem els intents equivocats recents (Move 2) com a
+                # anti-exemples: la IA ha d'evitar triar un cas l'aspecte
+                # del qual coincideixi amb el que l'alumne ha escrit
+                # malament, perquè això reforçaria el patró erroni.
+                recent_wrong = [e["text"]
+                                for e in _recent_errors(state, limit=3)]
                 try:
                     msg = L.generate_worked_example(
                         last_correct, original_text, concept_desc,
+                        recent_wrong_attempts=recent_wrong,
                     )
                     _push_msg(state, "worked_example", msg)
                 except Exception as e:
@@ -355,9 +392,12 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
             else:  # streak >= 3
                 # 3a o més: ni el prereq ni l'exemple han funcionat;
                 # diem explícitament què cal fer al pas següent.
+                recent_wrong = [e["text"]
+                                for e in _recent_errors(state, limit=3)]
                 try:
                     msg = L.generate_concrete_step(
                         last_correct, original_text, concept_desc,
+                        recent_wrong_attempts=recent_wrong,
                     )
                     _push_msg(state, "concrete_step", msg)
                 except Exception as e:

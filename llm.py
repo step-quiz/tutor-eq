@@ -248,7 +248,14 @@ def judge_progress(prev_eq_text, new_eq_text, target_solution):
 # Crida 2: classificar error
 # ============================================================
 def classify_error(original_eq_text, last_correct_step_text,
-                   attempted_eq_text, error_catalog, problem_dependencies):
+                   attempted_eq_text, error_catalog, problem_dependencies,
+                   recent_errors=None):
+    """
+    `recent_errors` és una llista (opcional) de dicts {text, error_label}
+    amb els errors anteriors d'aquesta sessió, en ordre cronològic. Permet
+    a la IA detectar patrons (errors repetits del mateix tipus) i pujar la
+    confiança del diagnòstic conceptual quan correspon.
+    """
     catalog_str = "\n".join(f"  - {k}: {v}" for k, v in error_catalog.items())
     deps_str = ", ".join(problem_dependencies) if problem_dependencies else "(none)"
 
@@ -265,6 +272,9 @@ def classify_error(original_eq_text, last_correct_step_text,
         "the original) that the student had reached before this wrong attempt. "
         "If no valid step exists yet, this equals the original."
         "\n - 'Student's attempt': the wrong equation."
+        "\n - 'Recent errors' (optional): earlier wrong attempts in this "
+        "same problem with their assigned labels, in chronological order. "
+        "Use them to detect PATTERNS — see rule 6 below."
         "\n\n"
         "CRITICAL CLASSIFICATION RULES:"
         "\n 1. The relevant transformation is from 'Last correct step' to "
@@ -324,6 +334,17 @@ def classify_error(original_eq_text, last_correct_step_text,
         "L3_distribution_partial and L4_mcm_partial are NOT applicable, even "
         "if the original equation had them."
         "\n 5. If you can't pinpoint the error, use GEN_other."
+        "\n 6. PATTERN AWARENESS: when 'Recent errors' shows the same kind of "
+        "mistake repeating (e.g. multiple L3_distribution_partial in a row, or "
+        "a sequence of attempts that all fail the same operation type), this "
+        "is strong evidence of a CONCEPTUAL GAP, not a slip. In such cases:"
+        "\n    - Strongly prefer is_conceptual=true."
+        "\n    - The new error is most likely the SAME kind as the recent ones "
+        "unless the structure of the attempt clearly indicates otherwise — "
+        "do not switch labels arbitrarily."
+        "\n    - Phrase the message acknowledging the recurrence (e.g. 'Tornes "
+        "a tenir el mateix tipus de dificultat amb…') instead of treating it "
+        "as an isolated fall."
         "\n\n"
         "Error catalog (full list of valid labels):\n" + catalog_str +
         "\n\n"
@@ -382,10 +403,24 @@ def classify_error(original_eq_text, last_correct_step_text,
         "\"short_msg\": \"<short message in Catalan>\""
         "}"
     )
+    # Bloc opcional amb els errors anteriors d'aquesta sessió.
+    if recent_errors:
+        recent_lines = []
+        for i, e in enumerate(recent_errors, start=1):
+            label = e.get("error_label") or "?"
+            recent_lines.append(f"  {i}. \"{e['text']}\" → labeled {label}")
+        recent_block = (
+            "\n\nRecent errors by this student on this problem (chronological, "
+            "most recent last):\n" + "\n".join(recent_lines)
+        )
+    else:
+        recent_block = ""
+
     user = (
         f"Original equation: {original_eq_text}\n"
         f"Last correct step: {last_correct_step_text}\n"
-        f"Student's attempt: {attempted_eq_text}\n\n"
+        f"Student's attempt: {attempted_eq_text}"
+        f"{recent_block}\n\n"
         f"Classify the error in the transformation from 'Last correct step' "
         f"to 'Student's attempt'."
     )
@@ -468,12 +503,18 @@ def generate_hint(original_eq_text, history_text, target_solution):
 # Crida 5: exemple resolt (escalada nivell 1 — streak == 2)
 # ============================================================
 def generate_worked_example(last_correct_eq_text, original_eq_text,
-                            concept_description):
+                            concept_description, recent_wrong_attempts=None):
     """
     L'alumne s'ha equivocat dues vegades amb el mateix concepte i el
     prerequisit no l'ha desbloquejat. Genera un exemple resolt curt amb
     una equació anàloga (números diferents) que demostri concretament
     l'operació. Acaba convidant l'alumne a aplicar-ho al seu cas.
+
+    `recent_wrong_attempts`: llista opcional dels últims intents
+    equivocats de l'alumne en aquest mateix problema. Es passen com a
+    ANTI-EXEMPLES: la IA ha d'evitar triar un cas la forma del qual
+    coincideixi visualment amb les respostes errònies, perquè això
+    reforçaria el patró equivocat.
     """
     system = (
         "You are a math tutor for a 13-year-old student stuck on a linear "
@@ -515,14 +556,34 @@ def generate_worked_example(last_correct_eq_text, original_eq_text,
         "\n - For 'apply to both sides' concepts (L2_one_side_only / "
         "principi_equiv), the example must show the operation applied to "
         "BOTH sides explicitly (e.g. 4y = 20 → 4y : 4 = 20 : 4 → y = 5)."
+        "\n\nANTI-EXAMPLE GUARD:"
+        "\nIf the user message contains a list of 'Recent wrong attempts', "
+        "you MUST avoid choosing an example whose visual form looks like any "
+        "of those wrong answers. The example must CONTRADICT the wrong "
+        "pattern, not coincide with it. For instance, if the student wrote "
+        "'3x + 12' as a wrong answer to a parenthesis-with-subtraction "
+        "problem, never produce an example that ends with 'ax + b' — that "
+        "would visually validate their mistake. Pick a form that visibly "
+        "produces the OPPOSITE structure."
         "\n\nOutput ONLY the worked example text, no preamble, no JSON."
     )
+    if recent_wrong_attempts:
+        attempts_block = (
+            "\nRecent wrong attempts by this student (treat as anti-examples "
+            "— do NOT pick a worked example whose visual form matches any of "
+            "these):\n"
+            + "\n".join(f"  - {a}" for a in recent_wrong_attempts)
+        )
+    else:
+        attempts_block = ""
+
     user = (
         f"Concept the student is missing: {concept_description}\n"
         f"Original problem (do NOT solve, do NOT reuse its numbers): "
         f"{original_eq_text}\n"
         f"Student's last correct step (which is where they got stuck): "
-        f"{last_correct_eq_text}\n\n"
+        f"{last_correct_eq_text}"
+        f"{attempts_block}\n\n"
         f"Write the worked example."
     )
     raw = _call_text(system, user, max_tokens=220,
@@ -534,12 +595,17 @@ def generate_worked_example(last_correct_eq_text, original_eq_text,
 # Crida 6: pas concret directe (escalada nivell 2 — streak >= 3)
 # ============================================================
 def generate_concrete_step(last_correct_eq_text, original_eq_text,
-                           concept_description):
+                           concept_description, recent_wrong_attempts=None):
     """
     L'alumne ha fallat tres o més vegades el mateix concepte; ni el
     prereq ni l'exemple resolt han funcionat. Indica explícitament
     quina operació ha de fer al pas següent sobre la SEVA equació, però
     encara li deixem fer l'aritmètica perquè conservi sentit d'agència.
+
+    `recent_wrong_attempts`: llista opcional dels intents equivocats
+    recents. Es passen perquè la IA pugui fer una instrucció dirigida
+    que contradigui explícitament el patró equivocat de l'alumne (per
+    exemple: "no restis 3 com has provat abans, divideix per 3").
     """
     system = (
         "You are a math tutor for a 13-year-old student. They are stuck: "
@@ -558,12 +624,25 @@ def generate_concrete_step(last_correct_eq_text, original_eq_text,
         "\n - Refer to the operation in concrete terms ('divideix els dos "
         "costats per 3', 'resta 5 als dos costats')."
         "\n - End by asking them to write the resulting equation."
+        "\n - If the user message includes 'Recent wrong attempts', you may "
+        "briefly contrast the correct operation with what they've been "
+        "trying (e.g. 'no és restar com has provat, sinó dividir'). Be "
+        "concise and not accusatory."
         "\n\nOutput ONLY the instruction text, no preamble, no JSON."
     )
+    if recent_wrong_attempts:
+        attempts_block = (
+            "\nRecent wrong attempts by this student:\n"
+            + "\n".join(f"  - {a}" for a in recent_wrong_attempts)
+        )
+    else:
+        attempts_block = ""
+
     user = (
         f"Concept the student is missing: {concept_description}\n"
         f"Original problem: {original_eq_text}\n"
-        f"Student's last correct equation: {last_correct_eq_text}\n\n"
+        f"Student's last correct equation: {last_correct_eq_text}"
+        f"{attempts_block}\n\n"
         f"Write the directive instruction for the next step."
     )
     raw = _call_text(system, user, max_tokens=180,
