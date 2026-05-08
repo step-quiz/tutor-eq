@@ -247,7 +247,8 @@ def judge_progress(prev_eq_text, new_eq_text, target_solution):
 # ============================================================
 # Crida 2: classificar error
 # ============================================================
-def classify_error(original_eq_text, attempted_eq_text, error_catalog, problem_dependencies):
+def classify_error(original_eq_text, last_correct_step_text,
+                   attempted_eq_text, error_catalog, problem_dependencies):
     catalog_str = "\n".join(f"  - {k}: {v}" for k, v in error_catalog.items())
     deps_str = ", ".join(problem_dependencies) if problem_dependencies else "(none)"
 
@@ -256,30 +257,44 @@ def classify_error(original_eq_text, attempted_eq_text, error_catalog, problem_d
         "solving a linear equation step by step. They have written an equation "
         "that is NOT equivalent to the original (the solution for x differs)."
         "\n\n"
-        "YOUR TASK: classify the SPECIFIC TRANSFORMATION error the student made. "
-        "Pick the catalog label that best matches what they actually did wrong, "
-        "regardless of the problem's complexity level."
+        "YOUR TASK: classify the SPECIFIC TRANSFORMATION the student got wrong."
+        "\n\n"
+        "INPUTS YOU RECEIVE:"
+        "\n - 'Original equation': the problem statement."
+        "\n - 'Last correct step': the closest VALID equation (equivalent to "
+        "the original) that the student had reached before this wrong attempt. "
+        "If no valid step exists yet, this equals the original."
+        "\n - 'Student's attempt': the wrong equation."
         "\n\n"
         "CRITICAL CLASSIFICATION RULES:"
-        "\n 1. Classify by the TYPE OF MISTAKE, not by the level of the equation. "
-        "An arithmetic slip is GEN_arithmetic even if the equation has parentheses "
-        "or fractions."
-        "\n 2. Compare the student's attempt to the ORIGINAL equation. Do not "
-        "assume the previous step was correct."
+        "\n 1. The relevant transformation is from 'Last correct step' to "
+        "'Student's attempt'. THAT is what to classify. "
+        "Do NOT look at the original equation to decide the error type — "
+        "the original is just context."
+        "\n    Example: if 'Last correct step' is 3x - 12 = 9 and the attempt "
+        "is 3x = -21, the error is in transposing -12 (sign error in "
+        "transposition), NOT in the distributive property — distribution was "
+        "already done correctly to reach 'Last correct step'."
+        "\n 2. Classify by the TYPE OF MISTAKE, not by the level of the equation."
         "\n 3. Distinguish carefully:"
         "\n    - GEN_arithmetic: pure number computation mistake (5*4=24, "
         "30/5=-6, 9+12=20)."
         "\n    - L1_sign_error: wrong sign in a basic transposition or division "
         "(e.g. 5x=30 → x=-6)."
-        "\n    - L2_transpose_sign: moving a term across = without flipping its sign."
-        "\n    - L3_distribution_partial: a(b+c) computed as ab+c (forgetting one "
-        "term of the distribution)."
+        "\n    - L2_transpose_sign: moving a term across = without flipping its "
+        "sign. Common case: '3x - 12 = 9' → '3x = -21' (kept the -12 as -12 "
+        "instead of flipping it to +12)."
+        "\n    - L3_distribution_partial: a(b+c) computed as ab+c (forgetting "
+        "one term of the distribution). ONLY use this if the wrong attempt "
+        "involves a parenthesis being expanded."
         "\n    - L3_minus_paren: -(b+c) computed as -b+c (sign error after a minus)."
         "\n    - L4_mcm_partial: when clearing denominators, multiplied only some "
-        "terms by the lcm. ONLY use this label if the error genuinely involves "
-        "denominators."
-        "\n 4. If the student wrote something off-topic (random text passing as "
-        "equation), use GEN_other."
+        "terms by the lcm. ONLY use this if the wrong attempt involves "
+        "denominators being cleared."
+        "\n 4. If 'Last correct step' has NO parenthesis or NO denominators, "
+        "L3_distribution_partial and L4_mcm_partial are NOT applicable, even "
+        "if the original equation had them."
+        "\n 5. If you can't pinpoint the error, use GEN_other."
         "\n\n"
         "Error catalog (full list of valid labels):\n" + catalog_str +
         "\n\n"
@@ -289,8 +304,8 @@ def classify_error(original_eq_text, attempted_eq_text, error_catalog, problem_d
         "Otherwise (procedural slip) set is_conceptual=false and dep_id=null. "
         "Problem dependencies for this exercise: " + deps_str + "."
         "\n\n"
-        "Write a short message (1-2 sentences) in Catalan that the student will see. "
-        "DO NOT reveal the correct equation or the solution. "
+        "Write a short message (1-2 sentences) in Catalan that the student "
+        "will see. DO NOT reveal the correct equation or the solution. "
         "Keep the tone sober (not gamified)."
         "\n\n"
         "Respond ONLY with JSON: {"
@@ -302,8 +317,10 @@ def classify_error(original_eq_text, attempted_eq_text, error_catalog, problem_d
     )
     user = (
         f"Original equation: {original_eq_text}\n"
+        f"Last correct step: {last_correct_step_text}\n"
         f"Student's attempt: {attempted_eq_text}\n\n"
-        f"Classify the error."
+        f"Classify the error in the transformation from 'Last correct step' "
+        f"to 'Student's attempt'."
     )
     raw = _call_json(system, user, max_tokens=350, function_name="classify_error")
     data = _extract_json(raw)

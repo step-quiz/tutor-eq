@@ -19,7 +19,7 @@ import api_logger
 st.set_page_config(
     page_title="Tutor IA — equacions lineals",
     layout="wide",
-    initial_sidebar_state="auto",
+    initial_sidebar_state="collapsed",
 )
 
 # CSS per reduir espai entre l'enunciat i la cadena de la sessió,
@@ -56,35 +56,6 @@ st.markdown(
 )
 
 
-def _collapse_sidebar():
-    """
-    Plega la barra lateral via JS. Streamlit no exposa una API directa per
-    fer-ho dinàmicament, però podem clicar el botó de col·lapse si està
-    visible. S'invoca quan s'inicia una sessió perquè el problema agafi
-    espai central.
-    """
-    st.markdown(
-        """
-        <script>
-          (function() {
-            const tryCollapse = () => {
-              const btn = window.parent.document.querySelector(
-                  '[data-testid="stSidebarCollapseButton"], '
-                  + '[data-testid="stSidebarCollapsedControl"]');
-              if (btn) { btn.click(); return true; }
-              return false;
-            };
-            // Intent immediat i alguns reintents perquè Streamlit pot
-            // re-renderitzar el botó després.
-            if (!tryCollapse()) {
-              setTimeout(tryCollapse, 100);
-              setTimeout(tryCollapse, 300);
-            }
-          })();
-        </script>
-        """,
-        unsafe_allow_html=True,
-    )
 
 
 # ------------------------------------------------------------
@@ -97,15 +68,11 @@ def init_state():
         st.session_state.input_counter = 0
     if "retry_messages" not in st.session_state:
         st.session_state.retry_messages = []
-    if "just_started" not in st.session_state:
-        st.session_state.just_started = False
 
 
 def start_session(problem_id: str):
     st.session_state.session = T.new_session_state(problem_id)
     st.session_state.input_counter += 1
-    # Senyalem que cal plegar la sidebar al pròxim render
-    st.session_state.just_started = True
 
 
 # Callback per a la UI: rep avisos de l'API durant els retries
@@ -177,11 +144,6 @@ def render_sidebar():
 # ------------------------------------------------------------
 def render_main():
     s = st.session_state.session
-
-    # Plega la sidebar al primer render després d'iniciar sessió
-    if st.session_state.just_started:
-        _collapse_sidebar()
-        st.session_state.just_started = False
 
     if s is None:
         st.title("Tutor d'equacions lineals")

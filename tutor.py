@@ -279,10 +279,15 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
         _post_verdict_bookkeeping(state, v, original_text)
         return state
 
-    # No equivalent a l'original: és un error
+    # No equivalent a l'original: és un error.
+    # Passem a la IA també el darrer pas correcte, perquè la classificació
+    # es centri en la transformació local (last_correct → attempt) i no
+    # confongui errors aritmètics simples amb errors de distribució a
+    # només perquè l'enunciat tingui parèntesis.
+    last_correct = _last_correct_step_text(state)
     try:
         ce = L.classify_error(
-            original_text, raw_text,
+            original_text, last_correct, raw_text,
             PB.ERROR_CATALOG,
             state["problem"]["dependencies"],
         )
