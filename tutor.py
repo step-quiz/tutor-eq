@@ -207,6 +207,23 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
         _post_verdict_bookkeeping(state, v, original_text)
         return state
 
+    # Validació determinista de forma: lineal en x, sense variables alienes.
+    # Tot això és gratis i ràpid; s'executa abans de qualsevol crida a la IA.
+    form_check = V.validate_equation_form(new_eq)
+    if not form_check["ok"]:
+        # Mapatge de motiu → etiqueta d'error per al rastre
+        reason_to_label = {
+            "non_linear": "FORM_non_linear",
+            "foreign_variable": "FORM_foreign_var",
+            "no_variable": "FORM_no_variable",
+        }
+        label = reason_to_label.get(form_check["reason"], "FORM_other")
+        _record_step(state, raw_text, parsed_ok=True,
+                     verdict="error", error_label=label)
+        _push_msg(state, "feedback", form_check["details"])
+        _post_verdict_bookkeeping(state, "error", original_text)
+        return state
+
     # IMPORTANT: comparem amb l'equació ORIGINAL, no amb la prèvia.
     # Així, si un pas anterior va ser erroni, un pas correcte posterior
     # rescata l'alumne. L'equivalència és una propietat absoluta del

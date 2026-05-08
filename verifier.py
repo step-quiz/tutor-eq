@@ -12,7 +12,7 @@ Si SymPy no parseja, retorna None i el flux passa la patata a la IA.
 """
 
 import re
-from sympy import symbols, sympify, simplify, solve, Eq, Rational, S
+from sympy import symbols, sympify, simplify, solve, Eq, Rational, S, Poly, total_degree
 from sympy.parsing.sympy_parser import (
     parse_expr,
     standard_transformations,
@@ -145,6 +145,81 @@ def is_terminal(eq) -> bool:
     if rhs == X and lhs.is_constant():
         return True
     return False
+
+
+def validate_equation_form(eq):
+    """
+    Comprova que l'equació parsejada és LINEAL en x i NO usa altres variables.
+    Retorna un dict:
+      {
+        "ok": bool,
+        "reason": "non_linear" | "foreign_variable" | "no_variable" | None,
+        "details": str   # informació humana per al missatge de feedback
+      }
+
+    Política:
+      - "ok": True si és lineal en x i no hi ha variables alienes.
+      - "non_linear": apareix x^2, x^3, x*x, sqrt(x), etc.
+      - "foreign_variable": apareix una variable diferent de x (y, z, t...).
+      - "no_variable": l'equació no conté la x (ex: "5 = 5", "3 + 2 = 4").
+
+    Aquestes comprovacions són deterministes (gratuïtes, instantànies)
+    i s'han d'executar abans de tota crida a la IA.
+    """
+    if eq is None:
+        return {"ok": False, "reason": "parse_error", "details": "no parseja"}
+    lhs, rhs = eq
+    expr = lhs - rhs
+
+    # Recollim totes les variables lliures
+    free_syms = expr.free_symbols
+    foreign = [s for s in free_syms if s != X]
+    if foreign:
+        names = ", ".join(sorted(str(s) for s in foreign))
+        return {
+            "ok": False,
+            "reason": "foreign_variable",
+            "details": (
+                f"Apareix la variable «{names}». La incògnita d'aquest "
+                f"problema és «x»."
+            ),
+        }
+
+    # Si no hi ha cap variable, no és una equació útil per a aquest problema.
+    if X not in free_syms:
+        return {
+            "ok": False,
+            "reason": "no_variable",
+            "details": "Aquesta equació no conté la incògnita x.",
+        }
+
+    # Comprovem grau lineal en x.
+    try:
+        poly = Poly(expr, X)
+        deg = poly.degree()
+    except Exception:
+        # No és polinomial en x (sqrt, sin, exp, etc.)
+        return {
+            "ok": False,
+            "reason": "non_linear",
+            "details": (
+                "Aquesta equació no és lineal: en una equació lineal la x "
+                "només pot aparèixer multiplicada per un nombre, sense "
+                "potències ni funcions."
+            ),
+        }
+    if deg > 1:
+        return {
+            "ok": False,
+            "reason": "non_linear",
+            "details": (
+                f"Has escrit una equació de grau {deg} (per exemple amb x^{deg} "
+                f"o x·x). Recorda que en una equació lineal la x apareix sense "
+                f"potències."
+            ),
+        }
+    # deg == 0 ja l'hem capturat com a "no_variable" abans
+    return {"ok": True, "reason": None, "details": ""}
 
 
 def has_math_content(text: str) -> bool:
