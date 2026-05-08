@@ -131,6 +131,66 @@ def equations_equivalent(eq1, eq2) -> bool:
     return False
 
 
+def next_operation_type(eq):
+    """
+    Inspecciona l'equació i retorna el tipus d'operació inversa que
+    correspon aplicar al pròxim pas, mirant el costat on hi ha la x:
+      - 'additive':       el costat amb x té un terme constant que cal
+                          moure primer (ex: 3x − 12 = 9, x + 5 = 12).
+      - 'multiplicative': el costat amb x és només a·x amb a ≠ ±1, i el
+                          següent pas és dividir per a (ex: 3x = 21,
+                          x/3 = 5).
+      - 'none':           l'equació ja és terminal o quasi (x = c, −x = c).
+      - None:             no es pot determinar (x als dos costats, no
+                          parseja, etc.).
+
+    S'usa per triar el prerequisit més adequat quan l'alumne confon
+    l'operació inversa: si la pròxima operació hauria de ser multiplicativa,
+    cal remediar amb la variant multiplicativa del prerequisit, no amb
+    l'additiva.
+    """
+    if eq is None:
+        return None
+    lhs, rhs = eq
+    lhs_has_x = X in lhs.free_symbols
+    rhs_has_x = X in rhs.free_symbols
+    if lhs_has_x and not rhs_has_x:
+        x_side = lhs
+    elif rhs_has_x and not lhs_has_x:
+        x_side = rhs
+    else:
+        return None  # x als dos costats o a cap
+
+    try:
+        p = Poly(x_side, X)
+    except Exception:
+        return None
+    coeffs = p.all_coeffs()  # ordre: grau més alt primer
+    if not coeffs:
+        return None
+
+    # Per a una expressió lineal en x, coeffs té longitud 1 (a*x sense
+    # constant) o 2 (a*x + b).
+    if len(coeffs) == 1:
+        a = coeffs[0]
+        if a == 0:
+            return None
+        if a == 1 or a == -1:
+            return "none"
+        return "multiplicative"
+    if len(coeffs) == 2:
+        a, b = coeffs
+        if a == 0:
+            return None
+        if b != 0:
+            return "additive"
+        if a == 1 or a == -1:
+            return "none"
+        return "multiplicative"
+    # No lineal: cau fora; deixem que validate_equation_form ho atrapi.
+    return None
+
+
 def is_terminal(eq) -> bool:
     """
     L'equació és de la forma 'x = c' o 'c = x' (amb c constant).

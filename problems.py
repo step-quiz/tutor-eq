@@ -168,6 +168,16 @@ PREREQUISITES = {
         "keywords_required": ["restar", "resta", "−3", "-3", "menys 3", "treure"],
         "explanation": "Per desfer un +3, restem 3 als dos costats.",
     },
+    "PRE-INV-MULT": {
+        "id": "PRE-INV-MULT",
+        "concept": "operacions_inverses",
+        "question": "Si tens 3·x = 12, quina operació fas a tots dos costats per aïllar la x? Escriu només l'operació.",
+        # "entre 3" és inequívocament divisió en català; "per 3" no
+        # s'inclou perquè és ambigu (es fa servir tant per a multiplicar
+        # com per a dividir).
+        "keywords_required": ["dividir", "divideix", "divisió", "/3", ":3", "÷3", "entre 3"],
+        "explanation": "Per desfer una multiplicació per 3, dividim entre 3 als dos costats.",
+    },
 }
 
 

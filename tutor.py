@@ -315,7 +315,8 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
     if ce["is_conceptual"] and ce["dep_id"]:
         dep = PB.get_dependency(ce["dep_id"])
         if dep and state["active_prereq_depth"] < MAX_BACKTRACK_DEPTH:
-            _start_prereq(state, dep["prerequisite"], ce["dep_id"])
+            prereq_id = _select_prereq_id(ce["error_label"], dep, last_correct)
+            _start_prereq(state, prereq_id, ce["dep_id"])
 
     _post_verdict_bookkeeping(state, "error", original_text)
     return state
@@ -381,6 +382,32 @@ def _handle_help(state):
 # ------------------------------------------------------------
 # Subflux: prerequisits (mini-sessions)
 # ------------------------------------------------------------
+def _select_prereq_id(error_label: str, dep: dict, last_correct_text: str) -> str:
+    """
+    Tria el prerequisit més adequat per a aquest error concret. Per
+    defecte, la dependència té un sol prerequisit (`dep["prerequisite"]`),
+    però algunes dependències com `operacions_inverses` cobreixen dos
+    casos diferents (additiu i multiplicatiu) i necessiten triar variant
+    segons la forma de l'última equació vàlida:
+
+      Última equació: 3x = 21  → operació pendent: dividir → PRE-INV-MULT
+      Última equació: x + 5 = 12 → operació pendent: restar → PRE-INV
+
+    Així evitem el mismatch pedagògic en què l'alumne confon dividir amb
+    restar però el sistema li pregunta com aïllar la x d'una suma.
+    """
+    default = dep["prerequisite"]
+
+    if error_label == "L1_inverse_op":
+        eq = V.parse_equation(last_correct_text)
+        op_type = V.next_operation_type(eq)
+        if op_type == "multiplicative" and PB.get_prerequisite("PRE-INV-MULT"):
+            return "PRE-INV-MULT"
+        # Additiu o indeterminat: ens quedem amb el prerequisit per defecte.
+
+    return default
+
+
 def _start_prereq(state, prereq_id, dep_id):
     state["active_prereq"] = prereq_id
     state["active_prereq_depth"] += 1
