@@ -205,6 +205,23 @@ def render_sidebar():
                         st.rerun()
 
         st.markdown("---")
+        # Resum de cost de la sessió en curs (només crides d'aquest procés
+        # Python; no agrega entre sessions diferents). Útil per veure
+        # durant el desenvolupament què costen les iteracions, i un primer
+        # esglaó cap a la "Monitorització de cost real" que demana Fase 5.
+        try:
+            cost_summary = api_logger.summarize_session(L.get_session_id())
+            if cost_summary["calls_total"] > 0:
+                st.caption(
+                    f"Sessió · {cost_summary['calls_total']} crides · "
+                    f"{cost_summary['tokens_input']:,}↓ "
+                    f"+ {cost_summary['tokens_output']:,}↑ tokens · "
+                    f"~${cost_summary['cost_usd']:.4f}"
+                )
+            else:
+                st.caption("Sessió · cap crida encara")
+        except Exception:
+            pass
         st.caption(f"Log: `{api_logger.get_log_path()}`")
 
 
@@ -218,11 +235,23 @@ def _run_test_and_store(problem_id: str):
             f"input {i_idx}/{n_inputs}..."
         )
 
+    # Mesurem el delta de cost del test: agafem el sumari abans i després
+    # i la diferència ens dóna el que ha consumit aquesta execució.
+    summary_before = api_logger.summarize_session(L.get_session_id())
     with st.spinner("Executant test exhaustiu (pot trigar uns minuts)..."):
         results = T.run_exhaustive_test(problem_id, on_progress=on_progress)
+    summary_after = api_logger.summarize_session(L.get_session_id())
     progress_box.empty()
     st.session_state.test_results = results
     st.session_state.test_problem_id = problem_id
+    st.session_state.test_cost_delta = {
+        "calls": summary_after["calls_total"] - summary_before["calls_total"],
+        "tokens_in": summary_after["tokens_input"] - summary_before["tokens_input"],
+        "tokens_out": summary_after["tokens_output"] - summary_before["tokens_output"],
+        "cost_usd": round(
+            summary_after["cost_usd"] - summary_before["cost_usd"], 6
+        ),
+    }
 
 
 # ------------------------------------------------------------
@@ -483,6 +512,15 @@ def _render_test_results(rounds: list):
         "els altres són errors versemblants. ✅ = veredicte coherent amb "
         "l'esperat; ❌ = mismatch que cal investigar."
     )
+    # Cost del test: si el runner ha guardat el delta, mostrem-lo perquè
+    # l'autor del problema vegi quant li costa cada execució del test.
+    delta = st.session_state.get("test_cost_delta")
+    if delta:
+        st.caption(
+            f"Cost d'aquesta execució: ~${delta['cost_usd']:.4f} "
+            f"({delta['calls']} crides · "
+            f"{delta['tokens_in']:,}↓ + {delta['tokens_out']:,}↑ tokens)"
+        )
 
     for r in rounds:
         st.markdown(

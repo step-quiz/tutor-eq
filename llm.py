@@ -31,6 +31,7 @@ from google import genai
 from google.genai import types
 
 import api_logger
+
 MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 MAX_TOKENS = 400
 
@@ -50,8 +51,15 @@ RETRIABLE_PATTERNS = (
     "timeout", "Timeout",
 )
 
-# Session id per al log (un per execució del procés)
+# Session id per al log (un per execució del procés). Atenció: això és
+# per procés Python, no per usuari de Streamlit. Per al pilot multi-usuari
+# caldrà una identificació separada per pseudonim d'alumne (Fase 4).
 _SESSION_ID = uuid.uuid4().hex[:8]
+
+
+def get_session_id() -> str:
+    """Retorna l'id de sessió que s'usa al log d'API."""
+    return _SESSION_ID
 
 # Callback opcional perquè la UI pugui mostrar avisos durant els retries.
 # Signatura: fn(message: str). El defineix `app.py`.
@@ -101,8 +109,13 @@ def _build_config(system: str, max_tokens: int, json_mode: bool, temperature: fl
 
 
 def _do_call(system: str, user: str, max_tokens: int,
-             json_mode: bool, temperature: float) -> str:
-    """Una crida única (sense retry). Pot llançar excepció."""
+             json_mode: bool, temperature: float):
+    """
+    Una crida única (sense retry). Pot llançar excepció.
+    Retorna (text, tokens) on tokens és un dict
+    {"input", "output", "thoughts", "total"} o None si l'SDK no exposa
+    usage_metadata en aquesta resposta.
+    """
     client = _get_client()
     config = _build_config(system, max_tokens, json_mode, temperature)
     response = client.models.generate_content(
@@ -116,7 +129,20 @@ def _do_call(system: str, user: str, max_tokens: int,
         raise RuntimeError(
             f"Resposta buida del model {MODEL} (finish_reason={finish})."
         )
-    return text
+
+    # Captura del usage_metadata per a tracking de cost. Per a thinking
+    # models, thoughts_token_count compta com a output a efectes de
+    # facturació (api_logger ja ho gestiona quan calcula cost_usd).
+    usage = getattr(response, "usage_metadata", None)
+    tokens = None
+    if usage is not None:
+        tokens = {
+            "input":    int(getattr(usage, "prompt_token_count", 0) or 0),
+            "output":   int(getattr(usage, "candidates_token_count", 0) or 0),
+            "thoughts": int(getattr(usage, "thoughts_token_count", 0) or 0),
+            "total":    int(getattr(usage, "total_token_count", 0) or 0),
+        }
+    return text, tokens
 
 
 def _call_with_retry(function_name: str, system: str, user: str,
@@ -135,13 +161,14 @@ def _call_with_retry(function_name: str, system: str, user: str,
     for attempt in range(1, MAX_ATTEMPTS + 1):
         t0 = time.time()
         try:
-            text = _do_call(system, user, max_tokens, json_mode, temperature)
+            text, tokens = _do_call(system, user, max_tokens, json_mode, temperature)
             elapsed = time.time() - t0
             api_logger.log_call(
                 session_id=_SESSION_ID, function=function_name,
                 model=MODEL, attempt=attempt, ok=True,
                 elapsed_s=elapsed, input_data=input_data,
                 output_data={"text_preview": text[:500], "len": len(text)},
+                tokens=tokens,
             )
             return text
         except Exception as e:
