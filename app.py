@@ -19,7 +19,7 @@ import api_logger
 st.set_page_config(
     page_title="Tutor IA — equacions lineals",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="extended",
 )
 
 # CSS per reduir espai entre l'enunciat i la cadena de la sessió,
