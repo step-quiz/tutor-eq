@@ -6,6 +6,12 @@ Per executar:
     streamlit run app.py
 
 L'estat de la sessió viu a st.session_state. La lògica viu a tutor.py.
+
+Mode debug:
+    Tot el material orientat al desenvolupador/professor (panel d'estat
+    intern, botó "Test exhaustiu", panel de cost, rastre JSON, etc.) està
+    amagat per defecte. Per veure-ho, afegeix `?debug=1` a la URL.
+    Exemple: http://localhost:8501/?debug=1
 """
 
 import os
@@ -16,10 +22,26 @@ import tutor as T
 import llm as L
 import api_logger
 
+
+def _is_debug_mode() -> bool:
+    """
+    Mode debug actiu si la URL conté ?debug=1. Es persisteix a
+    session_state perquè un cop activat sobreviu a futurs reruns sense
+    haver de mantenir el query param.
+    """
+    if "debug_mode" not in st.session_state:
+        try:
+            qp = st.query_params.get("debug")
+        except Exception:
+            qp = None
+        st.session_state.debug_mode = (qp == "1")
+    return st.session_state.debug_mode
+
+
 st.set_page_config(
     page_title="Tutor IA — equacions lineals",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 # CSS per reduir espai entre l'enunciat i la cadena de la sessió,
@@ -49,6 +71,22 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
+# Amaga elements de chrome de Streamlit (menú de tres punts amb tema /
+# print / record screen / "Made with Streamlit") quan no estem en
+# mode debug. L'alumne no els necessita i només són distraccions.
+if not _is_debug_mode():
+    st.markdown(
+        """
+        <style>
+          [data-testid="stMainMenu"] { display: none !important; }
+          [data-testid="stToolbar"]  { display: none !important; }
+          [data-testid="stHeader"]   { display: none !important; }
+          footer                     { display: none !important; }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 # Injecció de JS per desactivar les suggerències del navegador i del teclat
@@ -133,16 +171,20 @@ L.set_progress_callback(_on_api_retry)
 # Sidebar
 # ------------------------------------------------------------
 def render_sidebar():
+    debug = _is_debug_mode()
     with st.sidebar:
-        st.markdown("### Tutor IA — equacions lineals")
-        st.caption("Pilot 2n d'ESO — mode professor")
+        # Títol i model actiu (im1) — només per al desenvolupador.
+        if debug:
+            st.markdown("### Tutor IA — equacions lineals")
+            st.caption("Pilot 2n d'ESO — mode professor")
 
         if not os.environ.get("GEMINI_API_KEY"):
             st.error("Falta GEMINI_API_KEY.")
             st.stop()
 
-        # Info del model actiu (útil mentre depurem)
-        st.caption(f"Model actiu: `{L.MODEL}`")
+        # Info del model actiu (im1) — debug-only.
+        if debug:
+            st.caption(f"Model actiu: `{L.MODEL}`")
 
         st.markdown("---")
         st.markdown("**Selecciona problema**")
@@ -164,16 +206,20 @@ def render_sidebar():
         st.markdown("---")
         s = st.session_state.session
         if s is not None:
-            st.markdown("**Estat de la sessió**")
-            st.text(f"Torns:           {len(s['history']) - 1}")
-            st.text(f"Pistes:          {len(s['hints_requested'])}")
-            st.text(f"Estancaments:    {s['stagnation_total']}")
-            st.text(f"Retrocessos:     {s['backtrack_count']}")
-            st.text(f"Avisos no-math:  {s['inappropriate_warnings']}")
-            if s["active_prereq"]:
-                st.text(f"En prerequisit:  {s['active_prereq']}")
+            # Estat intern de la sessió (im2): comptadors de torns,
+            # pistes, retrocessos, etc. És informació meta orientada al
+            # desenvolupador. Per a l'Aran no aporta res i la distreu.
+            if debug:
+                st.markdown("**Estat de la sessió**")
+                st.text(f"Torns:           {len(s['history']) - 1}")
+                st.text(f"Pistes:          {len(s['hints_requested'])}")
+                st.text(f"Estancaments:    {s['stagnation_total']}")
+                st.text(f"Retrocessos:     {s['backtrack_count']}")
+                st.text(f"Avisos no-math:  {s['inappropriate_warnings']}")
+                if s["active_prereq"]:
+                    st.text(f"En prerequisit:  {s['active_prereq']}")
 
-            # Botó Sortir (només si la sessió està activa)
+            # Botó Sortir (visible sempre que hi hagi sessió activa).
             if s["verdict_final"] is None:
                 if st.button("Sortir de la sessió (!!)",
                              key="exit_btn",
@@ -181,48 +227,48 @@ def render_sidebar():
                     T.process_turn(s, "!!")
                     st.rerun()
 
-            # Mode debug: test exhaustiu
-            st.markdown("---")
-            st.markdown("**Mode debug**")
-            n_rounds = len(PB.get_test_cases(s["problem_id"]) or [])
-            if n_rounds == 0:
-                st.caption("No hi ha casos de test definits per a aquest problema.")
-            else:
-                st.caption(
-                    f"Executa {n_rounds} ronda(es) amb inputs sintètics. "
-                    "Fa moltes crides a la IA — pot trigar i té cost."
-                )
-                if st.button("🧪 Test exhaustiu",
-                             key="test_btn",
-                             use_container_width=True):
-                    _run_test_and_store(s["problem_id"])
-                    st.rerun()
-                if st.session_state.get("test_results"):
-                    if st.button("Tanca resultats del test",
-                                 key="clear_test_btn",
+            # Mode debug: test exhaustiu (im2 part 2).
+            if debug:
+                st.markdown("---")
+                st.markdown("**Mode debug**")
+                n_rounds = len(PB.get_test_cases(s["problem_id"]) or [])
+                if n_rounds == 0:
+                    st.caption("No hi ha casos de test definits per a aquest problema.")
+                else:
+                    st.caption(
+                        f"Executa {n_rounds} ronda(es) amb inputs sintètics. "
+                        "Fa moltes crides a la IA — pot trigar i té cost."
+                    )
+                    if st.button("🧪 Test exhaustiu",
+                                 key="test_btn",
                                  use_container_width=True):
-                        st.session_state.test_results = None
+                        _run_test_and_store(s["problem_id"])
                         st.rerun()
+                    if st.session_state.get("test_results"):
+                        if st.button("Tanca resultats del test",
+                                     key="clear_test_btn",
+                                     use_container_width=True):
+                            st.session_state.test_results = None
+                            st.rerun()
 
-        st.markdown("---")
-        # Resum de cost de la sessió en curs (només crides d'aquest procés
-        # Python; no agrega entre sessions diferents). Útil per veure
-        # durant el desenvolupament què costen les iteracions, i un primer
-        # esglaó cap a la "Monitorització de cost real" que demana Fase 5.
-        try:
-            cost_summary = api_logger.summarize_session(L.get_session_id())
-            if cost_summary["calls_total"] > 0:
-                st.caption(
-                    f"Sessió · {cost_summary['calls_total']} crides · "
-                    f"{cost_summary['tokens_input']:,}↓ "
-                    f"+ {cost_summary['tokens_output']:,}↑ tokens · "
-                    f"~${cost_summary['cost_usd']:.4f}"
-                )
-            else:
-                st.caption("Sessió · cap crida encara")
-        except Exception:
-            pass
-        st.caption(f"Log: `{api_logger.get_log_path()}`")
+        # Resum de cost + log path (im2 part 3) — info estrictament per
+        # al desenvolupador / professor que audita l'ús de l'API.
+        if debug:
+            st.markdown("---")
+            try:
+                cost_summary = api_logger.summarize_session(L.get_session_id())
+                if cost_summary["calls_total"] > 0:
+                    st.caption(
+                        f"Sessió · {cost_summary['calls_total']} crides · "
+                        f"{cost_summary['tokens_input']:,}↓ "
+                        f"+ {cost_summary['tokens_output']:,}↑ tokens · "
+                        f"~${cost_summary['cost_usd']:.4f}"
+                    )
+                else:
+                    st.caption("Sessió · cap crida encara")
+            except Exception:
+                pass
+            st.caption(f"Log: `{api_logger.get_log_path()}`")
 
 
 def _run_test_and_store(problem_id: str):
@@ -288,8 +334,11 @@ def render_main():
             _render_problem_main(s, input_disabled=False)
 
     # Si hi ha resultats d'un test exhaustiu per a aquest problema, els
-    # mostrem sota la columna principal (full-width perquè la taula respiri).
-    if (st.session_state.get("test_results")
+    # mostrem sota la columna principal (només en mode debug; el botó
+    # per llençar-los també està amagat fora de debug, però per coherència
+    # el panell també).
+    if (_is_debug_mode()
+            and st.session_state.get("test_results")
             and st.session_state.get("test_problem_id") == s["problem_id"]):
         _render_test_results(st.session_state.test_results)
 
@@ -320,9 +369,11 @@ def _render_problem_main(s, input_disabled: bool):
                 unsafe_allow_html=True,
             )
 
-    # Indicador discret si hi ha errors amagats
+    # Indicador discret si hi ha errors amagats. Aquesta línia menciona
+    # el "rastre JSON" i és fonamentalment una nota per al desenvolupador
+    # que audita la sessió. L'alumne no necessita saber-ho.
     n_hidden = len(s["history"]) - len(visible_history)
-    if n_hidden > 0:
+    if n_hidden > 0 and _is_debug_mode():
         plural = "s" if n_hidden > 1 else ""
         st.caption(
             f"({n_hidden} intent{plural} previ{plural} superat{plural} "
@@ -346,7 +397,10 @@ def _render_problem_main(s, input_disabled: bool):
             st.info("Sessió tancada per l'alumne.")
         elif s["verdict_final"] == "suspes_us_inadequat":
             st.error("Sessió suspesa per ús inadequat.")
-        _render_trace(s)
+        # Rastre JSON: només en mode debug. Per a l'alumne és sorollós i
+        # exposa l'estructura interna que no necessita.
+        if _is_debug_mode():
+            _render_trace(s)
         return
 
     if input_disabled:
