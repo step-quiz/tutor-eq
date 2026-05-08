@@ -431,6 +431,14 @@ def _render_message(m: dict):
         st.markdown(f"**Feedback:** {text}")
     elif kind == "hint":
         st.info(f"💡 **Pista:** {text}")
+    elif kind == "worked_example":
+        # Escalada nivell 1: l'alumne ha tornat a fallar el mateix concepte
+        # després del prereq. Mostrem un exemple resolt anàleg.
+        st.info(f"📌 **Exemple resolt:** {text}")
+    elif kind == "concrete_step":
+        # Escalada nivell 2: ni el prereq ni l'exemple no han desencallat
+        # l'alumne. Donem el pas concret de manera molt directa.
+        st.info(f"🎯 **Pas concret:** {text}")
     elif kind == "warning":
         st.warning(text)
     elif kind == "system":

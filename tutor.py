@@ -58,6 +58,12 @@ def new_session_state(problem_id: str, student_id: str = "professor_test") -> di
         "inappropriate_warnings": 0,
         "active_prereq": None,          # PRE-XXX si estem en una sessió de prerequisit
         "active_prereq_depth": 0,
+        # Comptador d'errors consecutius del mateix concepte dins el
+        # problema (clau = dep_id, valor = comptador). Es reseteja amb un
+        # pas correcte. S'usa per escalar l'ajuda quan un prereq no és
+        # suficient: 1a errada → prereq, 2a → exemple resolt, 3+ → pas
+        # concret directe.
+        "concept_failure_streak": {},
         "pending_proactive_offer": False,
         "verdict_final": None,          # "resolt" | "abandonat" | "suspes_us_inadequat"
         "messages": [],                 # missatges per mostrar a la UI (per torn)
@@ -87,7 +93,8 @@ def _last_correct_step_text(state: dict) -> str:
 
 def _push_msg(state, kind: str, text: str, target: str = "main"):
     """
-    kind:   'system' | 'feedback' | 'hint' | 'warning' | 'prereq' | 'discrepancy'
+    kind:   'system' | 'feedback' | 'hint' | 'warning' | 'prereq' |
+            'discrepancy' | 'worked_example' | 'concrete_step'
     target: 'main' (panell principal) | 'prereq' (panell dret quan hi ha
             sub-tasca activa).
     El render decideix on mostrar cada missatge segons el target.
@@ -312,12 +319,50 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
             ce["is_conceptual"] = True
             ce["dep_id"] = implied_dep
 
-    # Si és conceptual i tenim prerequisit, fer retrocés
+    # Escalada d'ajuda segons la recurrència del mateix concepte:
+    #   streak == 1  → retrocés a prereq (pregunta socràtica abstracta)
+    #   streak == 2  → exemple resolt amb una equació anàloga
+    #   streak >= 3  → instrucció directa del pas següent (mig revelat)
+    # Cada nivell és més concret que l'anterior. Quan l'alumne fa un pas
+    # de progrés, els streaks es reseteg(en a _post_verdict_bookkeeping.
     if ce["is_conceptual"] and ce["dep_id"]:
         dep = PB.get_dependency(ce["dep_id"])
-        if dep and state["active_prereq_depth"] < MAX_BACKTRACK_DEPTH:
-            prereq_id = _select_prereq_id(ce["error_label"], dep, last_correct)
-            _start_prereq(state, prereq_id, ce["dep_id"])
+        if dep:
+            streaks = state["concept_failure_streak"]
+            streaks[ce["dep_id"]] = streaks.get(ce["dep_id"], 0) + 1
+            streak = streaks[ce["dep_id"]]
+
+            concept_desc = dep.get("description", ce["dep_id"])
+
+            if streak == 1:
+                # 1a errada: retrocés a prereq, com fins ara
+                if state["active_prereq_depth"] < MAX_BACKTRACK_DEPTH:
+                    prereq_id = _select_prereq_id(
+                        ce["error_label"], dep, last_correct
+                    )
+                    _start_prereq(state, prereq_id, ce["dep_id"])
+            elif streak == 2:
+                # 2a errada del mateix concepte: el prereq no ha
+                # desbloquejat l'alumne; canvi de tàctica a exemple resolt.
+                try:
+                    msg = L.generate_worked_example(
+                        last_correct, original_text, concept_desc,
+                    )
+                    _push_msg(state, "worked_example", msg)
+                except Exception as e:
+                    _push_msg(state, "warning",
+                              f"Error de connexió amb la IA: {e}")
+            else:  # streak >= 3
+                # 3a o més: ni el prereq ni l'exemple han funcionat;
+                # diem explícitament què cal fer al pas següent.
+                try:
+                    msg = L.generate_concrete_step(
+                        last_correct, original_text, concept_desc,
+                    )
+                    _push_msg(state, "concrete_step", msg)
+                except Exception as e:
+                    _push_msg(state, "warning",
+                              f"Error de connexió amb la IA: {e}")
 
     _post_verdict_bookkeeping(state, "error", original_text)
     return state
@@ -341,6 +386,11 @@ def _post_verdict_bookkeeping(state, verdict, original_text):
         # Reset si surt de l'estancament
         state["stagnation_consecutive"] = 0
         state["pending_proactive_offer"] = False
+        # Reset dels comptadors d'errors per concepte: l'alumne ha avançat
+        # i tornem a començar el gradient d'ajuda des de zero. No resetegem
+        # en cas de "error" — això és precisament quan els acumulem.
+        if verdict == "correcte_progres":
+            state["concept_failure_streak"] = {}
 
 
 # ------------------------------------------------------------
@@ -495,7 +545,18 @@ def _check_prereq_answer(prereq, raw_text) -> bool:
 
     if "keywords_required" in prereq:
         s_low = s.lower()
-        return any(kw.lower() in s_low for kw in prereq["keywords_required"])
+        # Comprovació positiva: ha d'aparèixer alguna keyword esperada.
+        has_required = any(kw.lower() in s_low for kw in prereq["keywords_required"])
+        if not has_required:
+            return False
+        # Comprovació negativa: certs prereqs declaren keywords que
+        # invaliden la resposta encara que també hi hagi una de positiva
+        # (ex: si el prereq demana dividir, "multiplico per 3" no val
+        # encara que contingués "/3" per qualsevol motiu).
+        forbidden = prereq.get("forbidden_keywords", [])
+        if any(kw.lower() in s_low for kw in forbidden):
+            return False
+        return True
 
     return False
 

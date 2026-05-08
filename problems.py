@@ -166,6 +166,9 @@ PREREQUISITES = {
         "concept": "operacions_inverses",
         "question": "Si tens 3 + x = 10, quina operació fas a tots dos costats per aïllar la x? Escriu només l'operació.",
         "keywords_required": ["restar", "resta", "−3", "-3", "menys 3", "treure"],
+        # Operacions equivocades per a aquest cas (additiu): rebutgem
+        # respostes que parlin de multiplicar o dividir aquí.
+        "forbidden_keywords": ["multiplic", "divid"],
         "explanation": "Per desfer un +3, restem 3 als dos costats.",
     },
     "PRE-INV-MULT": {
@@ -176,6 +179,10 @@ PREREQUISITES = {
         # s'inclou perquè és ambigu (es fa servir tant per a multiplicar
         # com per a dividir).
         "keywords_required": ["dividir", "divideix", "divisió", "/3", ":3", "÷3", "entre 3"],
+        # Operacions equivocades per al cas multiplicatiu: si l'alumne
+        # contesta "multiplico", "sumar" o "restar", la resposta és falsa
+        # encara que de retruc inclogui "/3" o similar.
+        "forbidden_keywords": ["multiplic", "sumar", "restar"],
         "explanation": "Per desfer una multiplicació per 3, dividim entre 3 als dos costats.",
     },
 }

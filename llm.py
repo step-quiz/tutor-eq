@@ -445,6 +445,92 @@ def generate_hint(original_eq_text, history_text, target_solution):
 
 
 # ============================================================
+# Crida 5: exemple resolt (escalada nivell 1 — streak == 2)
+# ============================================================
+def generate_worked_example(last_correct_eq_text, original_eq_text,
+                            concept_description):
+    """
+    L'alumne s'ha equivocat dues vegades amb el mateix concepte i el
+    prerequisit no l'ha desbloquejat. Genera un exemple resolt curt amb
+    una equació anàloga (números diferents) que demostri concretament
+    l'operació. Acaba convidant l'alumne a aplicar-ho al seu cas.
+    """
+    system = (
+        "You are a math tutor for a 13-year-old student stuck on a linear "
+        "equation step. They have made the same conceptual mistake twice. "
+        "Abstract help (a Socratic prerequisite question) hasn't unblocked "
+        "them. Now show a SHORT WORKED EXAMPLE: pick an analogous equation "
+        "with DIFFERENT NUMBERS where the same kind of operation is needed, "
+        "solve that step explicitly, and invite the student to apply the "
+        "same idea to their own equation."
+        "\n\nGuidelines:"
+        "\n - Catalan throughout."
+        "\n - Sober tone (UPC pilot style, not gamified)."
+        "\n - 2-3 short sentences max."
+        "\n - Show the operation EXPLICITLY with the example numbers "
+        "(e.g. '5x : 5 = 20 : 5, així x = 4')."
+        "\n - DO NOT reveal the answer or any intermediate equation of the "
+        "actual problem. Use a clearly different example with different "
+        "numbers."
+        "\n - End with an invitation like 'Ara prova el mateix amb la teva "
+        "equació'."
+        "\n\nOutput ONLY the worked example text, no preamble, no JSON."
+    )
+    user = (
+        f"Concept the student is missing: {concept_description}\n"
+        f"Original problem (do NOT solve, do NOT reuse its numbers): "
+        f"{original_eq_text}\n"
+        f"Student's last correct step (which is where they got stuck): "
+        f"{last_correct_eq_text}\n\n"
+        f"Write the worked example."
+    )
+    raw = _call_text(system, user, max_tokens=220,
+                     function_name="generate_worked_example")
+    return raw.strip()
+
+
+# ============================================================
+# Crida 6: pas concret directe (escalada nivell 2 — streak >= 3)
+# ============================================================
+def generate_concrete_step(last_correct_eq_text, original_eq_text,
+                           concept_description):
+    """
+    L'alumne ha fallat tres o més vegades el mateix concepte; ni el
+    prereq ni l'exemple resolt han funcionat. Indica explícitament
+    quina operació ha de fer al pas següent sobre la SEVA equació, però
+    encara li deixem fer l'aritmètica perquè conservi sentit d'agència.
+    """
+    system = (
+        "You are a math tutor for a 13-year-old student. They are stuck: "
+        "they have failed the same concept three or more times in a row. "
+        "First the feedback didn't help, then a Socratic prerequisite "
+        "didn't help, then a worked example didn't help. Now we need to "
+        "be very direct."
+        "\n\nState EXPLICITLY the next operation they should perform on "
+        "their actual equation, and ask them to compute it. Reveal the "
+        "operation but make THEM do the arithmetic so they keep agency. "
+        "DO NOT give the final solution to the original problem."
+        "\n\nGuidelines:"
+        "\n - Catalan throughout."
+        "\n - Sober, encouraging (not patronising) tone."
+        "\n - 1-2 sentences."
+        "\n - Refer to the operation in concrete terms ('divideix els dos "
+        "costats per 3', 'resta 5 als dos costats')."
+        "\n - End by asking them to write the resulting equation."
+        "\n\nOutput ONLY the instruction text, no preamble, no JSON."
+    )
+    user = (
+        f"Concept the student is missing: {concept_description}\n"
+        f"Original problem: {original_eq_text}\n"
+        f"Student's last correct equation: {last_correct_eq_text}\n\n"
+        f"Write the directive instruction for the next step."
+    )
+    raw = _call_text(system, user, max_tokens=180,
+                     function_name="generate_concrete_step")
+    return raw.strip()
+
+
+# ============================================================
 # Auxiliar: diagnosticar dependència
 # ============================================================
 def diagnose_dependency(prev_eq_text, attempted_eq_text, candidate_deps):
