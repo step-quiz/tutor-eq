@@ -67,6 +67,12 @@ st.markdown(
       /* Limitar amplada del bloc central perquè no s'estiri massa
          en el layout wide quan no hi ha prerequisit actiu */
       .main-narrow { max-width: 720px; }
+
+      /* Amaga el petit ajut "Press Enter to submit form" que Streamlit
+         posa sota els text_input dins de forms. Aran no necessita
+         aquesta indicació tècnica — el botó Enviar i el comportament
+         d'Enter ja són evidents. */
+      [data-testid="InputInstructions"] { display: none !important; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -441,7 +447,14 @@ def _render_input_form(s, key_prefix: str):
     """Form d'input. Comú al fil principal i al prerequisit."""
     key_in = f"input_{key_prefix}_{st.session_state.input_counter}"
     key_form = f"form_{key_prefix}_{st.session_state.input_counter}"
-    with st.form(key=key_form, clear_on_submit=True):
+    # IMPORTANT: clear_on_submit=False. Si el posem a True, el text que
+    # l'alumne ha escrit desapareix immediatament en clicar Enter, abans
+    # que el sistema acabi d'avaluar-lo (typically ~0.5-2s amb el thinking
+    # model). Això crea una sensació desorientadora ("on ha anat el meu
+    # text?"). Amb False, el text roman al camp durant tota l'avaluació
+    # i només es buida quan el rerun final renderitza un nou camp (gràcies
+    # a `input_counter` que canvia el key del widget).
+    with st.form(key=key_form, clear_on_submit=False):
         # `autocomplete="off"` ja s'aplica també des del JS injectat al cap
         # de l'app (juntament amb autocorrect / autocapitalize / spellcheck
         # i un name aleatori). El passem aquí com a defensa redundant per
@@ -455,12 +468,11 @@ def _render_input_form(s, key_prefix: str):
 
     if submit and raw:
         st.session_state.retry_messages = []
-        spinner_text = (
-            "Avaluant... (amb gemini-2.5-pro pot trigar uns segons; el model "
-            "fa raonament intern abans de respondre)"
-            if "pro" in L.MODEL.lower()
-            else "Avaluant..."
-        )
+        # Inclou el text de l'alumne dins del missatge del spinner perquè
+        # vegi clarament què s'està avaluant en cada moment.
+        suffix = (" (pot trigar uns segons mentre el sistema raona)"
+                  if "pro" in L.MODEL.lower() else "")
+        spinner_text = f"Avaluant «{raw}»...{suffix}"
         with st.spinner(spinner_text):
             placeholder = st.empty()
             T.process_turn(s, raw)
