@@ -545,11 +545,13 @@ def _process_prereq_turn(state, raw_text):
         state["active_prereq"] = None
         state["active_prereq_depth"] = max(0, state["active_prereq_depth"] - 1)
         # Caixa auxiliar visible al viewport principal: l'alumne ha de
-        # quedar amb constància que ha resolt el prereq, però en una
-        # presentació petita perquè no es confongui amb un pas de la
-        # resolució principal de l'equació.
+        # quedar amb constància que ha resolt el prereq, i — important —
+        # ha de saber QUÈ HA DE FER ARA (continuar amb el problema
+        # principal). Sense aquesta indicació, l'alumne es queda amb
+        # l'input buit sense saber que ha de continuar resolent.
         _push_msg(state, "prereq_resolved",
-                  f"Prereq {prereq_id}: superat correctament. {explanation}",
+                  f"Prereq {prereq_id}: superat correctament. {explanation}\n\n"
+                  f"**Aplica això a la teva equació original.**",
                   target="main")
     else:
         _push_msg(state, "feedback",
@@ -559,11 +561,12 @@ def _process_prereq_turn(state, raw_text):
         state["active_prereq_depth"] = max(0, state["active_prereq_depth"] - 1)
         # Cas crític: si la resposta del prereq era incorrecta, NO podem
         # tancar-ho com si no hagués passat res — l'alumne ha de veure
-        # explícitament que la seva resposta no era correcta i quina era
-        # l'explicació esperada. Aquesta caixa persisteix al viewport.
+        # explícitament que la seva resposta no era correcta, l'explicació
+        # esperada, i la indicació de què fer ara.
         _push_msg(state, "prereq_failed",
-                  f"Prereq {prereq_id}: la teva resposta no era correcta. "
-                  f"L'explicació esperada era — {explanation}",
+                  f"Prereq {prereq_id}: la teva resposta no és correcta. "
+                  f"L'explicació esperada és — {explanation}\n\n"
+                  f"**Torna a intentar resoldre l'equació original.**",
                   target="main")
     return state
 
