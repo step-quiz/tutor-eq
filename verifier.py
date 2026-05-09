@@ -240,7 +240,7 @@ def validate_equation_form(eq):
             "ok": False,
             "reason": "foreign_variable",
             "details": (
-                f"Apareix la variable «{names}». La incògnita d'aquest "
+                f"Apareix la lletra «{names}». La incògnita d'aquest "
                 f"problema és «x»."
             ),
         }
@@ -262,21 +262,13 @@ def validate_equation_form(eq):
         return {
             "ok": False,
             "reason": "non_linear",
-            "details": (
-                "Aquesta equació no és lineal: en una equació lineal la x "
-                "només pot aparèixer multiplicada per un nombre, sense "
-                "potències ni funcions."
-            ),
+            "details": "L'equació que tu has escrit no és lineal: revisa-ho.",
         }
     if deg > 1:
         return {
             "ok": False,
             "reason": "non_linear",
-            "details": (
-                f"Has escrit una equació de grau {deg} (per exemple amb x^{deg} "
-                f"o x·x). Recorda que en una equació lineal la x apareix sense "
-                f"potències."
-            ),
+            "details": "L'equació que tu has escrit no és lineal: revisa-ho.",
         }
     # deg == 0 ja l'hem capturat com a "no_variable" abans
     return {"ok": True, "reason": None, "details": ""}

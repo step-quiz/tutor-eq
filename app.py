@@ -215,7 +215,7 @@ def render_sidebar():
             st.caption(f"Model actiu: `{L.MODEL}`")
 
         st.markdown("---")
-        st.markdown("**Selecciona problema**")
+        st.markdown("**Selecciona l'equació**")
 
         for prob in PB.list_problems():
             label = f"N{prob['nivell']} · {prob['familia']} · {prob['equacio_text']}"
@@ -348,14 +348,13 @@ def render_main():
     s = st.session_state.session
 
     if s is None:
-        st.title("Tutor d'equacions lineals")
-        st.write("Tria un problema a la barra lateral per començar.")
+        st.title("Aprendre a resoldre equacions")
+        st.write("Escull una equació a la barra lateral.")
         st.markdown("---")
         st.markdown(
-            "**Què espera de tu el sistema?** En cada torn, escriu una equació "
-            "intermèdia equivalent que avanci cap a aïllar `x`. No has de donar "
-            "directament la solució: la cadena d'equacions és la teva traça de "
-            "raonament. El sistema verificarà cada pas."
+            "Has de simplificar l'equació per poder estar més a prop d'aïllar la "
+            "incògnita `x`. Atenció, no has de donar directament la solució, sinó "
+            "avançar pas a pas."
         )
         return
 
@@ -387,17 +386,17 @@ def render_main():
 def _render_problem_main(s, input_disabled: bool):
     """Renderitza el problema principal: capçalera, cadena, missatges, input."""
     # Capçalera del problema
-    st.markdown(f"### Problema {s['problem_id']}")
+    st.markdown(f"### Equació {s['problem_id']}")
     st.caption(f"Nivell {s['problem']['nivell']} · {s['problem']['tema']}")
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
     # Cadena d'equacions
-    st.markdown("**Cadena de la sessió**")
+    st.markdown("**Cadena d'equacions**")
     visible_history = _filter_superseded_errors(s["history"])
     for h in visible_history:
         if h["step"] == 0:
-            st.markdown(f"`{h['text']}`  · *enunciat*")
+            st.markdown(f"`{h['text']}`  · *equació original*")
         else:
             badge = _verdict_badge(h["verdict"])
             err_label = h.get("error_label")
@@ -449,8 +448,7 @@ def _render_problem_main(s, input_disabled: bool):
         # l'alumne ha de respondre primer al panell dret.
         st.markdown("<hr>", unsafe_allow_html=True)
         st.caption(
-            "Respon primer la pregunta del prerequisit a la dreta. "
-            "Després tornaràs a aquest problema."
+            "Respon, en primer lloc, la pregunta al panell de la dreta."
         )
         return
 
@@ -462,7 +460,7 @@ def _render_problem_main(s, input_disabled: bool):
 def _render_prereq_panel(s):
     """Panell dret per a la sub-tasca del prerequisit."""
     prereq = PB.get_prerequisite(s["active_prereq"])
-    st.markdown("### ↻ Prerequisit")
+    st.markdown("### ↻ Exercici de reforç")
     st.caption(prereq.get("concept", ""))
 
     st.markdown("<hr>", unsafe_allow_html=True)
@@ -507,7 +505,7 @@ def _render_input_form(s, key_prefix: str):
         # vegi clarament què s'està avaluant en cada moment.
         suffix = (" (pot trigar uns segons mentre el sistema raona)"
                   if "pro" in L.MODEL.lower() else "")
-        spinner_text = f"Avaluant «{raw}»...{suffix}"
+        spinner_text = f"Estic avaluant «{raw}»...{suffix}"
         with st.spinner(spinner_text):
             placeholder = st.empty()
             T.process_turn(s, raw)
@@ -546,10 +544,10 @@ def _filter_superseded_errors(history: list) -> list:
 
 def _verdict_badge(v: str) -> str:
     return {
-        "correcte_progres": "✓ progrés",
-        "correcte_estancat": "≈ estancat",
+        "correcte_progres": "✓ correcte",
+        "correcte_estancat": "≈ no has simplificat prou",
         "error": "✗ error",
-        "no_math": "— no math",
+        "no_math": "— no detecto matemàtiques",
         "inicial": "—",
     }.get(v, v)
 
@@ -558,7 +556,7 @@ def _render_message(m: dict):
     kind = m["kind"]
     text = m["text"]
     if kind == "feedback":
-        st.markdown(f"**Feedback:** {text}")
+        st.markdown(f"**Missatge:** {text}")
     elif kind == "hint":
         st.info(f"💡 **Pista:** {text}")
     elif kind == "worked_example":
@@ -584,7 +582,7 @@ def _render_message(m: dict):
     elif kind == "system":
         st.caption(text)
     elif kind == "prereq":
-        st.markdown(f"**↻ Retrocés a prerequisit:** {text}")
+        st.markdown(f"**↻** {text}")
     elif kind == "discrepancy":
         st.success(f"📝 {text}")
     else:

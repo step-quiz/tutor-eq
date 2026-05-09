@@ -137,21 +137,21 @@ PREREQUISITES = {
     "PRE-FRAC": {
         "id": "PRE-FRAC",
         "concept": "def_fraccions_equiv",
-        "question": "Si x/3 = 5/2, quina equació obtens fent producte creuat?",
+        "question": "Si x/3 = 5/2, quina equació obtens fent el producte creuat?",
         "expected_equation": "2*x = 15",  # validació via SymPy
         "explanation": "Producte creuat: numerador × denominador de l'altre. 2·x = 3·5.",
     },
     "PRE-MCM": {
         "id": "PRE-MCM",
         "concept": "def_mcm",
-        "question": "Quin és el m.c.m. de 2 i 3?",
+        "question": "Quin és el mínim comú múltiple de 2 i 3?",
         "expected_value": 6,
         "explanation": "El mínim comú múltiple és el menor nombre divisible per tots dos.",
     },
     "PRE-DIST": {
         "id": "PRE-DIST",
         "concept": "prop_distributiva",
-        "question": "Desenvolupa: 5(x + 2)",
+        "question": "Desenvolupa aplicant la propietat distributiva: 5 · (x + 2)",
         "expected_equation_or_expr": "5*x + 10",
         # Format de l'explicació: "<equació original> = <resultat>, perquè
         # <raó operativa>". L'alumne ha de veure el RESULTAT complet i el
@@ -161,14 +161,14 @@ PREREQUISITES = {
     "PRE-SIGNES": {
         "id": "PRE-SIGNES",
         "concept": "regla_signes_parens",
-        "question": "Treu el parèntesi: −(x − 3)",
+        "question": "Desenvolupa i escriu sense haver de fer servir el parèntesi: −(x − 3)",
         "expected_equation_or_expr": "-x + 3",
         "explanation": "−(x − 3) = −x + 3, perquè el menys de davant canvia el signe de cada terme de dins: la x passa a −x i el −3 passa a +3.",
     },
     "PRE-INV": {
         "id": "PRE-INV",
         "concept": "operacions_inverses",
-        "question": "Si tens 3 + x = 10, quina operació fas a tots dos costats per aïllar la x? Escriu només l'operació.",
+        "question": "Si tens 3 + x = 10, quina operació fas als dos membres de l'equació, per poder aïllar la x? Explica-ho en català.",
         "keywords_required": ["restar", "resta", "−3", "-3", "menys 3", "treure"],
         # Operacions equivocades per a aquest cas (additiu): rebutgem
         # respostes que parlin de multiplicar o dividir aquí.
@@ -178,7 +178,7 @@ PREREQUISITES = {
     "PRE-INV-MULT": {
         "id": "PRE-INV-MULT",
         "concept": "operacions_inverses",
-        "question": "Si tens 3·x = 12, quina operació fas a tots dos costats per aïllar la x? Escriu només l'operació.",
+        "question": "Si tens 3·x = 12, quina operació fas als dos membres de l'equació, per poder aïllar la x? Explica-ho en català.",
         # "entre 3" és inequívocament divisió en català; "per 3" no
         # s'inclou perquè és ambigu (es fa servir tant per a multiplicar
         # com per a dividir).
@@ -221,7 +221,7 @@ PROBLEMS = {
         "id": "EQ1-A-001",
         "familia": "EQ1-A",
         "nivell": 1,
-        "tema": "Equació d'un pas, suma",
+        "tema": "Equació que es resol amb un pas",
         "equacio_text": "x + 7 = 12",
         "equacio_simetria": "12 = x + 7",   # forma invertida (20% prob)
         "solucio": 5,
@@ -232,7 +232,7 @@ PROBLEMS = {
         "id": "EQ2-A-001",
         "familia": "EQ2-A",
         "nivell": 2,
-        "tema": "Equació de dos passos",
+        "tema": "Equació que es resol amb dos passos",
         "equacio_text": "3x − 5 = 10",
         "equacio_simetria": "10 = 3x − 5",
         "solucio": 5,
@@ -243,7 +243,7 @@ PROBLEMS = {
         "id": "EQ3-A-001",
         "familia": "EQ3-A",
         "nivell": 3,
-        "tema": "Equació amb parèntesi",
+        "tema": "Equació que conté parèntesis",
         "equacio_text": "3(x − 4) = 9",
         "equacio_simetria": "9 = 3(x − 4)",
         "solucio": 7,
@@ -255,7 +255,7 @@ PROBLEMS = {
         "id": "EQ4-B-001",
         "familia": "EQ4-B",
         "nivell": 4,
-        "tema": "Equació amb denominadors",
+        "tema": "Equació on hi ha fraccions",
         "equacio_text": "x/2 + x/3 = 5",
         "equacio_simetria": "5 = x/2 + x/3",
         "solucio": 6,

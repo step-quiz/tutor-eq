@@ -182,7 +182,7 @@ def process_turn(state: dict, raw_input: str) -> dict:
 
     if sig["kind"] == "exit":
         state["verdict_final"] = "abandonat"
-        _push_msg(state, "system", "Sessió tancada per l'alumne. Rastre guardat.")
+        _push_msg(state, "system", "Sessió tancada per l'alumne. Rastre desat.")
         return state
 
     if sig["kind"] == "discrepancy":
@@ -192,7 +192,7 @@ def process_turn(state: dict, raw_input: str) -> dict:
             "ts": time.time(),
         })
         _push_msg(state, "discrepancy",
-                  "Discrepància registrada per a revisió docent. La sessió continua.")
+                  "D'acord, queda anotat. Continuem.")
         return state
 
     if sig["kind"] == "help":
@@ -227,7 +227,7 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
         try:
             ia = L.interpret_input(raw_text, last["text"], original_text)
         except Exception as e:
-            _push_msg(state, "warning", f"Error de connexió amb la IA: {e}")
+            _push_msg(state, "warning", f"Hi ha un error de connexió amb la IA: {e}")
             return state
 
         if ia["verdict"] == "no_eq":
@@ -248,7 +248,7 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
         err_label = "GEN_other" if v == "error" else None
         _record_step(state, text_to_record, parsed_ok=False, verdict=v,
                      error_label=err_label)
-        _push_msg(state, "feedback", f"[Reconstruït] {ia['short_msg']}")
+        _push_msg(state, "feedback", f"Jo interpreto això {ia['short_msg']}")
         _post_verdict_bookkeeping(state, v, original_text)
         return state
 
@@ -280,7 +280,7 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
         if V.is_same_text(last["text"], raw_text):
             _record_step(state, raw_text, parsed_ok=True, verdict="correcte_estancat")
             _push_msg(state, "feedback",
-                      "Has tornat a escriure la mateixa equació. No avances.")
+                      "Has tornat a escriure la mateixa equació.")
             _post_verdict_bookkeeping(state, "correcte_estancat", original_text)
             return state
 
@@ -293,7 +293,7 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
                              verdict="correcte_progres")
                 state["verdict_final"] = "resolt"
                 _push_msg(state, "feedback",
-                          f"Correcte. x = {sol}. Problema resolt.")
+                          f"Correcte. x = {sol}. Equació resolta, felicitats!")
                 return state
 
         # Per al judici de progrés sí que comparem amb la prèvia
@@ -304,7 +304,7 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
         try:
             jp = L.judge_progress(ref_text, raw_text, target_sol)
         except Exception as e:
-            _push_msg(state, "warning", f"Error de connexió amb la IA: {e}")
+            _push_msg(state, "warning", f"Hi ha un error de connexió amb la IA: {e}")
             return state
 
         v = "correcte_progres" if jp["verdict"] == "progres" else "correcte_estancat"
@@ -338,7 +338,7 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
             recent_errors=recent_err,
         )
     except Exception as e:
-        _push_msg(state, "warning", f"Error de connexió amb la IA: {e}")
+        _push_msg(state, "warning", f"Hi ha un error de connexió amb la IA: {e}")
         # IMPORTANT: encara que la IA falli, l'intent ÉS un error (sabem
         # per equivalència que no és correcte). Hem de gravar-lo a la
         # història amb una etiqueta genèrica, perquè si no, _last_correct
@@ -403,7 +403,7 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
                     _push_msg(state, "worked_example", msg)
                 except Exception as e:
                     _push_msg(state, "warning",
-                              f"Error de connexió amb la IA: {e}")
+                              f"Hi ha un error de connexió amb la IA: {e}")
             else:  # streak >= 3
                 # 3a o més: ni el prereq ni l'exemple han funcionat;
                 # diem explícitament què cal fer al pas següent.
@@ -417,7 +417,7 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
                     _push_msg(state, "concrete_step", msg)
                 except Exception as e:
                     _push_msg(state, "warning",
-                              f"Error de connexió amb la IA: {e}")
+                              f"Hi ha un error de connexió amb la IA: {e}")
 
     _post_verdict_bookkeeping(state, "error", original_text)
     return state
@@ -436,7 +436,7 @@ def _post_verdict_bookkeeping(state, verdict, original_text):
         if state["stagnation_consecutive"] >= 2 and not state["pending_proactive_offer"]:
             state["pending_proactive_offer"] = True
             _push_msg(state, "system",
-                      "Sembla que estàs donant voltes. Si vols una pista, escriu  ?  .")
+                      "Sembla que estàs donant voltes. Pots clicar al botó de la columna esquerra \"Vull una pista\".")
     else:
         # Reset si surt de l'estancament
         state["stagnation_consecutive"] = 0
@@ -455,7 +455,7 @@ def _handle_help(state):
     if state["active_prereq"] is not None:
         prereq = PB.get_prerequisite(state["active_prereq"])
         _push_msg(state, "hint", prereq.get("explanation",
-                  "Pensa en la definició del concepte."),
+                  "Llegeix bé el que t'estan demanant."),
                   target="prereq")
         state["hints_requested"].append({
             "step_after": len(state["history"]) - 1,
@@ -472,7 +472,7 @@ def _handle_help(state):
             str(state["problem"]["solucio"]),
         )
     except Exception as e:
-        _push_msg(state, "warning", f"Error de connexió amb la IA: {e}")
+        _push_msg(state, "warning", f"Hi ha un error de connexió amb la IA: {e}")
         return state
 
     _push_msg(state, "hint", hint)
@@ -524,15 +524,14 @@ def _start_prereq(state, prereq_id, dep_id):
     if state["active_prereq_depth"] > MAX_BACKTRACK_DEPTH:
         # No hauríem d'arribar mai aquí: el llindar es comprova abans
         _push_msg(state, "warning",
-                  "S'ha arribat a la profunditat màxima de retrocés. "
-                  "Es recomana tutoria humana.")
+                  "Es recomana demanar ajuda al professorat.")
         state["active_prereq"] = None
         state["active_prereq_depth"] -= 1
         return
 
     prereq = PB.get_prerequisite(prereq_id)
     _push_msg(state, "prereq",
-              "Cal treballar abans un prerequisit (panell dret).",
+              "Cal treballar abans un exercici de reforç.",
               target="main")
 
 
@@ -557,12 +556,12 @@ def _process_prereq_turn(state, raw_text):
         # principal). Sense aquesta indicació, l'alumne es queda amb
         # l'input buit sense saber que ha de continuar resolent.
         _push_msg(state, "prereq_resolved",
-                  f"Prereq {prereq_id}: superat correctament. {explanation}\n\n"
-                  f"**Aplica això a la teva equació original.**",
+                  f"Exercici {prereq_id}: superat correctament. {explanation}\n\n"
+                  f"**Ara, aplica el que has après a la teva equació original.**",
                   target="main")
     else:
         _push_msg(state, "feedback",
-                  f"Encara no. {explanation}",
+                  f"Encara no és correcte. {explanation}",
                   target="prereq")
         state["active_prereq"] = None
         state["active_prereq_depth"] = max(0, state["active_prereq_depth"] - 1)
@@ -571,9 +570,9 @@ def _process_prereq_turn(state, raw_text):
         # explícitament que la seva resposta no era correcta, l'explicació
         # esperada, i la indicació de què fer ara.
         _push_msg(state, "prereq_failed",
-                  f"Prereq {prereq_id}: la teva resposta no és correcta. "
-                  f"L'explicació esperada és — {explanation}\n\n"
-                  f"**Torna a intentar resoldre l'equació original.**",
+                  f"Exercici {prereq_id}: la teva resposta no és correcta. "
+                  f"La solució és aquesta: {explanation}\n\n"
+                  f"**Ara ja pots intentar resoldre l'equació original.**",
                   target="main")
     return state
 
@@ -651,13 +650,13 @@ def _handle_inappropriate(state, raw_text, ia_already_judged=False):
     if n >= MAX_INAPPROPRIATE_WARNINGS:
         state["verdict_final"] = "suspes_us_inadequat"
         _push_msg(state, "warning",
-                  "S'ha detectat ús inadequat del sistema. La sessió es tanca i el "
+                  "S'ha detectat un ús inadequat del sistema. La sessió es tanca i el "
                   "rastre queda registrat.")
         return state
 
     _push_msg(state, "warning",
               f"Avís {n}/{MAX_INAPPROPRIATE_WARNINGS}: la resposta no conté contingut "
-              "matemàtic. Si necessites ajuda, escriu  ?  . Si vols sortir, escriu  !! .")
+              "matemàtic. Recorda que pots activar el botó per demanar ajuda, o bé sortir.")
     return state
 
 
