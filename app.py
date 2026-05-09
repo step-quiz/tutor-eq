@@ -73,6 +73,28 @@ st.markdown(
          aquesta indicació tècnica — el botó Enviar i el comportament
          d'Enter ja són evidents. */
       [data-testid="InputInstructions"] { display: none !important; }
+      /* Botons amb intent pedagògic explícit per a Aran. Els targetem
+         per la classe st-key-{key} que Streamlit afegeix automàticament
+         al div wrapper del botó. Així evitem servir type="primary"
+         (que afectaria també el botó Enviar i altres). */
+      .st-key-hint_btn button {
+          background-color: #f59e0b !important;   /* taronja càlid */
+          color: #ffffff !important;
+          border: 1px solid #d97706 !important;
+      }
+      .st-key-hint_btn button:hover {
+          background-color: #d97706 !important;
+          border-color: #b45309 !important;
+      }
+      .st-key-exit_btn button {
+          background-color: #4a4a4a !important;   /* gris fosc neutre */
+          color: #ffffff !important;
+          border: 1px solid #2d2d2d !important;
+      }
+      .st-key-exit_btn button:hover {
+          background-color: #2d2d2d !important;
+          border-color: #1a1a1a !important;
+      }
     </style>
     """,
     unsafe_allow_html=True,
@@ -201,20 +223,23 @@ def render_sidebar():
                 start_session(prob["id"])
                 st.rerun()
 
-        st.markdown("---")
-        st.markdown("**Senyals especials**")
-        st.markdown(
-            "- `?` — demanar pista\n"
-            "- `!text` — discrepància, continuar\n"
-            "- `!!` — sortir de la sessió"
-        )
+# "Senyals especials" (codi tècnic ?, !text, !!) només té sentit
+        # per al desenvolupador. Per a Aran (13 anys) ho substituïm per
+        # botons explícits: "Vull una pista" i "Vull sortir de la sessió".
+        if debug:
+            st.markdown("---")
+            st.markdown("**Senyals especials**")
+            st.markdown(
+                "- `?` — demanar pista\n"
+                "- `!text` — discrepància, continuar\n"
+                "- `!!` — sortir de la sessió"
+            )
 
         st.markdown("---")
         s = st.session_state.session
         if s is not None:
-            # Estat intern de la sessió (im2): comptadors de torns,
-            # pistes, retrocessos, etc. És informació meta orientada al
-            # desenvolupador. Per a l'Aran no aporta res i la distreu.
+            # Estat intern de la sessió (im2): comptadors de torns, pistes, etc.
+            # Info meta orientada al desenvolupador.
             if debug:
                 st.markdown("**Estat de la sessió**")
                 st.text(f"Torns:           {len(s['history']) - 1}")
@@ -224,15 +249,25 @@ def render_sidebar():
                 st.text(f"Avisos no-math:  {s['inappropriate_warnings']}")
                 if s["active_prereq"]:
                     st.text(f"En prerequisit:  {s['active_prereq']}")
+                st.markdown("")  # petit espai abans dels botons d'acció
 
-            # Botó Sortir (visible sempre que hi hagi sessió activa).
+            # Accions de l'alumne durant la sessió. Visibles tant en
+            # mode normal com en debug — són la substitució accessible
+            # dels senyals tècnics ?, !!. El color (CSS .st-key-...)
+            # els distingeix visualment: taronja per la pista (acció
+            # constructiva), gris fosc per sortir (acció definitiva).
             if s["verdict_final"] is None:
-                if st.button("Sortir de la sessió (!!)",
+                if st.button("Vull una pista",
+                             key="hint_btn",
+                             use_container_width=True):
+                    T.process_turn(s, "?")
+                    st.rerun()
+                if st.button("Vull sortir de la sessió",
                              key="exit_btn",
                              use_container_width=True):
                     T.process_turn(s, "!!")
                     st.rerun()
-
+                    
             # Mode debug: test exhaustiu (im2 part 2).
             if debug:
                 st.markdown("---")
