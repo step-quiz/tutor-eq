@@ -42,7 +42,7 @@ _lock = Lock()
 # contextos > 200k tokens, però aquí assumim contextos curts <5k tokens).
 # Per a thinking models (gemini-2.5-pro), els thoughts_tokens es facturen
 # com a output_tokens — la suma surt al cost.
-# Última verificació: 2025-Q4.
+# Última verificació: 2026-05.
 MODEL_PRICING_USD_PER_M = {
     "gemini-2.5-pro":        {"input": 1.25, "output": 10.00},
     "gemini-2.5-flash":      {"input": 0.30, "output":  2.50},

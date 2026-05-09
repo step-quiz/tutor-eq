@@ -240,7 +240,14 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
             "error": "error",
         }
         v = verdict_map.get(ia["verdict"], "error")
-        _record_step(state, text_to_record, parsed_ok=False, verdict=v)
+        # Si el camí d'interpretació conclou que el pas és erroni, etiquetem-lo
+        # genèricament. interpret_input no fa classificació fina d'error (això
+        # és feina de classify_error, que només es crida quan SymPy parseja);
+        # sense aquesta etiqueta el rastre JSON queda buit per a aquests casos
+        # i l'anàlisi posterior no pot agrupar-los.
+        err_label = "GEN_other" if v == "error" else None
+        _record_step(state, text_to_record, parsed_ok=False, verdict=v,
+                     error_label=err_label)
         _push_msg(state, "feedback", f"[Reconstruït] {ia['short_msg']}")
         _post_verdict_bookkeeping(state, v, original_text)
         return state

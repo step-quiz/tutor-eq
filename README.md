@@ -7,19 +7,21 @@ Streamlit.
 ## Requisits
 
 - Python 3.10+
-- Una clau d'API d'Anthropic (https://console.anthropic.com)
+- Una clau d'API de Google Gemini (https://aistudio.google.com/apikey)
 
 ## Instal·lació
 
 ```bash
 pip install -r requirements.txt
-export ANTHROPIC_API_KEY=sk-ant-...
+export GEMINI_API_KEY=...
 streamlit run app.py
 ```
 
-(Opcional) per canviar el model:
+(Opcional) per canviar el model. Per defecte: `gemini-2.5-flash`.
 ```bash
-export CLAUDE_MODEL=claude-sonnet-4-5
+export GEMINI_MODEL=gemini-2.5-pro    # més qualitat, més lent, més car
+# o bé
+export GEMINI_MODEL=gemini-2.5-flash-lite   # més barat
 ```
 
 ## Estructura
@@ -47,9 +49,10 @@ Tot l'abast definit a la Fase 0:
 ## Què cal saber abans d'executar
 
 - **Cost**: cada torn fa 1-2 crides a la IA. Una sessió típica de 4 problemes
-  pot costar 5-15 cèntims de dòlar amb Sonnet.
-- **Model**: per defecte `claude-sonnet-4-5`. Si Anthropic actualitza el nom,
-  cal ajustar l'env var `CLAUDE_MODEL` o editar `llm.py`.
+  pot costar uns pocs cèntims de dòlar amb `gemini-2.5-flash`. Per a `pro`,
+  multiplicar per ~4. Veure `api_logger.py` per al desglòs de preus.
+- **Model**: per defecte `gemini-2.5-flash`. Si Google actualitza el nom o els
+  preus, ajustar `GEMINI_MODEL` o `MODEL_PRICING_USD_PER_M` a `api_logger.py`.
 - **Problemes coneguts**: el judici de progrés és l'única dimensió que depèn
   fortament de la IA. Si veus comportament estrany, mira el JSON i informa-ho
   per ajustar el prompt.

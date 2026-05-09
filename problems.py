@@ -148,13 +148,6 @@ PREREQUISITES = {
         "expected_value": 6,
         "explanation": "El mínim comú múltiple és el menor nombre divisible per tots dos.",
     },
-    "PRE-EQUIV": {
-        "id": "PRE-EQUIV",
-        "concept": "principi_equiv",
-        "question": "Si tens x + 5 = 12 i restes 5 a un sol costat, l'equació segueix sent equivalent? Respon SÍ o NO i digues per què.",
-        "keywords_required": ["no"],
-        "explanation": "S'ha d'operar als dos costats alhora. Si només es resta a un, ja no és la mateixa equació.",
-    },
     "PRE-DIST": {
         "id": "PRE-DIST",
         "concept": "prop_distributiva",
