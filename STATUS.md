@@ -59,7 +59,16 @@ Document viu. S'actualitza a cada bloc de feina. Última actualització: 2026-05
 
 ### Bugs corregits posteriors
 - ✅ **Cost del test exhaustiu**: el delta sortia 0 perquè `app.py` summarizava contra el session_id de l'alumne mentre que el test loggejava sota un session_id propi (per aïllament). Fixat: `run_exhaustive_test` accepta ara un paràmetre `session_id` que el caller li passa, i `app.py` summarizava directament contra aquest.
-- ✅ **Validació en obres reals:** test exhaustiu de EQ3-C-001 (9/9), EQ3-D-001 (13/13) i EQ4-C-001 (12/12) tots OK amb el classificador. Cap mismatch detectat.
+
+### Validació amb el classificador IA (test exhaustiu)
+- ✅ **EQ3-C-001** (`2x + 5 = x + 8`): 9/9 OK
+- ✅ **EQ3-D-001** (`7 − (x + 2) = 4`): 13/13 OK
+- ✅ **EQ4-C-001** (`5 − (x − 1)/2 = 3`): 12/12 OK
+- ✅ **EQ1-B-001** (`5x = 20`): 100% OK
+- ✅ **EQ2-B-001** (`2x + 8 = 4`): 100% OK
+- ✅ **EQ3-B-001** (`5 + 2(x − 3) = 7`): 100% OK
+- ✅ **EQ4-A-001** (`(x + 1)/3 = 4`): 100% OK
+- **Conclusió:** el classificador entén tots els errors del catàleg amb les etiquetes esperades. Cap mismatch que requereixi ajustar el prompt de `classify_error` abans del pilot.
 
 ---
 
