@@ -96,6 +96,27 @@ st.markdown(
           background-color: #2d2d2d !important;
           border-color: #1a1a1a !important;
       }
+
+      /* Augment del 20% del text al panell principal per millor
+         lectura per a l'Aran. El sidebar (que usa altres contenidors)
+         no es veu afectat. */
+      .block-container {
+          font-size: 1.2rem;
+      }
+
+      /* Botó Enviar (form_submit_button): manté mida normal i estrena
+         look gris clar, amb hover a gris fosc i border més marcat. */
+      .block-container [data-testid="stFormSubmitButton"] button {
+          background-color: #f0f0f0 !important;
+          color: #333333 !important;
+          border: 2px solid #c0c0c0 !important;
+          font-size: 1rem !important;
+      }
+      .block-container [data-testid="stFormSubmitButton"] button:hover {
+          background-color: #555555 !important;
+          color: #ffffff !important;
+          border: 2px solid #1a1a1a !important;
+      }
     </style>
     """,
     unsafe_allow_html=True,
@@ -178,6 +199,8 @@ def init_state():
         st.session_state.test_problem_id = None
     if "student_id" not in st.session_state:
         st.session_state.student_id = ""
+    if "confirm_exit" not in st.session_state:
+        st.session_state.confirm_exit = False
 
 
 def start_session(problem_id: str):
@@ -192,6 +215,10 @@ def start_session(problem_id: str):
         session_id=st.session_state.session["session_id"],
     )
     st.session_state.input_counter += 1
+    # Si l'alumne havia clicat "Vull sortir" sense confirmar a la sessió
+    # anterior i ara comença un problema nou, neteja la flag perquè
+    # el botó torni al seu estat inicial.
+    st.session_state.confirm_exit = False
     # Si canviem de problema, els resultats del test anterior ja no
     # corresponen — els netegem.
     if st.session_state.test_problem_id != problem_id:
@@ -286,11 +313,32 @@ def render_sidebar():
                              use_container_width=True):
                     T.process_turn(s, "?")
                     st.rerun()
-                if st.button("Vull sortir de la sessió",
-                             key="exit_btn",
-                             use_container_width=True):
-                    T.process_turn(s, "!!")
-                    st.rerun()
+
+                # Sortir té confirmació en dos passos: el primer clic
+                # activa la flag, el rerun mostra Acceptar / Cancel·lar.
+                # Així evitem tancaments accidentals.
+                if not st.session_state.get("confirm_exit"):
+                    if st.button("Vull sortir de la sessió",
+                                 key="exit_btn",
+                                 use_container_width=True):
+                        st.session_state.confirm_exit = True
+                        st.rerun()
+                else:
+                    st.warning("Vols confirmar que surts de la sessió?")
+                    col_ok, col_cancel = st.columns(2)
+                    with col_ok:
+                        if st.button("Acceptar",
+                                     key="exit_confirm_btn",
+                                     use_container_width=True):
+                            st.session_state.confirm_exit = False
+                            T.process_turn(s, "!!")
+                            st.rerun()
+                    with col_cancel:
+                        if st.button("Cancel·lar",
+                                     key="exit_cancel_btn",
+                                     use_container_width=True):
+                            st.session_state.confirm_exit = False
+                            st.rerun()
                     
             # Mode debug: test exhaustiu (im2 part 2).
             if debug:

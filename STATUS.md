@@ -1,6 +1,6 @@
 # STATUS — seguiment del Tutor d'equacions lineals
 
-Document viu. S'actualitza a cada bloc de feina. Última actualització: 2026-05-09 (tancament de Fase 3).
+Document viu. S'actualitza a cada bloc de feina. Última actualització: 2026-05-09 (UI/UX Aran, validació IA Tier 3, bug post-prereq).
 
 ---
 
@@ -71,7 +71,18 @@ Document viu. S'actualitza a cada bloc de feina. Última actualització: 2026-05
 - ✅ **EQ2-B-001** (`2x + 8 = 4`): 100% OK
 - ✅ **EQ3-B-001** (`5 + 2(x − 3) = 7`): 100% OK
 - ✅ **EQ4-A-001** (`(x + 1)/3 = 4`): 100% OK
-- **Conclusió:** el classificador entén tots els errors del catàleg amb les etiquetes esperades. Cap mismatch que requereixi ajustar el prompt de `classify_error` abans del pilot.
+- ✅ **EQ1-C-001** (`x − 4 = 9`): 100% OK
+- ✅ **EQ2-C-001** (`−3x + 5 = 14`): 100% OK
+- ✅ **EQ2-D-001** (`12 = 2x + 4`): 100% OK
+- **Conclusió:** els 10 problemes nous (Tier 1+2+3) validats amb la IA, tots 100%. El classificador entén tots els errors del catàleg amb les etiquetes esperades. **Cap mismatch que requereixi ajustar el prompt de `classify_error` abans del pilot.**
+
+### Categoria B / C — refinaments d'UI/UX (consolidats)
+- ✅ Espai vertical: revisat, sense `<hr>` redundants.
+- ✅ Sidebar en mode no-debug: net.
+- ✅ Botó "Vull sortir de la sessió": ara demana confirmació (Acceptar / Cancel·lar) per evitar tancaments accidentals.
+- ✅ Tipografia del panell principal augmentada un 20% per a millor lectura per a l'Aran (sidebar no afectat).
+- ✅ Estil del botó Enviar: gris clar per defecte, gris fosc al hover amb border més marcat (substitueix el vermell primary que era visualment massa agressiu).
+- ✅ **Bug fix: caixa verda post-prereq ara és persistent.** Abans, els missatges de tancament de prereq (`prereq_resolved`/`prereq_failed`) desapareixien al següent torn perquè `process_turn` netejava `state["messages"]` íntegrament. Solució: flag `persistent` a `_push_msg` que excepciona aquests missatges del reset.
 
 ---
 
@@ -90,15 +101,6 @@ Document viu. S'actualitza a cada bloc de feina. Última actualització: 2026-05
 ---
 
 ## ⚪ Pendent (sense ordre concret)
-
-### Categoria B — Refinaments d'UI
-- ⚪ Tipografia/mides per a l'Aran (revisar amb captures concretes).
-- ⚪ Espai vertical: hi ha `<hr>` redundants? Revisar.
-- ⚪ Comportament del botó "Vull sortir de la sessió": ara executa `!!` directament. **Demanar confirmació?**
-
-### Categoria C — Refinaments d'UX
-- ⚪ Verificar que la caixa verda persistent post-prereq es veu bé (no eclipsada per la cadena d'equacions).
-- ⚪ Sidebar en mode no-debug: confirmar que queda neta.
 
 ### Fase 3 — Tier 4 (post-pilot, opcional)
 - ⚪ Equació identitat (`2(x + 3) = 2x + 6`).

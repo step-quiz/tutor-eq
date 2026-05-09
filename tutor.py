@@ -128,17 +128,24 @@ def _recent_errors(state: dict, limit: int = 3) -> list:
     return list(reversed(out))
 
 
-def _push_msg(state, kind: str, text: str, target: str = "main"):
+def _push_msg(state, kind: str, text: str, target: str = "main",
+              persistent: bool = False):
     """
     kind:   'system' | 'feedback' | 'hint' | 'warning' | 'prereq' |
             'discrepancy' | 'worked_example' | 'concrete_step' |
             'prereq_resolved' | 'prereq_failed'
     target: 'main' (panell principal) | 'prereq' (panell dret quan hi ha
             sub-tasca activa).
+    persistent: si True, el missatge sobreviu entre torns (no es neteja
+            al començament de process_turn). Útil per a missatges que
+            donen context sobre què s'acaba de tancar (per ex. el
+            resultat del retrocés a un prereq), perquè l'alumne segueixi
+            veient-los mentre intenta aplicar el que ha après.
     El render decideix on mostrar cada missatge segons el target.
     """
     state["messages"].append({"kind": kind, "text": text,
-                              "target": target, "ts": time.time()})
+                              "target": target, "persistent": persistent,
+                              "ts": time.time()})
 
 
 def _record_step(state, text, parsed_ok, verdict, error_label=None):
@@ -186,8 +193,11 @@ def process_turn(state: dict, raw_input: str) -> dict:
     Punt d'entrada únic. Modifica state in-place i retorna state.
     Tota la lògica de classificació, retrocés, estancaments, etc., passa aquí.
     """
-    # Reset dels missatges de UI per al nou torn
-    state["messages"] = []
+    # Reset dels missatges de UI per al nou torn. Els missatges
+    # marcats com a persistent (típicament prereq_resolved /
+    # prereq_failed) es conserven perquè l'alumne segueixi veient
+    # el resultat del retrocés mentre aplica el que ha après.
+    state["messages"] = [m for m in state["messages"] if m.get("persistent")]
 
     # 1. Senyals d'escapament
     sig = parse_escape_signal(raw_input)
@@ -570,7 +580,7 @@ def _process_prereq_turn(state, raw_text):
         _push_msg(state, "prereq_resolved",
                   f"Exercici {prereq_id}: superat correctament. {explanation}\n\n"
                   f"**Ara, aplica el que has après a la teva equació original.**",
-                  target="main")
+                  target="main", persistent=True)
     else:
         _push_msg(state, "feedback",
                   f"Encara no és correcte. {explanation}",
@@ -585,7 +595,7 @@ def _process_prereq_turn(state, raw_text):
                   f"Exercici {prereq_id}: la teva resposta no és correcta. "
                   f"La solució és aquesta: {explanation}\n\n"
                   f"**Ara ja pots intentar resoldre l'equació original.**",
-                  target="main")
+                  target="main", persistent=True)
     return state
 
 
