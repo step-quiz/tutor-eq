@@ -725,7 +725,8 @@ def serialize_trace(state: dict) -> str:
 # ------------------------------------------------------------
 # Mode debug: test exhaustiu del flux end-to-end
 # ------------------------------------------------------------
-def run_exhaustive_test(problem_id: str, on_progress=None) -> list:
+def run_exhaustive_test(problem_id: str, on_progress=None,
+                        session_id: str = None) -> list:
     """
     Executa una bateria de rondes de prova contra el tutor per a un
     problema. Per a cada ronda:
@@ -738,9 +739,18 @@ def run_exhaustive_test(problem_id: str, on_progress=None) -> list:
     parteix sempre de l'enunciat (no de l'estat actual de la sessió),
     perquè els tests siguin reproduïbles.
 
+    Aïllament de logging: aquesta funció reescriu el context del thread
+    a (student_id='__test_exhaustiu__', session_id=<id efímer>) per no
+    contaminar les analítiques de l'alumne real. El context anterior es
+    restaura al final via try/finally.
+
     `on_progress(round_idx, n_rounds, input_idx, n_inputs)`: callback
     opcional que la UI pot usar per mostrar progrés (cada input pot
     trigar segons depenent del model).
+
+    `session_id`: id de sessió a fer servir per al logging d'aquesta
+    execució. Si no s'especifica, se'n genera un nou. Útil quan el
+    caller vol agregar després el cost via `summarize_session(sid)`.
 
     Retorna una llista de dicts (un per ronda) amb la forma:
         {
@@ -766,18 +776,15 @@ def run_exhaustive_test(problem_id: str, on_progress=None) -> list:
     if not rounds:
         return []
 
-    # Aïllem el context de logging del test perquè les crides a l'API
-    # no quedin etiquetades amb l'alumne real (si app.py n'havia fixat
-    # un). Capturem el context actual per restaurar-lo al final.
+    test_sid = session_id or uuid.uuid4().hex[:12]
     _prev_student, _prev_session = L.get_log_context()
     L.set_log_context(
         student_id="__test_exhaustiu__",
-        session_id=uuid.uuid4().hex[:12],
+        session_id=test_sid,
     )
     try:
         return _run_exhaustive_test_inner(rounds, problem_id, on_progress)
     finally:
-        # Restaurem el context anterior (o el deixem buit si no n'hi havia).
         L.set_log_context(student_id=_prev_student, session_id=_prev_session)
 
 

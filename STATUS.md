@@ -57,6 +57,10 @@ Document viu. S'actualitza a cada bloc de feina. Última actualització: 2026-05
 - ⚠️ **Cobertura mínima (1 problema):** L3_combine_terms (únic problema amb x als dos costats), L4_minus_fraction (únic amb menys davant fracció). Reforçar aquests requereix replicar els patrons estructurals — espera al Tier 3.
 - ❌ **Sense cobertura:** GEN_other (per disseny, és el fallback intern).
 
+### Bugs corregits posteriors
+- ✅ **Cost del test exhaustiu**: el delta sortia 0 perquè `app.py` summarizava contra el session_id de l'alumne mentre que el test loggejava sota un session_id propi (per aïllament). Fixat: `run_exhaustive_test` accepta ara un paràmetre `session_id` que el caller li passa, i `app.py` summarizava directament contra aquest.
+- ✅ **Validació en obres reals:** test exhaustiu de EQ3-C-001 (9/9), EQ3-D-001 (13/13) i EQ4-C-001 (12/12) tots OK amb el classificador. Cap mismatch detectat.
+
 ---
 
 ## 🟡 En cua (proper torn)

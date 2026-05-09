@@ -15,6 +15,7 @@ Mode debug:
 """
 
 import os
+import uuid
 import streamlit as st
 
 import problems as PB
@@ -345,22 +346,26 @@ def _run_test_and_store(problem_id: str):
             f"input {i_idx}/{n_inputs}..."
         )
 
-    # Mesurem el delta de cost del test: agafem el sumari abans i després
-    # i la diferència ens dóna el que ha consumit aquesta execució.
-    summary_before = api_logger.summarize_session(L.get_session_id())
+    # Generem un session_id propi per a aquest test. El test l'usarà
+    # internament per al logging (sota student_id='__test_exhaustiu__')
+    # i nosaltres podrem fer-ne un summarize directament: com que la
+    # sessió és nova, el sumari és el cost total del test sense cap
+    # subtracció.
+    test_sid = uuid.uuid4().hex[:12]
     with st.spinner("Executant test exhaustiu (pot trigar uns minuts)..."):
-        results = T.run_exhaustive_test(problem_id, on_progress=on_progress)
-    summary_after = api_logger.summarize_session(L.get_session_id())
+        results = T.run_exhaustive_test(
+            problem_id, on_progress=on_progress, session_id=test_sid,
+        )
     progress_box.empty()
+
+    summary = api_logger.summarize_session(test_sid)
     st.session_state.test_results = results
     st.session_state.test_problem_id = problem_id
     st.session_state.test_cost_delta = {
-        "calls": summary_after["calls_total"] - summary_before["calls_total"],
-        "tokens_in": summary_after["tokens_input"] - summary_before["tokens_input"],
-        "tokens_out": summary_after["tokens_output"] - summary_before["tokens_output"],
-        "cost_usd": round(
-            summary_after["cost_usd"] - summary_before["cost_usd"], 6
-        ),
+        "calls": summary["calls_total"],
+        "tokens_in": summary["tokens_input"],
+        "tokens_out": summary["tokens_output"],
+        "cost_usd": summary["cost_usd"],
     }
 
 
