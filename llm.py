@@ -51,15 +51,59 @@ RETRIABLE_PATTERNS = (
     "timeout", "Timeout",
 )
 
-# Session id per al log (un per execució del procés). Atenció: això és
-# per procés Python, no per usuari de Streamlit. Per al pilot multi-usuari
-# caldrà una identificació separada per pseudonim d'alumne (Fase 4).
-_SESSION_ID = uuid.uuid4().hex[:8]
+# ----------------------------------------------------------------
+# Context de logging (thread-local, perquè Streamlit pot servir
+# diversos usuaris concurrents). Cada sessió de problema té el seu
+# propi session_id; cada alumne té el seu propi student_id.
+# `set_log_context(...)` el fixa app.py al començar una sessió.
+# Si no s'ha fixat (fora d'app.py, en testos manuals, etc.), s'usen
+# fallbacks: un session_id estable per procés i student_id="anon".
+# ----------------------------------------------------------------
+import threading
+
+_PROCESS_FALLBACK_SESSION = uuid.uuid4().hex[:8]
+_log_ctx = threading.local()
+
+
+def set_log_context(student_id: str, session_id: str):
+    """
+    Fixa el context de logging per al thread actual. Subseqüents crides
+    a l'API (judge_progress, classify_error, etc.) etiquetaran les
+    entrades del log amb aquest student_id i session_id.
+
+    Es crida típicament des d'app.py al començar cada sessió de problema.
+    """
+    _log_ctx.student_id = student_id
+    _log_ctx.session_id = session_id
+
+
+def _current_session_id() -> str:
+    return getattr(_log_ctx, "session_id", None) or _PROCESS_FALLBACK_SESSION
+
+
+def _current_student_id() -> str:
+    return getattr(_log_ctx, "student_id", None) or "anon"
+
+
+def get_log_context() -> tuple:
+    """
+    Retorna (student_id, session_id) actuals del thread, sense aplicar
+    fallbacks. Útil per a guardar/restaurar context (test exhaustiu).
+    Si encara no s'ha cridat set_log_context al thread, retorna (None, None).
+    """
+    return (
+        getattr(_log_ctx, "student_id", None),
+        getattr(_log_ctx, "session_id", None),
+    )
 
 
 def get_session_id() -> str:
-    """Retorna l'id de sessió que s'usa al log d'API."""
-    return _SESSION_ID
+    """
+    Retorna l'id de sessió actual del thread (o el fallback de procés
+    si encara no s'ha fixat cap context). Es manté per compatibilitat
+    amb app.py, que la usa per filtrar `summarize_session`.
+    """
+    return _current_session_id()
 
 # Callback opcional perquè la UI pugui mostrar avisos durant els retries.
 # Signatura: fn(message: str). El defineix `app.py`.
@@ -164,7 +208,9 @@ def _call_with_retry(function_name: str, system: str, user: str,
             text, tokens = _do_call(system, user, max_tokens, json_mode, temperature)
             elapsed = time.time() - t0
             api_logger.log_call(
-                session_id=_SESSION_ID, function=function_name,
+                session_id=_current_session_id(),
+                student_id=_current_student_id(),
+                function=function_name,
                 model=MODEL, attempt=attempt, ok=True,
                 elapsed_s=elapsed, input_data=input_data,
                 output_data={"text_preview": text[:500], "len": len(text)},
@@ -175,7 +221,9 @@ def _call_with_retry(function_name: str, system: str, user: str,
             elapsed = time.time() - t0
             err_str = str(e)
             api_logger.log_call(
-                session_id=_SESSION_ID, function=function_name,
+                session_id=_current_session_id(),
+                student_id=_current_student_id(),
+                function=function_name,
                 model=MODEL, attempt=attempt, ok=False,
                 elapsed_s=elapsed, input_data=input_data,
                 error=err_str,

@@ -228,6 +228,21 @@ PROBLEMS = {
         "dependencies": ["operacions_inverses", "principi_equiv"],
         "errors_freqüents": ["L1_inverse_op", "L1_sign_error"],
     },
+    "EQ1-B-001": {
+        "id": "EQ1-B-001",
+        "familia": "EQ1-B",
+        "nivell": 1,
+        # Variant del nivell 1 amb operació MULTIPLICATIVA (no additiva).
+        # Reforça L1_inverse_op en el cas dual a EQ1-A-001: l'única
+        # operació inversa correcta és la divisió, i l'alumne pot
+        # confondre-la per multiplicació, suma o resta.
+        "tema": "Equació que es resol amb un pas (multiplicació)",
+        "equacio_text": "5x = 20",
+        "equacio_simetria": "20 = 5x",
+        "solucio": 4,
+        "dependencies": ["operacions_inverses", "principi_equiv"],
+        "errors_freqüents": ["L1_inverse_op", "L2_one_side_only", "GEN_arithmetic"],
+    },
     "EQ2-A-001": {
         "id": "EQ2-A-001",
         "familia": "EQ2-A",
@@ -238,6 +253,19 @@ PROBLEMS = {
         "solucio": 5,
         "dependencies": ["operacions_inverses", "principi_equiv", "def_aritm_negatius"],
         "errors_freqüents": ["L2_order", "L2_transpose_sign", "L1_sign_error"],
+    },
+    "EQ2-B-001": {
+        "id": "EQ2-B-001",
+        "familia": "EQ2-B",
+        "nivell": 2,
+        # Variant del nivell 2 amb suma (no resta) i solució negativa.
+        # Posa més pes a def_aritm_negatius perquè el resultat final és < 0.
+        "tema": "Equació amb dos passos i resultat negatiu",
+        "equacio_text": "2x + 8 = 4",
+        "equacio_simetria": "4 = 2x + 8",
+        "solucio": -2,
+        "dependencies": ["operacions_inverses", "principi_equiv", "def_aritm_negatius"],
+        "errors_freqüents": ["L2_transpose_sign", "L1_sign_error", "L2_one_side_only"],
     },
     "EQ3-A-001": {
         "id": "EQ3-A-001",
@@ -251,6 +279,68 @@ PROBLEMS = {
                          "principi_equiv"],
         "errors_freqüents": ["L3_distribution_partial", "L3_minus_paren", "L2_order"],
     },
+    "EQ3-B-001": {
+        "id": "EQ3-B-001",
+        "familia": "EQ3-B",
+        "nivell": 3,
+        # Variant del nivell 3: parèntesi precedit per un terme constant.
+        # Camí pedagògic preferit: aïllar el parèntesi primer (restar 5
+        # als dos costats), després dividir per 2, després aïllar la x.
+        # El sistema també accepta el camí alternatiu (distribuir primer)
+        # perquè SymPy només comprova equivalència algebraica.
+        "tema": "Equació amb parèntesis i un terme al davant",
+        "equacio_text": "5 + 2(x − 3) = 7",
+        "equacio_simetria": "7 = 5 + 2(x − 3)",
+        "solucio": 4,
+        "dependencies": ["prop_distributiva", "regla_signes_parens", "operacions_inverses",
+                         "principi_equiv"],
+        "errors_freqüents": ["L3_distribution_partial", "L2_transpose_sign", "L2_one_side_only"],
+    },
+    "EQ3-C-001": {
+        "id": "EQ3-C-001",
+        "familia": "EQ3-C",
+        "nivell": 3,
+        # Variant amb la x als DOS costats. Cobreix L3_combine_terms,
+        # un error que cap altre problema actual exposa. El camí preferit
+        # és restar la x petita als dos costats abans d'aïllar.
+        "tema": "Equació amb la incògnita als dos costats",
+        "equacio_text": "2x + 5 = x + 8",
+        "equacio_simetria": "x + 8 = 2x + 5",
+        "solucio": 3,
+        "dependencies": ["operacions_inverses", "principi_equiv"],
+        "errors_freqüents": ["L3_combine_terms", "L2_one_side_only", "L2_transpose_sign"],
+    },
+    "EQ3-D-001": {
+        "id": "EQ3-D-001",
+        "familia": "EQ3-D",
+        "nivell": 3,
+        # Variant amb un menys davant del parèntesi. Cobreix L3_minus_paren
+        # genuïnament (l'EQ3-A-001 el declara però com que té 3(x-4) sense
+        # cap menys davant del parèntesi, no es pot disparar de fet).
+        "tema": "Equació amb un menys davant del parèntesi",
+        "equacio_text": "7 − (x + 2) = 4",
+        "equacio_simetria": "4 = 7 − (x + 2)",
+        "solucio": 1,
+        "dependencies": ["regla_signes_parens", "operacions_inverses", "principi_equiv",
+                         "def_aritm_negatius"],
+        "errors_freqüents": ["L3_minus_paren", "L2_one_side_only", "L2_transpose_sign"],
+    },
+    "EQ4-A-001": {
+        "id": "EQ4-A-001",
+        "familia": "EQ4-A",
+        "nivell": 4,
+        # Variant simple del nivell 4: una sola fracció amb numerador
+        # entre parèntesis. Sense menys davant (això és EQ4-C-001).
+        # L'error més probable és cancel·lar el denominador sense
+        # multiplicar el costat dret (L4_illegal_cancel), o multiplicar
+        # només una part del numerador (L4_mcm_partial).
+        "tema": "Equació amb una fracció",
+        "equacio_text": "(x + 1)/3 = 4",
+        "equacio_simetria": "4 = (x + 1)/3",
+        "solucio": 11,
+        "dependencies": ["def_fraccions_equiv", "operacions_inverses", "principi_equiv"],
+        "errors_freqüents": ["L4_illegal_cancel", "L4_mcm_partial", "L2_one_side_only"],
+    },
     "EQ4-B-001": {
         "id": "EQ4-B-001",
         "familia": "EQ4-B",
@@ -262,6 +352,24 @@ PROBLEMS = {
         "dependencies": ["def_mcm", "def_fraccions_equiv", "operacions_inverses",
                          "principi_equiv"],
         "errors_freqüents": ["L4_mcm_partial", "L4_illegal_cancel", "GEN_arithmetic"],
+    },
+    "EQ4-C-001": {
+        "id": "EQ4-C-001",
+        "familia": "EQ4-C",
+        "nivell": 4,
+        # Fracció amb un menys davant i numerador entre parèntesis.
+        # Cobreix L4_minus_fraction (sign error en distribuir el menys
+        # sobre el numerador), error del catàleg que no està exercitat
+        # enlloc més. Camí preferit: multiplicar per 2, després
+        # distribuir el menys, després combinar i aïllar.
+        "tema": "Equació amb un menys davant d'una fracció",
+        "equacio_text": "5 − (x − 1)/2 = 3",
+        "equacio_simetria": "3 = 5 − (x − 1)/2",
+        "solucio": 5,
+        "dependencies": ["def_fraccions_equiv", "regla_signes_parens",
+                         "operacions_inverses", "principi_equiv"],
+        "errors_freqüents": ["L4_minus_fraction", "L3_minus_paren", "L4_mcm_partial",
+                             "L2_one_side_only"],
     },
 }
 
@@ -297,11 +405,39 @@ TEST_CASES = {
         # Des de x + 7 = 12  (solució: x = 5)
         ["x = 5", "x = 19", "x = -5", "x + 7 = 5", "y = 5"],
     ],
+    "EQ1-B-001": [
+        # Des de 5x = 20. Camí preferit: dividir per 5 als dos costats → x = 4.
+        # És l'únic problema actual on l'operació inversa és multiplicativa
+        # (no additiva), per això reforça la cobertura de L1_inverse_op.
+        # Errors:
+        #   - "x = 100": va multiplicar per 5 enlloc de dividir (L1_inverse_op)
+        #   - "x = 25": va sumar 5 + 20 (L1_inverse_op variant additiva)
+        #   - "x = 15": va restar 20 - 5 (L1_inverse_op variant)
+        #   - "x = -4": error de signe (GEN_arithmetic)
+        #   - "5x = 4": va dividir només la dreta (L2_one_side_only)
+        ["x = 4", "x = 100", "x = 25", "x = 15", "x = -4", "5x = 4"],
+    ],
     "EQ2-A-001": [
         # Des de 3x − 5 = 10
         ["3x = 15", "3x = 5", "3x = -15", "3x - 5 = 15"],
         # Des de 3x = 15
         ["x = 5", "x = -5", "x = 12", "x = 45", "3x = 5"],
+    ],
+    "EQ2-B-001": [
+        # Des de 2x + 8 = 4. Camí preferit: restar 8 als dos costats → 2x = -4.
+        # Errors:
+        #   - "2x = 12": va passar el +8 a la dreta sense canviar-li el signe (L2_transpose_sign)
+        #   - "2x = 4": va restar 8 només a l'esquerra (L2_one_side_only)
+        #   - "2x + 8 = 12": va sumar 8 a la dreta i va deixar-lo també a l'esquerra
+        #   - "2x + 8 = -4": només va canviar el signe de la dreta (no és cap operació vàlida)
+        ["2x = -4", "2x = 12", "2x = 4", "2x + 8 = 12", "2x + 8 = -4"],
+        # Des de 2x = -4. Camí preferit: dividir per 2 als dos costats → x = -2.
+        # Errors:
+        #   - "x = 2": va dividir bé però va perdre el signe negatiu (L1_sign_error)
+        #   - "x = -6": va restar 2 enlloc de dividir (L1_inverse_op)
+        #   - "x = -8": va multiplicar per 2 enlloc de dividir (L1_inverse_op)
+        #   - "2x = -2": va dividir només la dreta (L2_one_side_only)
+        ["x = -2", "x = 2", "x = -6", "x = -8", "2x = -2"],
     ],
     "EQ3-A-001": [
         # Des de 3(x − 4) = 9
@@ -311,6 +447,89 @@ TEST_CASES = {
         # Des de 3x = 21
         ["x = 7", "3x = -7", "x = 18", "3x = -18", "x = 21"],
     ],
+    "EQ3-B-001": [
+        # Des de 5 + 2(x − 3) = 7. Camí preferit: restar 5 als dos costats
+        # → 2(x − 3) = 2 (mantenint el parèntesi sense distribuir).
+        # Errors:
+        #   - "2(x - 3) = 12": va passar el +5 a la dreta sumant-lo enlloc de restant-lo (L2_transpose_sign)
+        #   - "5 + 2x - 3 = 7": distribució parcial (no va multiplicar 2·(-3)) (L3_distribution_partial)
+        #   - "2(x - 3) = 7": va restar 5 només a l'esquerra (L2_one_side_only)
+        #   - "5 + 2x + 6 = 7": distribució amb error de signe (2·(-3) = +6 en lloc de -6)
+        ["2(x - 3) = 2", "2(x - 3) = 12", "5 + 2x - 3 = 7", "2(x - 3) = 7",
+         "5 + 2x + 6 = 7"],
+        # Des de 2(x − 3) = 2. Camí preferit: dividir per 2 → x − 3 = 1.
+        # Errors:
+        #   - "2x - 3 = 2": distribució parcial (L3_distribution_partial)
+        #   - "2(x - 3) = 1": va dividir només la dreta (L2_one_side_only)
+        #   - "2x + 6 = 2": error de signe en distribuir
+        #   - "x - 3 = 4": va multiplicar per 2 enlloc de dividir (L1_inverse_op)
+        ["x - 3 = 1", "2x - 3 = 2", "2(x - 3) = 1", "2x + 6 = 2", "x - 3 = 4"],
+        # Des de x − 3 = 1. Camí preferit: sumar 3 als dos costats → x = 4.
+        # Errors:
+        #   - "x = -2": va passar el -3 sense canviar-li el signe (L2_transpose_sign)
+        #   - "x = -4": error de signe sumant
+        #   - "x = 1/3": va dividir per 3 enlloc de sumar (L1_inverse_op)
+        ["x = 4", "x = -2", "x = -4", "x = 1/3", "x = 3"],
+    ],
+    "EQ3-C-001": [
+        # Des de 2x + 5 = x + 8. Camí preferit: restar x als dos costats
+        # → x + 5 = 8.
+        # Errors:
+        #   - "3x + 5 = 8": va sumar les x enlloc de restar-les (L3_combine_terms)
+        #   - "3x = 13": va combinar errors (sumar x i sumar constants tot a un costat)
+        #   - "x + 5 = 8 + x": va restar la x només d'un costat (L2_one_side_only)
+        #   - "x = 13": camí abreujat amb errors compostos
+        ["x + 5 = 8", "3x + 5 = 8", "3x = 13", "x + 5 = 8 + x", "x = 13"],
+        # Des de x + 5 = 8. Camí preferit: restar 5 → x = 3.
+        # Errors:
+        #   - "x = 13": va sumar 5 enlloc de restar (L1_inverse_op)
+        #   - "x = -3": va calcular 5 - 8 enlloc de 8 - 5 (error aritmètic)
+        #   - "x + 5 = 3": va restar 5 només de la dreta (L2_one_side_only)
+        ["x = 3", "x = 13", "x = -3", "x + 5 = 3"],
+    ],
+    "EQ3-D-001": [
+        # Des de 7 − (x + 2) = 4. Camí preferit: distribuir el menys
+        # → 7 − x − 2 = 4. Atenció: el menys ha de canviar el signe de
+        # CADA terme dins del parèntesi (la x i el +2).
+        # Errors:
+        #   - "7 − x + 2 = 4": no va canviar el signe del +2 (L3_minus_paren, variant 1)
+        #   - "7 + x − 2 = 4": no va canviar el signe de la x (L3_minus_paren, variant 2)
+        #   - "−(x + 2) = 4": va restar 7 només de l'esquerra (L2_one_side_only)
+        #   - "7 − x − 2 = -3": va restar 7 només de la dreta
+        ["7 − x − 2 = 4", "7 − x + 2 = 4", "7 + x − 2 = 4", "−(x + 2) = 4",
+         "7 − x − 2 = -3"],
+        # Des de 7 − x − 2 = 4. Camí preferit: combinar 7 - 2 = 5
+        # → 5 − x = 4.
+        # Errors:
+        #   - "9 − x = 4": va combinar 7 + 2 enlloc de 7 - 2 (error aritmètic)
+        #   - "5 + x = 4": va perdre el signe negatiu de la x
+        #   - "7 − x = 2": va passar el -2 a la dreta sense canviar-li el signe (L2_transpose_sign)
+        ["5 − x = 4", "9 − x = 4", "5 + x = 4", "7 − x = 2"],
+        # Des de 5 − x = 4. Camí preferit: aïllar la x (un sol pas mental:
+        # x = 5 - 4 = 1; o bé en dos passos: −x = −1 → x = 1).
+        # Errors:
+        #   - "x = 9": va sumar 5 + 4 enlloc de restar (L1_inverse_op)
+        #   - "x = -1": error de signe
+        #   - "−x = 1": va restar 5 només de l'esquerra (o va perdre el signe de la dreta)
+        ["x = 1", "x = 9", "x = -1", "−x = 1"],
+    ],
+    "EQ4-A-001": [
+        # Des de (x + 1)/3 = 4. Camí preferit: multiplicar els dos costats
+        # per 3 → x + 1 = 12.
+        # Errors:
+        #   - "x + 1 = 4": va cancel·lar el 3 sense multiplicar la dreta (L4_illegal_cancel)
+        #   - "(x + 1)/3 = 12": va multiplicar només la dreta (L2_one_side_only)
+        #   - "x + 3 = 12": va multiplicar 3 només per la x del numerador (L4_mcm_partial)
+        #   - "x + 1 = 7": va tractar el /3 com si es transposés sumant 3 a la dreta
+        ["x + 1 = 12", "x + 1 = 4", "(x + 1)/3 = 12", "x + 3 = 12", "x + 1 = 7"],
+        # Des de x + 1 = 12. Camí preferit: restar 1 → x = 11.
+        # Errors:
+        #   - "x = 13": va sumar 1 enlloc de restar (L1_inverse_op)
+        #   - "x = 12": no va fer res (va deixar el 12)
+        #   - "x = -11": error de signe
+        #   - "x + 1 = 11": va restar 1 només de la dreta (L2_one_side_only)
+        ["x = 11", "x = 13", "x = 12", "x = -11", "x + 1 = 11"],
+    ],
     "EQ4-B-001": [
         # Des de x/2 + x/3 = 5  (mcm = 6)
         ["3x + 2x = 30", "3x + 2x = 5", "x + x = 30", "5x = 5"],
@@ -318,6 +537,32 @@ TEST_CASES = {
         ["5x = 30", "5x = 5", "6x = 30", "x^2 = 30"],
         # Des de 5x = 30
         ["x = 6", "x = 25", "x = -6", "x = 35", "5x = 6"],
+    ],
+    "EQ4-C-001": [
+        # Des de 5 − (x − 1)/2 = 3. Camí preferit: multiplicar tots els
+        # termes per 2 → 10 − (x − 1) = 6 (manté el parèntesi).
+        # Errors:
+        #   - "10 − x − 1 = 6": va multiplicar I distribuir el menys, però
+        #      sense canviar el signe del -1 (L4_minus_fraction)
+        #   - "5 − (x − 1) = 3": va multiplicar només la fracció a l'esquerra,
+        #      sense tocar el 5 ni el 3 (L2_one_side_only)
+        #   - "10 − (x − 1)/2 = 6": va multiplicar el 5 i el 3 per 2 però
+        #      no la fracció (L4_mcm_partial)
+        ["10 − (x − 1) = 6", "10 − x − 1 = 6", "5 − (x − 1) = 3",
+         "10 − (x − 1)/2 = 6"],
+        # Des de 10 − (x − 1) = 6. Camí preferit: distribuir el menys
+        # i combinar → 11 − x = 6.
+        # Errors:
+        #   - "9 − x = 6": va distribuir el menys malament (-1 → -1 enlloc de +1) i combinar (L3_minus_paren combinat)
+        #   - "10 − x − 1 = 6": va distribuir el menys malament sense combinar
+        #   - "11 + x = 6": va perdre el signe negatiu de la x
+        ["11 − x = 6", "9 − x = 6", "10 − x − 1 = 6", "11 + x = 6"],
+        # Des de 11 − x = 6. Camí preferit: aïllar la x → x = 5.
+        # Errors:
+        #   - "x = 17": va sumar 11 + 6 enlloc de restar (L1_inverse_op)
+        #   - "x = -5": error de signe
+        #   - "−x = 5": va restar 11 només de l'esquerra (o va perdre el signe de la dreta)
+        ["x = 5", "x = 17", "x = -5", "−x = 5"],
     ],
 }
 

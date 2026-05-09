@@ -7,7 +7,8 @@ dins el directori `logs/`. El fitxer es crea per dia.
 Format de cada línia:
 {
   "ts": "2026-05-07T18:36:00.123",        # timestamp ISO
-  "session_id": "abc123",                  # id de sessió (procés Python)
+  "session_id": "abc123",                  # id de sessió (per problema iniciat)
+  "student_id": "S001",                    # pseudonim de l'alumne (None si no s'ha fixat)
   "function": "classify_error",            # quina crida del llm.py
   "model": "gemini-2.5-pro",
   "attempt": 1,                            # número d'intent (per retries)
@@ -74,12 +75,15 @@ def _logfile_path() -> Path:
 def log_call(session_id: str, function: str, model: str,
              attempt: int, ok: bool, elapsed_s: float,
              input_data: dict, output_data=None, error: str = None,
-             tokens: dict = None):
+             tokens: dict = None, student_id: str = None):
     """
     Escriu una entrada al log. Thread-safe.
 
     `tokens`: dict opcional {"input", "output", "thoughts", "total"}.
     Si està present i la crida ha tingut èxit, calcula també el cost USD.
+
+    `student_id`: pseudonim opcional de l'alumne. Si està present, queda
+    disponible per a `summarize_session(student_id=...)` durant el pilot.
     """
     _ensure_dir()
     cost_usd = None
@@ -92,6 +96,7 @@ def log_call(session_id: str, function: str, model: str,
     entry = {
         "ts": datetime.now().isoformat(timespec="milliseconds"),
         "session_id": session_id,
+        "student_id": student_id,
         "function": function,
         "model": model,
         "attempt": attempt,
@@ -113,15 +118,21 @@ def get_log_path() -> Path:
     return _logfile_path()
 
 
-def summarize_session(session_id: str = None, log_path: Path = None) -> dict:
+def summarize_session(session_id: str = None, log_path: Path = None,
+                      student_id: str = None) -> dict:
     """
     Agrega estadístiques de totes les crides d'una sessió (o de TOTES les
     sessions, si session_id és None). Si log_path no s'especifica, s'usen
     tots els fitxers .jsonl del directori de logs.
 
+    Filtres acumulables:
+      - session_id: només crides amb aquest session_id
+      - student_id: només crides amb aquest student_id
+
     Retorna:
       {
         "session_id": str | None,
+        "student_id": str | None,
         "calls_total": int,
         "calls_ok": int,
         "calls_failed": int,
@@ -138,10 +149,13 @@ def summarize_session(session_id: str = None, log_path: Path = None) -> dict:
       - Auditar el cost del pilot al final del dia (session_id=None →
         suma de tot)
       - Detectar funcions amb consum desproporcionat
+      - Analítica per alumne durant el pilot (student_id="S001" →
+        només les crides d'un alumne concret, totes les sessions)
     """
     files = [log_path] if log_path else sorted(LOG_DIR.glob("api_calls_*.jsonl"))
     summary = {
         "session_id": session_id,
+        "student_id": student_id,
         "calls_total": 0,
         "calls_ok": 0,
         "calls_failed": 0,
@@ -162,6 +176,8 @@ def summarize_session(session_id: str = None, log_path: Path = None) -> dict:
                 except Exception:
                     continue
                 if session_id is not None and entry.get("session_id") != session_id:
+                    continue
+                if student_id is not None and entry.get("student_id") != student_id:
                     continue
                 summary["calls_total"] += 1
                 if entry.get("ok"):

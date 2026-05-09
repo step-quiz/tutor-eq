@@ -175,10 +175,21 @@ def init_state():
         st.session_state.test_results = None
     if "test_problem_id" not in st.session_state:
         st.session_state.test_problem_id = None
+    if "student_id" not in st.session_state:
+        st.session_state.student_id = ""
 
 
 def start_session(problem_id: str):
-    st.session_state.session = T.new_session_state(problem_id)
+    # Codi de l'alumne (text_input al sidebar). Si està buit, "anon".
+    student_id = (st.session_state.get("student_id") or "").strip() or "anon"
+    st.session_state.session = T.new_session_state(problem_id,
+                                                   student_id=student_id)
+    # Propagar el context al thread perquè totes les crides a la IA
+    # d'aquest problema quedin etiquetades amb aquest alumne i sessió.
+    L.set_log_context(
+        student_id=student_id,
+        session_id=st.session_state.session["session_id"],
+    )
     st.session_state.input_counter += 1
     # Si canviem de problema, els resultats del test anterior ja no
     # corresponen — els netegem.
@@ -213,6 +224,18 @@ def render_sidebar():
         # Info del model actiu (im1) — debug-only.
         if debug:
             st.caption(f"Model actiu: `{L.MODEL}`")
+
+        # Codi de l'alumne (pilot multi-estudiant). El professor el fixa
+        # abans d'iniciar la sessió. Es propaga al log d'API com a
+        # student_id i s'inclou al rastre JSON. Si es deixa buit,
+        # les crides queden etiquetades com a "anon".
+        st.text_input(
+            "Codi de l'alumne",
+            key="student_id",
+            placeholder="p. ex. S001",
+            help=("Pseudonim per agrupar les analítiques del pilot. "
+                  "Fixa'l abans d'iniciar el problema."),
+        )
 
         st.markdown("---")
         st.markdown("**Selecciona l'equació**")
@@ -661,6 +684,17 @@ def _render_test_results(rounds: list):
 # ------------------------------------------------------------
 def main():
     init_state()
+    # Defensiu: si hi ha sessió activa, re-establim el context de logging
+    # a cada rerun. Streamlit normalment reutilitza el mateix thread per
+    # a una sessió d'usuari, però aquesta crida garanteix que un canvi
+    # de thread (p. ex. recàrrega de codi) no faci que les crides quedin
+    # etiquetades com a "anon" silenciosament.
+    s = st.session_state.get("session")
+    if s is not None:
+        L.set_log_context(
+            student_id=s.get("student_id", "anon"),
+            session_id=s.get("session_id"),
+        )
     render_sidebar()
     render_main()
 

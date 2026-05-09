@@ -10,6 +10,7 @@ Funció principal: process_turn(state, raw_input) → updated state.
 import copy
 import json
 import time
+import uuid
 from datetime import datetime, timezone
 
 import problems as PB
@@ -27,10 +28,21 @@ MAX_INAPPROPRIATE_WARNINGS = 3
 # ------------------------------------------------------------
 # Construcció d'un estat nou
 # ------------------------------------------------------------
-def new_session_state(problem_id: str, student_id: str = "professor_test") -> dict:
-    """Crea l'estat inicial d'una sessió per a un problema."""
+def new_session_state(problem_id: str, student_id: str = "anon") -> dict:
+    """
+    Crea l'estat inicial d'una sessió per a un problema.
+
+    `student_id`: pseudonim de l'alumne (es propaga al log via
+    `L.set_log_context`). Defaultem a "anon" perquè qualsevol crida
+    sense context explícit quedi clarament marcada com a anònima al log.
+
+    Cada crida genera un `session_id` nou (12 hex). Una sessió =
+    un intent d'un problema, no la vida del procés Python. Així es
+    poden agregar mètriques per problema-iniciat al log.
+    """
     problem = PB.get_problem(problem_id)
     return {
+        "session_id": uuid.uuid4().hex[:12],
         "student_id": student_id,
         "problem_id": problem_id,
         "problem": problem,
@@ -667,6 +679,7 @@ def build_trace(state: dict) -> dict:
     duration = time.time() - state["started_at_ts"]
     return {
         "alumne": state["student_id"],
+        "session_id": state["session_id"],
         "problema": {
             "id": state["problem_id"],
             "familia": state["problem"]["familia"],
@@ -753,7 +766,23 @@ def run_exhaustive_test(problem_id: str, on_progress=None) -> list:
     if not rounds:
         return []
 
-    baseline = new_session_state(problem_id, student_id="__debug__")
+    # Aïllem el context de logging del test perquè les crides a l'API
+    # no quedin etiquetades amb l'alumne real (si app.py n'havia fixat
+    # un). Capturem el context actual per restaurar-lo al final.
+    _prev_student, _prev_session = L.get_log_context()
+    L.set_log_context(
+        student_id="__test_exhaustiu__",
+        session_id=uuid.uuid4().hex[:12],
+    )
+    try:
+        return _run_exhaustive_test_inner(rounds, problem_id, on_progress)
+    finally:
+        # Restaurem el context anterior (o el deixem buit si no n'hi havia).
+        L.set_log_context(student_id=_prev_student, session_id=_prev_session)
+
+
+def _run_exhaustive_test_inner(rounds, problem_id, on_progress):
+    baseline = new_session_state(problem_id, student_id="__test_exhaustiu__")
     all_results = []
 
     for round_idx, round_inputs in enumerate(rounds, start=1):
