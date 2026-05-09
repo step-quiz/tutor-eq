@@ -1,6 +1,6 @@
 # STATUS — seguiment del Tutor d'equacions lineals
 
-Document viu. S'actualitza a cada bloc de feina. Última actualització: 2026-05-09 (després del Tier 2).
+Document viu. S'actualitza a cada bloc de feina. Última actualització: 2026-05-09 (tancament de Fase 3).
 
 ---
 
@@ -45,17 +45,20 @@ Document viu. S'actualitza a cada bloc de feina. Última actualització: 2026-05
 - ✅ `EQ4-C-001` (NOU): `5 − (x − 1)/2 = 3` → `x = 5`. **Tier 1 — cobreix L4_minus_fraction (forat total)**.
 - ✅ `EQ1-B-001` (NOU): `5x = 20` → `x = 4`. **Tier 2 — reforça L1_inverse_op multiplicatiu**.
 - ✅ `EQ4-A-001` (NOU): `(x + 1)/3 = 4` → `x = 11`. **Tier 2 — reforça errors L4 amb una sola fracció**.
+- ✅ `EQ1-C-001` (NOU): `x − 4 = 9` → `x = 13`. **Tier 3 — un pas amb resta (varietat)**.
+- ✅ `EQ2-C-001` (NOU): `−3x + 5 = 14` → `x = −3`. **Tier 3 — coeficient negatiu**.
+- ✅ `EQ2-D-001` (NOU): `12 = 2x + 4` → `x = 4`. **Tier 3 — presentació invertida (incògnita a la dreta)**.
 - ✅ `test_problems.py` (NOU): 19 tests d'integritat (camps obligatoris, equacions parsegen, solucions concorden amb SymPy, errors de test_cases són no-equivalents).
 
 ### Estat dels tests automatitzats
 - **98/98 verds** (71 verifier + 8 api_logger + 19 problems d'integritat).
-- 11 problemes a `PROBLEMS`, tots amb `TEST_CASES` validats per SymPy.
+- **14 problemes** a `PROBLEMS`, distribuïts: 3 nivell 1, 4 nivell 2, 4 nivell 3, 3 nivell 4. Tots amb `TEST_CASES` validats per SymPy.
 - Mai cap test fa crides reals a la IA — cost zero.
 
-### Cobertura del catàleg d'errors (post-Tier 2)
-- ✅ **Ben cobert (≥2 problemes):** L1_inverse_op, L1_sign_error, L2_order, L2_transpose_sign, L2_one_side_only, L3_distribution_partial, L3_minus_paren, L4_mcm_partial, L4_illegal_cancel, GEN_arithmetic.
-- ⚠️ **Cobertura mínima (1 problema):** L3_combine_terms (únic problema amb x als dos costats), L4_minus_fraction (únic amb menys davant fracció). Reforçar aquests requereix replicar els patrons estructurals — espera al Tier 3.
-- ❌ **Sense cobertura:** GEN_other (per disseny, és el fallback intern).
+### Cobertura del catàleg d'errors (Fase 3 tancada)
+- ✅ **Ben cobert (≥2 problemes):** L1_inverse_op (5), L1_sign_error (5), L2_order (2), L2_transpose_sign (7), L2_one_side_only (9), L3_distribution_partial (2), L3_minus_paren (3), L4_mcm_partial (3), L4_illegal_cancel (2), GEN_arithmetic (2).
+- ⚠️ **Cobertura mínima (1 problema):** L3_combine_terms (únic problema amb x als dos costats: EQ3-C-001), L4_minus_fraction (únic amb menys davant fracció: EQ4-C-001). Cobertura mínima per disseny estructural — replicar-ne la cobertura demanaria duplicar el patró.
+- ❌ **Sense cobertura:** GEN_other (per disseny, és el fallback intern del classificador).
 
 ### Bugs corregits posteriors
 - ✅ **Cost del test exhaustiu**: el delta sortia 0 perquè `app.py` summarizava contra el session_id de l'alumne mentre que el test loggejava sota un session_id propi (per aïllament). Fixat: `run_exhaustive_test` accepta ara un paràmetre `session_id` que el caller li passa, i `app.py` summarizava directament contra aquest.
@@ -74,24 +77,19 @@ Document viu. S'actualitza a cada bloc de feina. Última actualització: 2026-05
 
 ## 🟡 En cua (proper torn)
 
-### Fase 3 — Tier 3 (variants estructurals, delegables al company de departament)
-1. **EQ2-C-001** — `−3x + 5 = 14` → `x = −3`. Coeficient negatiu de la x.
-2. **EQ1-C-001** — `x − 4 = 9` → `x = 13`. Un pas amb resta (variant simple).
-3. **EQ2-D-001** — `12 = 2(x − 1)` → `x = 7`. Activa el camp `equacio_simetria` que ara està definit però no s'usa.
+### Fase 4 — bloqueigs externs (no codi)
+- **Document informatiu per a famílies + formulari de consentiment** (català, paper i digital).
+- **Configurar Zero Data Retention** a la consola de Gemini.
+- **Establir sostre de despesa** al projecte de Google Cloud / AI Studio.
+- **Validació formal amb la direcció del centre.**
 
-### Fase 3 — validació amb IA
-- **Test exhaustiu en mode debug** dels nous problemes (EQ1-B, EQ2-B, EQ3-B, EQ3-C, EQ3-D, EQ4-A, EQ4-C) per validar que la classificació de Gemini concorda amb les etiquetes esperades. **Costa diners** (crides reals a l'API). Recomanat fer-ho un cop els del Tier 3 estiguin també autorats.
+### Fase 3 — validació amb IA (FETA però no exhaustiva)
+- ✅ Test exhaustiu manual a la web amb mode debug, contra els 7 problemes nous: tots 100% OK. Cap mismatch que requereixi ajustar prompt.
+- ⚪ (Opcional) Re-validar EQ2-C-001, EQ2-D-001, EQ1-C-001 (els 3 del Tier 3) abans del pilot. Cost ~$0.05 total. Recomanat però no urgent.
 
 ---
 
 ## ⚪ Pendent (sense ordre concret)
-
-### Fase 4 — Preparació tècnica i legal del pilot
-- ✅ Pseudonimització (fet, vegeu més amunt).
-- ⚪ **Document informatiu per a famílies + formulari de consentiment** (català, paper i digital).
-- ⚪ **Configurar Zero Data Retention** a la consola de Gemini.
-- ⚪ **Establir sostre de despesa** al projecte de Google Cloud / AI Studio.
-- ⚪ **Validació formal amb la direcció del centre.**
 
 ### Categoria B — Refinaments d'UI
 - ⚪ Tipografia/mides per a l'Aran (revisar amb captures concretes).

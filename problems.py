@@ -243,6 +243,20 @@ PROBLEMS = {
         "dependencies": ["operacions_inverses", "principi_equiv"],
         "errors_freqüents": ["L1_inverse_op", "L2_one_side_only", "GEN_arithmetic"],
     },
+    "EQ1-C-001": {
+        "id": "EQ1-C-001",
+        "familia": "EQ1-C",
+        "nivell": 1,
+        # Variant del nivell 1 amb resta. Estructuralment idèntic a
+        # EQ1-A però amb signe contrari, útil per a varietat al pilot
+        # i com a primer contacte amb números més grans (resultat 13).
+        "tema": "Equació que es resol amb un pas (resta)",
+        "equacio_text": "x − 4 = 9",
+        "equacio_simetria": "9 = x − 4",
+        "solucio": 13,
+        "dependencies": ["operacions_inverses", "principi_equiv"],
+        "errors_freqüents": ["L1_inverse_op", "L1_sign_error", "L2_one_side_only"],
+    },
     "EQ2-A-001": {
         "id": "EQ2-A-001",
         "familia": "EQ2-A",
@@ -266,6 +280,37 @@ PROBLEMS = {
         "solucio": -2,
         "dependencies": ["operacions_inverses", "principi_equiv", "def_aritm_negatius"],
         "errors_freqüents": ["L2_transpose_sign", "L1_sign_error", "L2_one_side_only"],
+    },
+    "EQ2-C-001": {
+        "id": "EQ2-C-001",
+        "familia": "EQ2-C",
+        "nivell": 2,
+        # Variant del nivell 2 amb COEFICIENT NEGATIU de la x.
+        # Combinació pedagògicament difícil: signes a tots dos costats
+        # de la igualtat (LHS i RHS), més una divisió per un nombre
+        # negatiu al final que sovint confon l'alumne sobre el signe.
+        "tema": "Equació amb dos passos i coeficient negatiu",
+        "equacio_text": "−3x + 5 = 14",
+        "equacio_simetria": "14 = −3x + 5",
+        "solucio": -3,
+        "dependencies": ["operacions_inverses", "principi_equiv", "def_aritm_negatius"],
+        "errors_freqüents": ["L1_sign_error", "L2_transpose_sign", "L1_inverse_op"],
+    },
+    "EQ2-D-001": {
+        "id": "EQ2-D-001",
+        "familia": "EQ2-D",
+        "nivell": 2,
+        # Variant del nivell 2 PRESENTADA INVERTIDA: la incògnita
+        # apareix a la dreta de la igualtat. Verifica que el sistema
+        # i l'alumne gestionen bé la presentació no canònica. És el
+        # primer problema actiu que té sentit pel camp equacio_simetria
+        # (ja que la "forma normal" seria 2x + 4 = 12).
+        "tema": "Equació amb dos passos amb la incògnita a la dreta",
+        "equacio_text": "12 = 2x + 4",
+        "equacio_simetria": "2x + 4 = 12",
+        "solucio": 4,
+        "dependencies": ["operacions_inverses", "principi_equiv"],
+        "errors_freqüents": ["L2_transpose_sign", "L2_one_side_only", "L1_inverse_op"],
     },
     "EQ3-A-001": {
         "id": "EQ3-A-001",
@@ -417,6 +462,16 @@ TEST_CASES = {
         #   - "5x = 4": va dividir només la dreta (L2_one_side_only)
         ["x = 4", "x = 100", "x = 25", "x = 15", "x = -4", "5x = 4"],
     ],
+    "EQ1-C-001": [
+        # Des de x − 4 = 9. Camí preferit: sumar 4 als dos costats → x = 13.
+        # Errors:
+        #   - "x = 5": va restar 4 enlloc de sumar (L1_inverse_op)
+        #   - "x = -5": error de signe (va calcular 4 - 9)
+        #   - "x = 36": va multiplicar 4 · 9 (L1_inverse_op extrem)
+        #   - "x − 4 = 13": va sumar 4 només a la dreta (L2_one_side_only)
+        #   - "x = 9": va ignorar el −4 i va copiar la dreta
+        ["x = 13", "x = 5", "x = -5", "x = 36", "x − 4 = 13", "x = 9"],
+    ],
     "EQ2-A-001": [
         # Des de 3x − 5 = 10
         ["3x = 15", "3x = 5", "3x = -15", "3x - 5 = 15"],
@@ -438,6 +493,42 @@ TEST_CASES = {
         #   - "x = -8": va multiplicar per 2 enlloc de dividir (L1_inverse_op)
         #   - "2x = -2": va dividir només la dreta (L2_one_side_only)
         ["x = -2", "x = 2", "x = -6", "x = -8", "2x = -2"],
+    ],
+    "EQ2-C-001": [
+        # Des de −3x + 5 = 14. Camí preferit: restar 5 als dos costats → −3x = 9.
+        # Errors:
+        #   - "−3x = 19": va passar el +5 a la dreta sense canviar-li el signe (L2_transpose_sign)
+        #   - "−3x + 5 = 9": va restar 5 només a la dreta (L2_one_side_only)
+        #   - "3x + 5 = 14": va canviar el signe del coeficient sense raó (L1_sign_error)
+        #   - "−3x = -9": va calcular bé l'esquerra però va canviar el signe a la dreta
+        ["−3x = 9", "−3x = 19", "−3x + 5 = 9", "3x + 5 = 14", "−3x = -9"],
+        # Des de −3x = 9. Camí preferit: dividir per −3 als dos costats → x = -3.
+        # Atenció: dividir per un número negatiu canvia el signe del resultat.
+        # Errors:
+        #   - "x = 3": va dividir però va oblidar el signe (L1_sign_error)
+        #   - "x = -27": va multiplicar per -3 enlloc de dividir (L1_inverse_op)
+        #   - "x = 9": va dividir per 1 enlloc de -3 (va perdre la divisió completament)
+        #   - "−3x = -3": va dividir només la dreta per 3 (L2_one_side_only)
+        ["x = -3", "x = 3", "x = -27", "x = 9", "−3x = -3"],
+    ],
+    "EQ2-D-001": [
+        # Des de 12 = 2x + 4 (presentació invertida). Camí preferit: restar 4
+        # als dos costats → 8 = 2x. La incògnita roman a la dreta; això pot
+        # confondre l'alumne acostumat a tenir-la a l'esquerra, però SymPy
+        # accepta totes les formes equivalents.
+        # Errors:
+        #   - "16 = 2x": va passar el +4 a l'esquerra sense canviar-li el signe (L2_transpose_sign)
+        #   - "12 = 2x": va restar 4 només de la dreta (L2_one_side_only)
+        #   - "8 = 2x + 4": va restar 4 només de l'esquerra (L2_one_side_only)
+        #   - "12 = 2x + 8": va sumar 4 a la dreta enlloc de restar
+        ["8 = 2x", "16 = 2x", "12 = 2x", "8 = 2x + 4", "12 = 2x + 8"],
+        # Des de 8 = 2x. Camí preferit: dividir per 2 → x = 4 (o 4 = x).
+        # Errors:
+        #   - "x = 16": va multiplicar per 2 enlloc de dividir (L1_inverse_op)
+        #   - "x = 6": va restar 2
+        #   - "x = 10": va sumar 2
+        #   - "4 = 2x": va dividir només l'esquerra (L2_one_side_only)
+        ["x = 4", "x = 16", "x = 6", "x = 10", "4 = 2x"],
     ],
     "EQ3-A-001": [
         # Des de 3(x − 4) = 9
