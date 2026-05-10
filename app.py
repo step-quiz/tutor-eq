@@ -16,6 +16,9 @@ Mode debug:
 
 import os
 import uuid
+import random
+import string
+from datetime import datetime
 import streamlit as st
 
 import problems as PB
@@ -181,6 +184,158 @@ _components.html(
 )
 
 
+
+
+# ------------------------------------------------------------
+# CODI DE SESSIÓ v1 — format: Lsss-DDMM-HHMM-TQ-FC-NNN-RTPV
+# ------------------------------------------------------------
+#
+#  L     1   Lletra de control antifrau (algorisme DNI, taula TRWAGMYFPDXBNJZSQVHLCKE)
+#  sss   3   Salt aleatori (3 lletres minúscules)
+#  DDMM  4   Data (dia i mes)
+#  HHMM  4   Hora i minuts
+#  TQ    2   Codi d'exercici fix: Tutor d'eQuacions
+#  FC    2   Família del problema: nivell (1-4) + lletra (A-D), ex. "2C"
+#  NNN   3   Nota × 10 arrodonida (000–100)
+#  R     1   Resultat: R=resolt, A=abandonat, S=suspès
+#  T     1   Torns (passos donats): 0-9, A-F (10-15), G (≥16)
+#  P     1   Pistes demanades (0–9, màx 9)
+#  V     1   Estancaments totals (0–9, màx 9)
+#
+#  CHECKSUM:
+#    suma   = NNN_int + DD + MM + HH + mm + ASCII(salt[0])
+#    lletra = "TRWAGMYFPDXBNJZSQVHLCKE"[ suma % 23 ]
+#
+#  NOTA (0–100):
+#    Resolt sense pistes, ≤5 torns → 100
+#    Resolt                        → max(40, 100 - pistes×12 - max(0, torns-5)×3)
+#    Abandonat                     → 20
+#    Suspès per ús inadequat       → 5
+# ------------------------------------------------------------
+
+_CTRL_LETTERS = 'TRWAGMYFPDXBNJZSQVHLCKE'
+_HEX_TURNS    = '0123456789ABCDEFG'  # G = 16+ torns
+
+
+def _calcula_nota_sessio(s: dict) -> int:
+    """Retorna la nota com a enter 0-100 (NNN en el codi)."""
+    verdict = s.get("verdict_final")
+    torns   = max(0, len(s.get("history", [])) - 1)   # passos donats (ex. l'inicial)
+    pistes  = len(s.get("hints_requested", []))
+    if verdict == "resolt":
+        nota = 100 - pistes * 12 - max(0, torns - 5) * 3
+        return max(40, min(100, nota))
+    elif verdict == "abandonat":
+        return 20
+    else:  # suspes_us_inadequat o desconegut
+        return 5
+
+
+def _generate_codi_sessio(s: dict) -> str:
+    """
+    Genera el codi de sessió de 30 caràcters per al tutor d'equacions.
+    Retorna la cadena o '' si les dades de la sessió no són suficients.
+    """
+    if not s or s.get("verdict_final") is None:
+        return ""
+
+    # Salt aleatori
+    salt = ''.join(random.choices(string.ascii_lowercase, k=3))
+
+    # Data i hora actuals (moment de generació del codi)
+    ara    = datetime.now()
+    dia    = ara.strftime("%d")
+    mes    = ara.strftime("%m")
+    hora   = ara.strftime("%H")
+    minuts = ara.strftime("%M")
+
+    # Família del problema → FC (2 chars). Ex: "EQ2-C-001" → familia "EQ2-C" → "2C"
+    familia = s.get("problem", {}).get("familia", "??")   # p. ex. "EQ2-C"
+    if familia and len(familia) >= 4 and familia[2].isdigit():
+        fc = familia[2] + familia[4]   # "EQ2-C" → '2' + 'C' = "2C"
+    else:
+        fc = "??"
+
+    # Nota
+    nota_int = _calcula_nota_sessio(s)
+    nota_str = str(nota_int).zfill(3)
+
+    # Resultat
+    v = s.get("verdict_final", "")
+    r_char = {"resolt": "R", "abandonat": "A", "suspes_us_inadequat": "S"}.get(v, "?")
+
+    # Torns (en hex ampliat fins a G)
+    torns = max(0, len(s.get("history", [])) - 1)
+    t_char = _HEX_TURNS[min(torns, 16)]
+
+    # Pistes (màx 9)
+    pistes = min(len(s.get("hints_requested", [])), 9)
+
+    # Estancaments (màx 9)
+    stagnation = min(s.get("stagnation_total", 0), 9)
+
+    # Checksum (idèntic a game-core.js)
+    ascii_salt  = ord(salt[0])
+    suma_ctrl   = nota_int + int(dia) + int(mes) + int(hora) + int(minuts) + ascii_salt
+    lletra      = _CTRL_LETTERS[suma_ctrl % 23]
+
+    codi = (
+        f"{lletra}{salt}-{dia}{mes}-{hora}{minuts}"
+        f"-TQ-{fc}-{nota_str}"
+        f"-{r_char}{t_char}{pistes}{stagnation}"
+    )
+    return codi
+
+
+def _render_codi_sessio(s: dict):
+    """
+    Mostra el codi de sessió amb botó de còpia.
+    S'ha de cridar quan verdict_final no és None.
+    """
+    codi = _generate_codi_sessio(s)
+    if not codi:
+        return
+
+    st.markdown("**Codi de la sessió**")
+    st.caption(
+        "Copia aquest codi i enganxa'l al formulari que t'ha donat el professor."
+    )
+
+    # Mostrem el codi en monospace i afegim un botó de còpia via JS.
+    # Usem un component HTML perquè Streamlit no té botó de còpia natiu.
+    import streamlit.components.v1 as _cv1
+    _cv1.html(
+        f"""
+        <div style="display:flex;align-items:center;gap:12px;
+                    font-family:monospace;font-size:1.05rem;
+                    background:#f1f5f9;border:1.5px solid #cbd5e1;
+                    border-radius:8px;padding:12px 16px;
+                    max-width:560px;">
+          <span id="codi-text" style="flex:1;letter-spacing:0.5px;
+                color:#1e293b;user-select:all;-webkit-user-select:all;">
+            {codi}
+          </span>
+          <button id="btn-copia"
+            onclick="(function(){{
+              navigator.clipboard.writeText('{codi}').then(function(){{
+                var b=document.getElementById('btn-copia');
+                b.innerText='Copiat ✅';
+                b.style.backgroundColor='#22c55e';
+                setTimeout(function(){{b.innerText='📋 Copia';b.style.backgroundColor='#334155';}},3000);
+              }});
+            }})()"
+            style="background:#334155;color:white;border:none;
+                   border-radius:6px;padding:6px 14px;cursor:pointer;
+                   font-size:0.9rem;white-space:nowrap;">
+            📋 Copia
+          </button>
+        </div>
+        """,
+        height=70,
+    )
+
+    if _is_debug_mode():
+        st.caption(f"Codi brut: `{codi}` ({len(codi)} chars)")
 
 
 # ------------------------------------------------------------
@@ -504,6 +659,9 @@ def _render_problem_main(s, input_disabled: bool):
             st.info("Sessió tancada per l'alumne.")
         elif s["verdict_final"] == "suspes_us_inadequat":
             st.error("Sessió suspesa per ús inadequat.")
+        # Codi de sessió — visible sempre (no és informació sensible).
+        st.markdown("<br>", unsafe_allow_html=True)
+        _render_codi_sessio(s)
         # Rastre JSON: només en mode debug. Per a l'alumne és sorollós i
         # exposa l'estructura interna que no necessita.
         if _is_debug_mode():
