@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tutor IA — Analitzador de sessions</title>
+<style>
+:root {
+  --bg:       #f8fafc;
+  --surface:  #ffffff;
+  --surface2: #f1f5f9;
+  --border:   #e2e8f0;
+  --border-h: #cbd5e1;
+  --text:     #1e293b;
+  --muted:    #94a3b8;
+  --accent:   #2563eb;
+  --ok:       #059669;
+  --warn:     #d97706;
+  --danger:   #dc2626;
+  /* resultat badges */
+  --res-r-bg: #dcfce7; --res-r-fg: #166534;
+  --res-a-bg: #dbeafe; --res-a-fg: #1e40af;
+  --res-s-bg: #fee2e2; --res-s-fg: #991b1b;
+}
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; font-size:13.5px; }
+
+/* ── HEADER ── */
+.header { background:var(--surface); border-bottom:1px solid var(--border); padding:10px 20px; display:flex; align-items:center; gap:10px; position:sticky; top:0; z-index:100; }
+.header h1 { font-size:14px; font-weight:700; }
+.header h1 span { color:var(--accent); }
+.header-badge { background:#f1f5f9; border:1px solid var(--border); border-radius:4px; font-size:11px; font-weight:600; color:var(--muted); padding:2px 7px; letter-spacing:.4px; }
+.header-right { display:flex; gap:8px; margin-left:auto; }
+.btn { padding:5px 12px; border-radius:5px; border:none; font-size:12.5px; font-weight:600; cursor:pointer; transition:.15s; }
+.btn-primary { background:#cbd5e1; color:var(--text); }
+.btn-primary:hover { background:#94a3b8; color:#fff; }
+.btn-ghost { background:transparent; color:var(--muted); border:1px solid var(--border); }
+.btn-ghost:hover { color:var(--text); background:var(--surface2); }
+.btn-resum { background:#1e293b; color:#fff; }
+.btn-resum:hover { background:#0f172a; }
+
+/* ── UPLOAD ── */
+.upload-zone { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:calc(100vh - 48px); gap:22px; padding:32px; }
+.dropzone { border:1.5px dashed var(--border-h); border-radius:12px; padding:34px 50px; text-align:center; cursor:pointer; transition:.2s; background:var(--surface); max-width:480px; width:100%; }
+.dropzone:hover,.dropzone.dragover { border-color:var(--accent); background:#eff6ff; }
+.dropzone-icon { font-size:30px; margin-bottom:9px; }
+.dropzone h2 { font-size:15px; font-weight:700; margin-bottom:5px; }
+.dropzone p { color:var(--muted); font-size:12.5px; margin-bottom:14px; }
+.format-hint { background:#f1f5f9; border:1px solid var(--border); border-radius:8px; padding:12px 16px; max-width:480px; width:100%; }
+.format-hint p { font-size:11.5px; color:var(--muted); margin-bottom:6px; }
+.format-hint code { font-family:monospace; font-size:11.5px; color:#475569; background:#e2e8f0; border-radius:3px; padding:1px 5px; }
+.sep { color:var(--muted); font-size:12px; display:flex; align-items:center; gap:10px; max-width:480px; width:100%; }
+.sep::before,.sep::after { content:''; flex:1; border-top:1px solid var(--border); }
+.paste-area { width:100%; max-width:480px; background:var(--surface); border:1px solid var(--border); border-radius:8px; color:var(--text); padding:10px; font-size:12px; font-family:monospace; min-height:76px; resize:vertical; outline:none; }
+.paste-area:focus { border-color:var(--accent); }
+
+/* ── MAIN ── */
+.main { display:none; flex-direction:column; height:calc(100vh - 48px); }
+.main.visible { display:flex; }
+
+/* ── TOPBAR ── */
+.topbar { background:var(--surface); border-bottom:1px solid var(--border); padding:7px 18px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+.stat-pills { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.sp { font-size:13.75px; color:var(--muted); white-space:nowrap; }
+.sp strong { font-weight:700; color:var(--text); font-family:monospace; }
+.sp strong.ok    { color:var(--ok); }
+.sp strong.warn  { color:var(--warn); }
+.sp strong.danger{ color:var(--danger); }
+.sp strong.avg   { color:var(--accent); }
+.sp-sep { width:1px; height:14px; background:var(--border); }
+
+/* ── FILTERBAR ── */
+.filterbar { background:var(--bg); border-bottom:1px solid var(--border); padding:6px 18px; display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+.fi { background:var(--surface); border:1px solid var(--border); border-radius:5px; color:var(--text); padding:4px 8px; font-size:12.5px; outline:none; }
+.fi:focus { border-color:var(--accent); }
+.fi::placeholder { color:var(--muted); }
+.fl { color:var(--muted); font-size:11.5px; white-space:nowrap; }
+.count { margin-left:auto; font-size:11.5px; color:var(--muted); }
+
+/* ── TABLE ── */
+.table-wrap { flex:1; overflow:auto; }
+table { width:100%; border-collapse:collapse; table-layout:fixed; }
+col.c-estat    { width:32px; }
+col.c-dia      { width:50px; }
+col.c-hora     { width:44px; }
+col.c-alumne   { width:88px; }
+col.c-expand   { width:30px; }
+col.c-nota     { width:52px; }
+col.c-equacio  { width:58px; }
+col.c-resultat { width:82px; }
+col.c-torns    { width:46px; }
+col.c-pistes   { width:46px; }
+col.c-est      { width:42px; }
+col.c-gap      { width:42px; }
+td:first-child, th:first-child { padding-left:18px; }
+thead th { background:var(--surface); color:var(--muted); font-size:10.5px; font-weight:600; letter-spacing:.3px; text-transform:uppercase; padding:7px 9px; text-align:left; position:sticky; top:0; border-bottom:1px solid var(--border); white-space:nowrap; overflow:hidden; }
+tbody tr { border-bottom:1px solid var(--border); transition:background .08s; cursor:pointer; }
+tbody tr:nth-child(even) { background:#f1f5f9; }
+tbody tr:hover { background:#e2e8f0; }
+tbody tr.row-exp { background:#e2e8f0; }
+tbody td { padding:7px 9px; vertical-align:middle; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; }
+.tm { font-family:monospace; font-size:13px; }
+.mu { color:var(--muted); }
+
+/* ── BADGES ── */
+.badge { display:inline-flex; align-items:center; font-size:11px; font-weight:700; border-radius:4px; padding:2px 7px; white-space:nowrap; }
+.badge-r { background:var(--res-r-bg); color:var(--res-r-fg); }
+.badge-a { background:var(--res-a-bg); color:var(--res-a-fg); }
+.badge-s { background:var(--res-s-bg); color:var(--res-s-fg); }
+.badge-eq { background:#f5f3ff; color:#5b21b6; font-family:monospace; font-size:12px; padding:2px 6px; border-radius:3px; }
+
+/* ── EFFORT MINI-BARS ── */
+.effort-bar { display:flex; align-items:center; gap:3px; }
+.eb-seg { height:8px; border-radius:2px; flex-shrink:0; }
+
+/* ── DETAIL ROW ── */
+.det-row td { padding:0; white-space:normal; overflow:visible; }
+.det-panel { padding:13px 16px 13px 52px; background:#f8faff; border-top:1px solid #dbeafe; position:relative; }
+.collapse-btn { position:absolute; left:12px; top:13px; width:28px; height:28px; border-radius:5px; background:#1e293b; color:#fff; border:none; cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; opacity:.85; transition:opacity .15s; }
+.collapse-btn:hover { opacity:1; }
+.det-code { font-family:monospace; font-size:11.5px; background:var(--surface2); border:1px solid var(--border); border-radius:5px; padding:7px 10px; word-break:break-all; color:#475569; letter-spacing:.4px; margin-bottom:10px; }
+.det-grid { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:11px; }
+.det-item { background:var(--surface); border:1px solid var(--border); border-radius:5px; padding:8px 11px; display:inline-flex; flex-direction:column; white-space:nowrap; }
+.det-item .dk { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; margin-bottom:3px; }
+.det-item .dv { font-size:13px; font-weight:700; font-family:monospace; }
+.effort-detail { background:var(--surface); border:1px solid var(--border); border-radius:5px; padding:10px 14px; margin-top:4px; }
+.effort-title { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; margin-bottom:8px; font-weight:600; }
+.effort-row { display:flex; align-items:center; gap:8px; margin-bottom:5px; }
+.effort-lbl { font-size:11.5px; color:var(--muted); width:80px; flex-shrink:0; }
+.effort-track { flex:1; height:10px; background:var(--surface2); border-radius:3px; overflow:hidden; max-width:200px; }
+.effort-fill { height:100%; border-radius:3px; transition:width .3s; }
+.effort-val { font-size:12px; font-weight:700; font-family:monospace; color:var(--text); width:28px; }
+
+.exp-btn { background:none; border:none; color:var(--accent); cursor:pointer; font-size:13.8px; padding:2px 4px; border-radius:3px; }
+.exp-btn:hover { opacity:.75; }
+.exp-btn.open { color:var(--danger); }
+
+.empty-state { text-align:center; padding:50px 20px; color:var(--muted); font-size:13px; }
+
+/* ── RESUM MODAL ── */
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(15,23,42,.55); z-index:500; overflow-y:auto; padding:24px 16px; }
+.modal-overlay.open { display:block; }
+.modal { background:var(--surface); border-radius:10px; max-width:820px; margin:0 auto; box-shadow:0 20px 60px rgba(0,0,0,.2); overflow:hidden; }
+.modal-header { background:#1e293b; color:#fff; padding:14px 20px; display:flex; align-items:center; justify-content:space-between; }
+.modal-header h2 { font-size:15px; font-weight:700; }
+.modal-close { background:none; border:none; color:#94a3b8; font-size:20px; cursor:pointer; padding:0 4px; line-height:1; }
+.modal-close:hover { color:#fff; }
+.modal-body { padding:20px; }
+.section-title { font-size:12px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin:0 0 12px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+
+/* Resum table */
+.resum-table { border-collapse:collapse; width:100%; font-size:12.5px; }
+.resum-table th { background:#f1f5f9; color:var(--muted); font-size:10.5px; font-weight:600; padding:7px 10px; text-align:left; border:1px solid var(--border); text-transform:uppercase; letter-spacing:.3px; white-space:nowrap; }
+.resum-table td { padding:8px 10px; border:1px solid var(--border); vertical-align:middle; }
+.resum-table tr:nth-child(even) td { background:#f8fafc; }
+.nota-bar-wrap { display:flex; align-items:center; gap:7px; }
+.nota-bar-bg { flex:1; height:8px; background:#e2e8f0; border-radius:3px; overflow:hidden; max-width:80px; }
+.nota-bar-fill { height:100%; border-radius:3px; background:var(--accent); transition:width .4s; }
+.res-dist { display:flex; gap:3px; align-items:center; }
+.res-dot { width:9px; height:9px; border-radius:2px; flex-shrink:0; }
+.res-dot-r { background:#22c55e; }
+.res-dot-a { background:#60a5fa; }
+.res-dot-s { background:#f87171; }
+
+::-webkit-scrollbar { width:4px; height:4px; }
+::-webkit-scrollbar-thumb { background:var(--border-h); border-radius:2px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Tutor IA — <span>Analitzador</span></h1>
+  <span class="header-badge">TQ v1</span>
+  <div class="header-right" id="hdr-right" style="display:none">
+    <button class="btn btn-ghost" onclick="resetView()">← Nou</button>
+    <button class="btn btn-resum" id="btn-resum" onclick="openResum()">📊 Resum per equació</button>
+    <button class="btn btn-ghost" onclick="exportCSV()">⬇ Exportar</button>
+  </div>
+</div>
+
+<div class="upload-zone" id="upload-zone">
+  <div class="dropzone" id="dropzone">
+    <div class="dropzone-icon">📂</div>
+    <h2>Obre el CSV del Google Form</h2>
+    <p>Arrossega aquí el CSV o fes clic per seleccionar-lo</p>
+    <button class="btn btn-primary" onclick="document.getElementById('fi').click()">Obre un arxiu CSV</button>
+    <input type="file" id="fi" accept=".csv,.txt" style="display:none" onchange="handleFile(this.files[0])">
+  </div>
+  <div class="sep">o enganxa el contingut directament</div>
+  <textarea class="paste-area" id="paste-area" placeholder="Enganxa aquí el contingut del full de càlcul (Ctrl+A, Ctrl+C des de Sheets)…"></textarea>
+  <button class="btn btn-primary" onclick="handlePaste()">Analitzar</button>
+  <div class="format-hint">
+    <p>Format esperat del codi (29 caràcters):</p>
+    <code>Lsss-DDMM-HHMM-TQ-FC-NNN-RTPV</code>
+    <p style="margin-top:6px">Exemple: <code>Cqah-1005-1035-TQ-2C-100-R500</code> → EQ2-C, Resolt, 10/10, 5 torns</p>
+  </div>
+</div>
+
+<div class="main" id="main-view">
+  <div class="topbar">
+    <div class="stat-pills" id="stat-pills"></div>
+  </div>
+  <div class="filterbar">
+    <span class="fl">Alumne</span>
+    <select class="fi" id="f-stu" onchange="applyFilters()" style="width:140px"><option value="">Tots</option></select>
+    <span class="fl">Equació</span>
+    <select class="fi" id="f-eq" onchange="applyFilters()" style="width:90px"><option value="">Totes</option></select>
+    <span class="fl">Resultat</span>
+    <select class="fi" id="f-res" onchange="applyFilters()" style="width:110px">
+      <option value="">Tots</option>
+      <option value="R">✅ Resolt</option>
+      <option value="A">🔵 Abandonat</option>
+      <option value="S">❌ Suspès</option>
+    </select>
+    <span class="fl">Dia</span>
+    <input class="fi" id="f-date" type="date" onchange="applyFilters()" style="width:132px">
+    <span class="fl">Estat</span>
+    <select class="fi" id="f-sta" onchange="applyFilters()" style="width:115px">
+      <option value="">Tots</option>
+      <option value="ok">✅ Vàlid</option>
+      <option value="warn">⚠️ Sospitós</option>
+      <option value="invalid">❌ Invàlid</option>
+    </select>
+    <button class="btn btn-ghost" style="font-size:12px;padding:4px 9px;" onclick="clearFilters()">Netejar</button>
+    <span class="count" id="count"></span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <colgroup>
+        <col class="c-estat"><col class="c-dia"><col class="c-hora">
+        <col class="c-alumne"><col class="c-expand"><col class="c-nota">
+        <col class="c-equacio"><col class="c-resultat">
+        <col class="c-torns"><col class="c-pistes"><col class="c-est"><col class="c-gap">
+      </colgroup>
+      <thead><tr>
+        <th></th><th>Dia</th><th>Hora</th><th>Alumne</th>
+        <th></th><th>Nota</th>
+        <th>Equació</th><th>Resultat</th>
+        <th title="Passos donats">Torns</th>
+        <th title="Pistes demanades">Pistes</th>
+        <th title="Estancaments">Est.</th>
+        <th title="Minuts entre codi i enviament">Δt</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div class="empty-state" id="empty" style="display:none">🔍 Cap resultat amb els filtres actuals</div>
+  </div>
+</div>
+
+<script>
+// ─── CONSTANTS ───────────────────────────────────────────────────────────────
+const LC   = 'TRWAGMYFPDXBNJZSQVHLCKE';
+const GAP  = 15; // minuts màxims raonables entre codi i enviament
+const HEX_TURNS = '0123456789ABCDEFG'; // G = 16+
+
+const RESULTAT_LABEL = { R:'Resolt', A:'Abandonat', S:'Suspès' };
+const RESULTAT_BADGE = {
+  R: '<span class="badge badge-r">✅ Resolt</span>',
+  A: '<span class="badge badge-a">🔵 Abandonat</span>',
+  S: '<span class="badge badge-s">❌ Suspès</span>',
+};
+
+// ─── ESTAT ───────────────────────────────────────────────────────────────────
+let allRows  = [];
+let filtRows = [];
+let expIdx   = null;
+
+// ─── CSV PARSING ─────────────────────────────────────────────────────────────
+function csvLine(l, sep) {
+  const r = []; let c = '', q = false;
+  for (const ch of l) {
+    if (ch === '"') q = !q;
+    else if (ch === sep && !q) { r.push(c.trim()); c = ''; }
+    else c += ch;
+  }
+  r.push(c.trim()); return r;
+}
+
+function parseCSV(txt) {
+  const ls = txt.replace(/\r\n/g,'\n').replace(/\r/g,'\n').trim().split('\n');
+  if (ls.length < 2) return null;
+  const sep = ls[0].includes('\t') ? '\t' : ',';
+  const hds = csvLine(ls[0], sep);
+  const h   = hds.map(s => s.toLowerCase());
+
+  // Detecta columnes per nom o per contingut
+  let ci = h.findIndex(s => s.includes('codi') || s.includes('tutor') || s.includes('code'));
+  let ei = h.findIndex(s => s.includes('electr') || s.includes('email') || s.includes('correu'));
+  let ti = h.findIndex(s => s.includes('temps') || s.includes('timestamp') || s.includes('data'));
+
+  if (ci < 0 || ei < 0 || ti < 0) {
+    const f = csvLine(ls[1], sep);
+    if (ci < 0) ci = f.findIndex(v => /^[A-Z][a-z]{3}-\d{4}/.test(v));
+    if (ei < 0) ei = f.findIndex(v => v.includes('@'));
+    if (ti < 0) ti = f.findIndex(v => /\d{2}\/\d{2}\/\d{4}/.test(v));
+  }
+
+  return ls.slice(1).filter(l => l.trim()).map(l => {
+    const c = csvLine(l, sep);
+    return {
+      timestamp: ti >= 0 ? (c[ti] || '').trim() : '',
+      email:     ei >= 0 ? (c[ei] || '').trim() : '',
+      rawCode:   ci >= 0 ? (c[ci] || '').trim() : '',
+    };
+  });
+}
+
+// ─── CHECKSUM ─────────────────────────────────────────────────────────────────
+function chk(ltr, salt, dd, mm, hh, mn, ni) {
+  return LC.charAt((ni + dd + mm + hh + mn + salt.charCodeAt(0)) % 23) === ltr;
+}
+
+// ─── DECODIFICACIÓ DEL CODI TQ v1 ────────────────────────────────────────────
+// Format: Lsss-DDMM-HHMM-TQ-FC-NNN-RTPV (29 chars, 7 segments)
+function parseCode(raw) {
+  if (!raw || !raw.trim()) return { format:'empty', valid:false, error:'Buit' };
+  const code = raw.trim().toUpperCase();
+  const p    = raw.trim().split('-'); // keep original case for salt
+
+  // ── TQ v1 ──
+  if (
+    p.length === 7 &&
+    /^[A-Z][a-z]{3}$/.test(p[0]) &&          // Lsss
+    /^\d{4}$/.test(p[1]) &&                   // DDMM
+    /^\d{4}$/.test(p[2]) &&                   // HHMM
+    p[3].toUpperCase() === 'TQ' &&             // TQ
+    /^[1-4][A-D]$/i.test(p[4]) &&             // FC
+    /^\d{3}$/.test(p[5]) &&                   // NNN
+    /^[RAS][0-9A-G]\d\d$/i.test(p[6])         // RTPV
+  ) {
+    const ltr  = p[0][0];
+    const salt = p[0].slice(1);
+    const dd   = +p[1].slice(0,2), mm = +p[1].slice(2,4);
+    const hh   = +p[2].slice(0,2), mn = +p[2].slice(2,4);
+    const fc   = p[4].toUpperCase();             // e.g. "2C"
+    const ni   = +p[5];                          // nota × 10
+    const rtpv = p[6].toUpperCase();             // e.g. "R500"
+
+    const ok = chk(ltr, salt, dd, mm, hh, mn, ni);
+
+    // Decodifica torns (hex ampliat 0-9, A-F, G=16+)
+    const tornsIdx = HEX_TURNS.indexOf(rtpv[1]);
+    const torns    = tornsIdx >= 0 ? (tornsIdx === 16 ? '≥16' : tornsIdx) : '?';
+    const tornsNum = tornsIdx >= 0 ? tornsIdx : null; // per càlcul numèric
+    const pistes   = +rtpv[2];
+    const stagn    = +rtpv[3];
+    const resChar  = rtpv[0]; // R/A/S
+    const familia  = `EQ${fc[0]}-${fc[1]}`; // "2C" → "EQ2-C"
+
+    return {
+      format: 'tq-v1', valid: ok, checksumOk: ok,
+      familia, familiaCode: fc, nivell: +fc[0],
+      note: ni / 10, ni,
+      resultatChar: resChar,
+      resultat: RESULTAT_LABEL[resChar] || '?',
+      torns, tornsNum, pistes, stagn,
+      day: dd, month: mm, hour: hh, minute: mn,
+      error: ok ? null : 'Checksum invàlid',
+    };
+  }
+
+  // ── Format desconegut ──
+  return {
+    format: 'unknown', valid: false, checksumOk: false,
+    familia: '?', familiaCode: '?', nivell: null,
+    note: null, ni: 0, resultatChar: '?', resultat: '?',
+    torns: null, tornsNum: null, pistes: null, stagn: null,
+    day: null, month: null, hour: null, minute: null,
+    error: 'Format no reconegut (s\'espera codi TQ v1)',
+  };
+}
+
+// ─── UTILITATS DE TEMPS ───────────────────────────────────────────────────────
+function stu(email) {
+  return (!email || !email.includes('@')) ? (email || '—') : email.split('@')[0];
+}
+function xdate(ts) {
+  const m = ts.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : '';
+}
+function xtime(ts) {
+  const m = ts.match(/(\d{1,2}):(\d{2}):\d{2}/);
+  return m ? `${String(+m[1]).padStart(2,'0')}:${m[2]}` : '';
+}
+function ctime(p) {
+  return p.hour === null ? null : `${String(p.hour).padStart(2,'0')}:${String(p.minute).padStart(2,'0')}`;
+}
+function gap(t1, t2) {
+  const f = s => { const m = s && s.match(/^(\d{1,2}):(\d{2})$/); return m ? +m[1]*60 + +m[2] : null; };
+  const a = f(t1), b = f(t2);
+  return (a !== null && b !== null) ? b - a : null;
+}
+
+// ─── PROCESSAMENT DE FILES ────────────────────────────────────────────────────
+function processRows(csv) {
+  return csv.map((r, i) => {
+    const p   = parseCode(r.rawCode);
+    const st  = stu(r.email);
+    const ds  = xdate(r.timestamp);
+    const st2 = xtime(r.timestamp);
+    const ct  = ctime(p);
+    const g   = gap(ct, st2);
+    const status = p.valid
+      ? (g !== null && g > GAP ? 'warn' : 'ok')
+      : 'invalid';
+    const dd = ds ? ds.slice(8) + '/' + ds.slice(5,7) : '—';
+    return { idx:i, raw:r, parsed:p, student:st, dateStr:ds, dayDisplay:dd, sendTime:st2, codeTime:ct, gap:g, status };
+  });
+}
+
+// ─── RENDERITZACIÓ ────────────────────────────────────────────────────────────
+function rstatus(s, e) {
+  if (s === 'ok')   return `<span title="Checksum correcte">✅</span>`;
+  if (s === 'warn') return `<span title="Gap > ${GAP} min" style="cursor:help">⚠️</span>`;
+  return `<span title="${e || ''}" style="cursor:help">❌</span>`;
+}
+function rnote(n) {
+  if (n === null || isNaN(n)) return '<span class="mu">—</span>';
+  const color = n >= 7 ? 'var(--ok)' : n >= 5 ? 'var(--warn)' : 'var(--danger)';
+  return `<span class="tm" style="font-weight:700;color:${color};">${n.toFixed(1).replace('.',',')}</span>`;
+}
+function rgap(g) {
+  if (g === null) return '<span class="mu">—</span>';
+  if (g <= 6)  return `<span class="mu">${g}m</span>`;
+  if (g <= 15) return `<span style="color:var(--warn)">${g}m</span>`;
+  return `<span style="color:var(--danger);font-weight:600">${g}m</span>`;
+}
+function rresultat(r) {
+  return RESULTAT_BADGE[r] || `<span class="mu">—</span>`;
+}
+function rnum(n, muted=false) {
+  if (n === null || n === undefined) return '<span class="mu">—</span>';
+  const style = muted ? ' style="color:var(--muted)"' : '';
+  return `<span class="tm"${style}>${n}</span>`;
+}
+
+function renderRow(row) {
+  const p    = row.parsed;
+  const open = expIdx === row.idx;
+  const eq   = p.familia !== '?' ? `<span class="badge-eq">${p.familia}</span>` : '<span class="mu">—</span>';
+  return `<tr class="${open ? 'row-exp' : ''}" id="row-${row.idx}" onclick="toggleDet(${row.idx})">
+    <td style="text-align:center">${rstatus(row.status, p.error)}</td>
+    <td class="tm">${row.dayDisplay}</td>
+    <td class="tm">${row.sendTime || '<span class="mu">—</span>'}</td>
+    <td title="${row.student}">${row.student}</td>
+    <td><button class="exp-btn ${open ? 'open' : ''}" onclick="event.stopPropagation();toggleDet(${row.idx})">${open ? '▲' : '▼'}</button></td>
+    <td>${rnote(p.note)}</td>
+    <td>${eq}</td>
+    <td>${rresultat(p.resultatChar)}</td>
+    <td>${rnum(p.torns)}</td>
+    <td>${rnum(p.pistes)}</td>
+    <td>${rnum(p.stagn, true)}</td>
+    <td>${rgap(row.gap)}</td>
+  </tr>${open ? renderDet(row) : ''}`;
+}
+
+function renderDet(row) {
+  const p = row.parsed;
+  const isValid = p.format === 'tq-v1';
+
+  const items = [
+    { k:'Format',         v: p.format },
+    { k:'Data',           v: p.day ? `${String(p.day).padStart(2,'0')}/${String(p.month).padStart(2,'0')}` : '—' },
+    { k:'Hora activitat', v: row.codeTime || '—' },
+    { k:'Hora enviament', v: row.sendTime  || '—' },
+    { k:'Validació',      v: p.checksumOk ? '✅ OK' : '❌ KO' },
+    { k:'Nota',           v: p.note !== null ? p.note.toFixed(1).replace('.',',') + ' / 10' : '—' },
+    { k:'Equació',        v: p.familia },
+    { k:'Resultat',       v: RESULTAT_LABEL[p.resultatChar] || '—' },
+    { k:'Torns',          v: p.torns !== null ? `${p.torns} passos` : '—' },
+    { k:'Pistes',         v: p.pistes !== null ? `${p.pistes}` : '—' },
+    { k:'Estancaments',   v: p.stagn !== null ? `${p.stagn}` : '—' },
+  ];
+
+  // Barra d'esforç visual
+  let effortHtml = '';
+  if (isValid && p.tornsNum !== null) {
+    const maxTorns   = 16;
+    const tornsW     = Math.min(100, Math.round((p.tornsNum / maxTorns) * 100));
+    const pistesW    = Math.min(100, Math.round((p.pistes / 9) * 100));
+    const stagnW     = Math.min(100, Math.round((p.stagn / 9) * 100));
+    const tornsColor = p.tornsNum <= 5  ? '#22c55e' : p.tornsNum <= 10 ? '#f59e0b' : '#ef4444';
+    const pistesColor= p.pistes === 0  ? '#22c55e' : p.pistes <= 2    ? '#f59e0b' : '#ef4444';
+    const stagnColor = p.stagn === 0   ? '#22c55e' : '#f59e0b';
+    effortHtml = `<div class="effort-detail">
+      <div class="effort-title">Esforç de la sessió</div>
+      <div class="effort-row">
+        <span class="effort-lbl">Torns</span>
+        <div class="effort-track"><div class="effort-fill" style="width:${tornsW}%;background:${tornsColor};"></div></div>
+        <span class="effort-val">${p.torns}</span>
+      </div>
+      <div class="effort-row">
+        <span class="effort-lbl">Pistes</span>
+        <div class="effort-track"><div class="effort-fill" style="width:${pistesW}%;background:${pistesColor};"></div></div>
+        <span class="effort-val">${p.pistes}</span>
+      </div>
+      <div class="effort-row">
+        <span class="effort-lbl">Estancaments</span>
+        <div class="effort-track"><div class="effort-fill" style="width:${stagnW}%;background:${stagnColor};"></div></div>
+        <span class="effort-val">${p.stagn}</span>
+      </div>
+    </div>`;
+  }
+
+  return `<tr class="det-row" id="detail-${row.idx}"><td colspan="12"><div class="det-panel">
+    <button class="collapse-btn" onclick="toggleDet(${row.idx})" title="Col·lapsar">▲</button>
+    <div class="det-code">${row.raw.rawCode}</div>
+    <div class="det-grid">${items.map(i => `<div class="det-item"><div class="dk">${i.k}</div><div class="dv">${i.v}</div></div>`).join('')}</div>
+    ${effortHtml}
+    ${p.error ? `<div style="margin-top:8px;font-size:12px;color:var(--danger)">⚠️ ${p.error}</div>` : ''}
+  </div></td></tr>`;
+}
+
+function renderStats(rows) {
+  const tot = rows.length;
+  const ok  = rows.filter(r => r.status === 'ok').length;
+  const wn  = rows.filter(r => r.status === 'warn').length;
+  const inv = rows.filter(r => r.status === 'invalid').length;
+  const ns  = rows.filter(r => r.parsed.note !== null && !isNaN(r.parsed.note) && r.status !== 'invalid').map(r => r.parsed.note);
+  const avg = ns.length ? (ns.reduce((a,b) => a+b, 0) / ns.length).toFixed(1).replace('.',',') : '—';
+  const resolvR = rows.filter(r => r.parsed.resultatChar === 'R' && r.status !== 'invalid').length;
+  document.getElementById('stat-pills').innerHTML =
+    `<div class="sp"><strong>${tot}</strong> sessions</div>
+     <div class="sp-sep"></div>
+     <div class="sp">✅ <strong class="ok">${ok}</strong></div>
+     <div class="sp">⚠️ <strong class="warn">${wn}</strong></div>
+     <div class="sp">❌ <strong class="danger">${inv}</strong></div>
+     <div class="sp-sep"></div>
+     <div class="sp">Nota mitjana: <strong class="avg">${avg}</strong></div>
+     <div class="sp-sep"></div>
+     <div class="sp">Resoltes: <strong class="ok">${resolvR}</strong> / <strong>${tot - inv}</strong></div>`;
+}
+
+function renderTable(rows) {
+  const tb = document.getElementById('tbody');
+  const em = document.getElementById('empty');
+  document.getElementById('count').textContent = `${rows.length} sessió${rows.length !== 1 ? 's' : ''}`;
+  if (!rows.length) { tb.innerHTML = ''; em.style.display = 'block'; return; }
+  em.style.display = 'none';
+  tb.innerHTML = rows.map(renderRow).join('');
+}
+
+// ─── FILTRES ──────────────────────────────────────────────────────────────────
+function populateFilters(rows) {
+  const eqs  = [...new Set(rows.map(r => r.parsed.familia).filter(f => f && f !== '?'))].sort();
+  const stus = [...new Set(rows.map(r => r.student).filter(Boolean))].sort((a,b) => a.localeCompare(b));
+  document.getElementById('f-eq').innerHTML  = '<option value="">Totes</option>' + eqs.map(e  => `<option value="${e}">${e}</option>`).join('');
+  document.getElementById('f-stu').innerHTML = '<option value="">Tots</option>'  + stus.map(s => `<option value="${s}">${s}</option>`).join('');
+}
+
+function applyFilters() {
+  const st  = document.getElementById('f-stu').value.trim();
+  const eq  = document.getElementById('f-eq').value;
+  const res = document.getElementById('f-res').value;
+  const sta = document.getElementById('f-sta').value;
+  const dt  = document.getElementById('f-date').value;
+  expIdx = null;
+  filtRows = allRows.filter(r => {
+    if (st  && r.student !== st) return false;
+    if (eq  && r.parsed.familia !== eq) return false;
+    if (res && r.parsed.resultatChar !== res) return false;
+    if (sta && r.status !== sta) return false;
+    if (dt  && r.dateStr !== dt) return false;
+    return true;
+  });
+  renderTable(filtRows);
+  renderStats(filtRows);
+}
+
+function clearFilters() {
+  ['f-stu','f-eq','f-res','f-sta'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-date').value = '';
+  applyFilters();
+}
+
+// ─── TOGGLE DETALL ────────────────────────────────────────────────────────────
+function toggleDet(i) {
+  expIdx = (expIdx === i) ? null : i;
+  renderTable(filtRows);
+  if (expIdx !== null) setTimeout(() => {
+    const el = document.getElementById(`detail-${i}`);
+    if (el) el.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  }, 50);
+}
+
+// ─── CÀRREGA ──────────────────────────────────────────────────────────────────
+function loadData(txt) {
+  const csv = parseCSV(txt);
+  if (!csv || !csv.length) { alert("No s'han pogut llegir dades."); return; }
+  allRows  = processRows(csv);
+  filtRows = [...allRows];
+  expIdx   = null;
+  document.getElementById('upload-zone').style.display = 'none';
+  document.getElementById('main-view').classList.add('visible');
+  document.getElementById('hdr-right').style.display = 'flex';
+  populateFilters(allRows);
+  renderStats(allRows);
+  renderTable(allRows);
+}
+
+function resetView() {
+  document.getElementById('upload-zone').style.display = 'flex';
+  document.getElementById('main-view').classList.remove('visible');
+  document.getElementById('hdr-right').style.display = 'none';
+  document.getElementById('paste-area').value = '';
+  allRows = []; filtRows = []; expIdx = null;
+}
+
+function handleFile(f) { if (!f) return; const r = new FileReader(); r.onload = e => loadData(e.target.result); r.readAsText(f,'UTF-8'); }
+function handlePaste() { const t = document.getElementById('paste-area').value.trim(); if (!t) { alert('Enganxa el CSV primer.'); return; } loadData(t); }
+
+// ─── EXPORTAR ─────────────────────────────────────────────────────────────────
+function exportCSV() {
+  const ls = ['Alumne,Equació,Resultat,Nota,Torns,Pistes,Estancaments,Estat,Gap(min),Codi'];
+  filtRows.forEach(r => {
+    const p = r.parsed;
+    ls.push([
+      r.student, p.familia, RESULTAT_LABEL[p.resultatChar] || '',
+      p.note !== null ? p.note.toFixed(1) : '',
+      p.tornsNum !== null ? p.tornsNum : '',
+      p.pistes !== null ? p.pistes : '',
+      p.stagn !== null ? p.stagn : '',
+      r.status, r.gap !== null ? r.gap : '',
+      `"${r.raw.rawCode.replace(/"/g,'""')}"`,
+    ].join(','));
+  });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([ls.join('\n')], {type:'text/csv;charset=utf-8;'}));
+  a.download = 'tutor-eq-sessions.csv';
+  a.click();
+}
+
+// ─── MODAL RESUM PER EQUACIÓ ──────────────────────────────────────────────────
+function openResum() {
+  const validRows = filtRows.filter(r => r.status !== 'invalid' && r.parsed.format === 'tq-v1');
+  if (!validRows.length) { alert("No hi ha sessions vàlides per resumir."); return; }
+
+  // Agrupa per família
+  const byFam = {};
+  validRows.forEach(r => {
+    const f = r.parsed.familia;
+    if (!byFam[f]) byFam[f] = [];
+    byFam[f].push(r);
+  });
+
+  const fams = Object.keys(byFam).sort();
+
+  // Calculem stats per família
+  const stats = fams.map(f => {
+    const rows    = byFam[f];
+    const n       = rows.length;
+    const notes   = rows.map(r => r.parsed.note).filter(v => v !== null);
+    const avgNota = notes.length ? notes.reduce((a,b) => a+b, 0) / notes.length : null;
+    const nR      = rows.filter(r => r.parsed.resultatChar === 'R').length;
+    const nA      = rows.filter(r => r.parsed.resultatChar === 'A').length;
+    const nS      = rows.filter(r => r.parsed.resultatChar === 'S').length;
+    const torns   = rows.map(r => r.parsed.tornsNum).filter(v => v !== null);
+    const avgT    = torns.length ? torns.reduce((a,b) => a+b, 0) / torns.length : null;
+    const pistes  = rows.map(r => r.parsed.pistes).filter(v => v !== null);
+    const avgP    = pistes.length ? pistes.reduce((a,b) => a+b, 0) / pistes.length : null;
+    const stagn   = rows.map(r => r.parsed.stagn).filter(v => v !== null);
+    const avgS    = stagn.length ? stagn.reduce((a,b) => a+b, 0) / stagn.length : null;
+    return { familia:f, n, avgNota, nR, nA, nS, avgT, avgP, avgS, nivell:byFam[f][0].parsed.nivell };
+  });
+
+  // Genera taula
+  let html = `<p class="section-title">Resum per equació — ${validRows.length} sessions vàlides</p>
+  <table class="resum-table">
+    <thead><tr>
+      <th>Equació</th><th>N</th><th>Nota mitjana</th>
+      <th>Distribució resultats</th>
+      <th>Torns (mitj.)</th><th>Pistes (mitj.)</th><th>Est. (mitj.)</th>
+    </tr></thead><tbody>`;
+
+  stats.forEach(s => {
+    const nota  = s.avgNota !== null ? s.avgNota.toFixed(1).replace('.',',') : '—';
+    const notaW = s.avgNota !== null ? Math.round(s.avgNota / 10 * 100) : 0;
+    const notaC = s.avgNota !== null ? (s.avgNota >= 7 ? 'var(--ok)' : s.avgNota >= 5 ? 'var(--warn)' : 'var(--danger)') : 'var(--muted)';
+    const pctR  = Math.round(s.nR / s.n * 100);
+    const pctA  = Math.round(s.nA / s.n * 100);
+    const pctS  = Math.round(s.nS / s.n * 100);
+    const dotR  = Array(s.nR).fill('<div class="res-dot res-dot-r"></div>').join('');
+    const dotA  = Array(s.nA).fill('<div class="res-dot res-dot-a"></div>').join('');
+    const dotS  = Array(s.nS).fill('<div class="res-dot res-dot-s"></div>').join('');
+    const t     = s.avgT  !== null ? s.avgT.toFixed(1)  : '—';
+    const p     = s.avgP  !== null ? s.avgP.toFixed(1)  : '—';
+    const st    = s.avgS  !== null ? s.avgS.toFixed(1)  : '—';
+    html += `<tr>
+      <td><span class="badge-eq" style="font-size:13px;padding:3px 8px;">${s.familia}</span></td>
+      <td style="text-align:center;font-weight:700;">${s.n}</td>
+      <td>
+        <div class="nota-bar-wrap">
+          <span style="font-family:monospace;font-weight:700;color:${notaC};width:28px">${nota}</span>
+          <div class="nota-bar-bg"><div class="nota-bar-fill" style="width:${notaW}%;background:${notaC};"></div></div>
+        </div>
+      </td>
+      <td>
+        <div style="display:flex;align-items:center;gap:5px;">
+          <div class="res-dist">${dotR}</div>
+          <div class="res-dist">${dotA}</div>
+          <div class="res-dist">${dotS}</div>
+          <span style="font-size:11px;color:var(--muted);margin-left:4px;">
+            R:${pctR}% A:${pctA}% S:${pctS}%
+          </span>
+        </div>
+      </td>
+      <td style="text-align:center;font-family:monospace;">${t}</td>
+      <td style="text-align:center;font-family:monospace;">${p}</td>
+      <td style="text-align:center;font-family:monospace;color:var(--muted);">${st}</td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+
+  // Llegenda
+  html += `<div style="display:flex;gap:14px;margin-top:14px;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--muted);">
+      <div class="res-dot res-dot-r"></div> Resolt
+    </div>
+    <div style="display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--muted);">
+      <div class="res-dot res-dot-a"></div> Abandonat
+    </div>
+    <div style="display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--muted);">
+      <div class="res-dot res-dot-s"></div> Suspès
+    </div>
+    <span style="font-size:11.5px;color:var(--muted);">· Est. = estancaments (torns sense avançar)</span>
+  </div>`;
+
+  document.getElementById('modal-body').innerHTML = html;
+  document.getElementById('modal-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeResum() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeResum(); });
+
+// ─── DRAG & DROP i PASTE ──────────────────────────────────────────────────────
+const dz = document.getElementById('dropzone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('dragover');
+  const f = e.dataTransfer.files[0]; if (f) handleFile(f);
+});
+document.addEventListener('paste', e => {
+  if (document.getElementById('paste-area').matches(':focus')) return;
+  if (document.getElementById('upload-zone').style.display === 'none') return;
+  const t = (e.clipboardData || window.clipboardData).getData('text');
+  if (t && t.includes('\n')) document.getElementById('paste-area').value = t;
+});
+</script>
+
+<!-- MODAL RESUM -->
+<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeResum()">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Resum per equació</h2>
+      <button class="modal-close" onclick="closeResum()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+</body>
+</html>
