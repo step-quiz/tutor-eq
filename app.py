@@ -204,7 +204,7 @@ def init_state():
 
 
 def start_session(problem_id: str):
-    # Codi de l'alumne (text_input al sidebar). Si està buit, "anon".
+    # student_id per defecte "anon" (el camp d'entrada s'ha eliminat de la UI).
     student_id = (st.session_state.get("student_id") or "").strip() or "anon"
     st.session_state.session = T.new_session_state(problem_id,
                                                    student_id=student_id)
@@ -253,23 +253,14 @@ def render_sidebar():
         if debug:
             st.caption(f"Model actiu: `{L.MODEL}`")
 
-        # Codi de l'alumne (pilot multi-estudiant). El professor el fixa
-        # abans d'iniciar la sessió. Es propaga al log d'API com a
-        # student_id i s'inclou al rastre JSON. Si es deixa buit,
-        # les crides queden etiquetades com a "anon".
-        st.text_input(
-            "Codi de l'alumne",
-            key="student_id",
-            placeholder="p. ex. S001",
-            help=("Pseudonim per agrupar les analítiques del pilot. "
-                  "Fixa'l abans d'iniciar el problema."),
-        )
-
         st.markdown("---")
         st.markdown("**Selecciona l'equació**")
 
         for prob in PB.list_problems():
-            label = f"N{prob['nivell']} · {prob['familia']} · {prob['equacio_text']}"
+            if debug:
+                label = f"N{prob['nivell']} · {prob['familia']} · {prob['equacio_text']}"
+            else:
+                label = prob['equacio_text']
             if st.button(label, key=f"btn_{prob['id']}", use_container_width=True):
                 start_session(prob["id"])
                 st.rerun()
@@ -426,12 +417,6 @@ def render_main():
     if s is None:
         st.title("Aprendre a resoldre equacions")
         st.write("Escull una equació a la barra lateral.")
-        st.markdown("---")
-        st.markdown(
-            "Has de simplificar l'equació per poder estar més a prop d'aïllar la "
-            "incògnita `x`. Atenció, no has de donar directament la solució, sinó "
-            "avançar pas a pas."
-        )
         return
 
     # Decidim layout: si hi ha prerequisit actiu, partim en dues columnes.
@@ -464,6 +449,12 @@ def _render_problem_main(s, input_disabled: bool):
     # Capçalera del problema
     st.markdown(f"### Equació {s['problem_id']}")
     st.caption(f"Nivell {s['problem']['nivell']} · {s['problem']['tema']}")
+
+    st.markdown(
+        "Has de simplificar l'equació per poder estar més a prop d'aïllar la "
+        "incògnita `x`. Atenció, no has de donar directament la solució, sinó "
+        "avançar pas a pas."
+    )
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
