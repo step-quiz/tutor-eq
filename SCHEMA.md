@@ -249,9 +249,64 @@ Si afegeixes un label que té una dependència conceptual implicada
 `prop_distributiva`), afegeix-lo també al dict `_ERROR_TO_DEPENDENCY` per
 activar el retrocés automàtic.
 
+### Labels actuals del catàleg
+
+| Label | Descripció (anglès, per al prompt) | Afegit |
+|---|---|---|
+| `L1_inverse_op` | used the wrong inverse operation (e.g. subtracted instead of dividing) | Fase 3 |
+| `L1_sign_error` | correct operation but wrong sign on the result | Fase 3 |
+| `L2_order` | correct operations but applied in the wrong order | Fase 3 |
+| `L2_transpose_sign` | transposed a term but forgot to change its sign | Fase 3 |
+| `L2_one_side_only` | applied the operation to one side of the equation only | Fase 3 |
+| `L2_like_terms` | failed to collect like terms before isolating: treated ax + bx as a single step without first simplifying the coefficient (e.g. 2x + 5x left as-is, or combined incorrectly as 10x) | GAPs 1-5 |
+| `L3_distribution_partial` | distributed a factor to some terms inside parentheses but not all | Fase 3 |
+| `L3_minus_paren` | dropped or reversed the sign when distributing a negative factor across parentheses | Fase 3 |
+| `L3_combine_terms` | failed to combine variable terms from both sides before isolating | Fase 3 |
+| `L4_mcm_partial` | cleared fractions by multiplying by an incomplete LCM | Fase 3 |
+| `L4_illegal_cancel` | cancelled a term algebraically without multiplying both sides | Fase 3 |
+| `L4_minus_fraction` | dropped the negative sign when operating on a term with a fraction preceded by minus | Fase 3 |
+| `GEN_arithmetic` | arithmetic error in a computation step | Fase 3 |
+| `GEN_other` | error not matching any specific category (classifier fallback) | Fase 3 |
+
 ---
 
-## Procés per afegir un problema nou
+## Famílies reservades (estat après GAPs 1-5)
+
+Aquesta taula recull totes les famílies existents o reservades. **No creis
+una família amb un id ja present aquí sense coordinació prèvia** — podries
+xocar amb un problema que algú altre ja ha redactat o té previst.
+
+Si vols afegir un segon enunciat a una família existent (p.ex. `EQ2-E-002`),
+no cal coordinació — sempre que la clau `-002` no existeixi ja.
+
+| Família | Estructura | Estat |
+|---|---|---|
+| `EQ1-A` | Un pas, suma (`x + b = c`) | Existent |
+| `EQ1-B` | Un pas, multiplicació (`ax = c`) | Existent |
+| `EQ1-C` | Un pas, resta (`x − b = c`) | Existent |
+| `EQ1-D` | Un pas, divisió simple (`x/n = c`) | Existent (GAP 1) |
+| `EQ2-A` | Dos passos, resta (`ax − b = c`) | Existent |
+| `EQ2-B` | Dos passos, solució negativa (`ax + b = c`, `x < 0`) | Existent |
+| `EQ2-C` | Dos passos, coeficient negatiu (`−ax + b = c`) | Existent |
+| `EQ2-D` | Dos passos, incògnita a la dreta (`c = ax + b`) | Existent |
+| `EQ2-E` | Termes semblants un costat (`ax + bx = c`) | Existent (GAP 2) |
+| `EQ2-F` | Termes semblants intercalats LHS (`b + ax + d − x = c`) | Existent (GAP 2) |
+| `EQ2-G` | *Lliure (pròxima variant EQ2 si cal)* | Disponible |
+| `EQ2-H` | Recollir ambdós costats + transposar | Existent (GAP 3b) |
+| `EQ2-I` | Recollir ambdós costats + transposar + dividir | Existent (GAP 3b) |
+| `EQ2-X` | Coeficient fraccionari propi (`(a/b)x = c`) | Existent (GAP 1) |
+| `EQ3-A` | Parèntesi pur (`a(x + b) = c`) | Existent |
+| `EQ3-B` | Parèntesi amb terme al davant (`d + a(x + b) = c`) | Existent |
+| `EQ3-C` | x als dos costats, un terme cada costat (`ax + b = x + c`) | Existent |
+| `EQ3-D` | Menys davant parèntesi (`b − (x + d) = c`) | Existent |
+| `EQ3-E` | x als dos costats, coeficients positius (`ax + b = bx + c`) | Existent (GAP 4) |
+| `EQ3-F` | x als dos costats, coef. negatiu LHS (`b − ax = cx + d`) | Existent (GAP 4) |
+| `EQ3-G` | x als dos costats, coef. negatiu, solució positiva | Existent (GAP 4) |
+| `EQ3-H` | Parèntesis als dos costats (`a(x+b) = c(x+d)`) | Existent (GAP 5) |
+| `EQ3-I` | Dos parèntesis LHS, menys davant segon (`a(x+b) − c(x+d) = 0`) | Existent (GAP 5) |
+| `EQ4-A` | Una fracció, numerador binomi (`(x+b)/n = c`) | Existent |
+| `EQ4-B` | Fraccions amb m.c.m. requerit | Existent |
+| `EQ4-C` | Menys davant fracció (`b − (x+d)/n = c`) | Existent |
 
 1. **Decidir nivell i família.** Si encaixa en una família existent (per
    ex. `EQ2-A` amb números diferents), reusa la família. Si és una
