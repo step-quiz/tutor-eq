@@ -254,9 +254,18 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
 
         if ia["verdict"] == "no_eq":
             # Distingim dos casos:
-            # (a) L'input ÉS matemàtic però li falta el signe d'igualtat
-            #     (ex: "2x-4") → missatge pedagògic, NO penalització.
-            # (b) L'input no és matemàtic (ex: "no sé") → ús inadequat.
+            # (a) L'input té "=" però SymPy no l'ha pogut parsear (caràcter
+            #     Unicode, format inusual...) → no diem "falta el signe"
+            #     perquè seria erroni; demanem que el reformuli.
+            # (b) L'input ÉS matemàtic però no té "=" → falta el signe.
+            # (c) L'input no és matemàtic → ús inadequat.
+            has_eq_char = "=" in raw_text or "＝" in raw_text
+            if has_eq_char:
+                _push_msg(state, "feedback",
+                          "He tingut dificultats per interpretar la teva equació. "
+                          "Prova d'escriure-la de nou amb nombres i lletres estàndard, "
+                          f"per exemple: {ia.get('reconstruction') or '...'}")
+                return state
             if V.has_math_content(raw_text):
                 _push_msg(state, "feedback",
                           "Sembla que falta el signe d'igualtat. "

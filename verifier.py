@@ -40,6 +40,9 @@ def _normalize(text: str) -> str:
         "÷": "/",
         ",": ".",      # decimals europeus (només si no està dins de funció)
         " ": " ",
+        "＝": "=",     # fullwidth equals (teclat asiàtic / copia-enganxa)
+        "≠": "=",      # distint-de (alumne confós)
+        "≠": "=", # ≠ com a codepoint
     }
     for a, b in replacements.items():
         s = s.replace(a, b)

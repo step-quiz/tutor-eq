@@ -430,6 +430,27 @@ def render_sidebar():
         st.markdown("---")
         st.markdown("**Selecciona l'equació**")
 
+        # CSS dinàmic: ressalta en blau el botó del problema actiu.
+        # Streamlit afegeix automàticament la classe st-key-btn_{id} al div
+        # wrapper de cada botó, cosa que ens permet targetar-lo sense JS.
+        active_id = (st.session_state.session or {}).get("problem_id") or                     (st.session_state.session or {}).get("problem", {}).get("id")
+        if active_id:
+            safe_id = active_id.replace("-", "\\-")
+            st.markdown(
+                f"""<style>
+                .st-key-btn_{safe_id} button {{
+                    background-color: #1a56db !important;
+                    color: #ffffff !important;
+                    border: 1px solid #1242b0 !important;
+                    font-weight: 600 !important;
+                }}
+                .st-key-btn_{safe_id} button:hover {{
+                    background-color: #1242b0 !important;
+                }}
+                </style>""",
+                unsafe_allow_html=True,
+            )
+
         _MAX_EQ_CHANGES = 3  # més canvis → ús inadequat
 
         # Diàleg de confirmació de canvi d'equació
@@ -628,6 +649,20 @@ def _run_test_and_store(problem_id: str):
 # ------------------------------------------------------------
 # Pantalla central
 # ------------------------------------------------------------
+def state_so_far(history: list) -> str | None:
+    """
+    Retorna el text de l'últim pas `correcte_progres` de la cadena.
+    És la millor equació equivalent acceptada fins al moment — la que
+    l'alumne ha d'usar com a punt de partida per al proper pas.
+    Retorna None si l'alumne encara no ha avançat cap pas vàlid.
+    """
+    best = None
+    for h in history:
+        if h.get("verdict") == "correcte_progres":
+            best = h["text"]
+    return best
+
+
 def render_main():
     s = st.session_state.session
 
@@ -676,6 +711,13 @@ def _render_problem_main(s, input_disabled: bool):
     st.markdown("<hr>", unsafe_allow_html=True)
 
     # Cadena d'equacions
+    # Panel fixe "on som": mostra l'últim pas equivalent acceptat.
+    # Quan hi ha molts missatges (errors, pistes, exemples), l'alumne
+    # pot perdre de vista fins on havia arribat. Aquest banner ho recorda.
+    best_eq = state_so_far(s["history"])
+    if best_eq and best_eq != s["problem"].get("equacio_text", ""):
+        st.info(f"📍 **Fins aquí has arribat:** `{best_eq}`")
+
     st.markdown("**Cadena d'equacions**")
     visible_history = _filter_superseded_errors(s["history"])
     for h in visible_history:
