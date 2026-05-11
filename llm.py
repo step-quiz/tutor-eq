@@ -65,13 +65,14 @@ _PROCESS_FALLBACK_SESSION = uuid.uuid4().hex[:8]
 _log_ctx = threading.local()
 
 
-def set_log_context(student_id: str, session_id: str):
+def set_log_context(student_id: str = "anon", session_id: str = None):
     """
     Fixa el context de logging per al thread actual. Subseqüents crides
     a l'API (judge_progress, classify_error, etc.) etiquetaran les
     entrades del log amb aquest student_id i session_id.
 
     Es crida típicament des d'app.py al començar cada sessió de problema.
+    student_id és opcional: si no es passa, s'usa "anon" per defecte.
     """
     _log_ctx.student_id = student_id
     _log_ctx.session_id = session_id
