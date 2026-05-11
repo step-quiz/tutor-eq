@@ -89,6 +89,20 @@ st.markdown(
           color: #666666 !important;
           border: 1px solid #d0d0d0;
       }
+      /* Tamany de font de les equacions de la cadena (+20%) */
+      .eq-chain-step code, .eq-chain-original code {
+          font-size: 1.2em !important;
+      }
+      /* Equació vàlida al sidebar: +20% i contorn negre */
+      .eq-sidebar-best {
+          font-size: 1.2em !important;
+          font-weight: 700 !important;
+          border: 2px solid #000000 !important;
+          border-radius: 4px !important;
+          padding: 6px 10px !important;
+          display: inline-block;
+          font-family: monospace;
+      }
       /* Limitar amplada del bloc central perquè no s'estiri massa
          en el layout wide quan no hi ha prerequisit actiu */
       .main-narrow { max-width: 720px; }
@@ -435,7 +449,10 @@ def render_sidebar():
             best = state_so_far(s["history"])
             if best and best != s["problem"].get("equacio_text", ""):
                 st.markdown("**📌 Equació vàlida:**")
-                st.code(best, language=None)
+                st.markdown(
+                    f"<div class='eq-sidebar-best'>{best}</div>",
+                    unsafe_allow_html=True,
+                )
                 st.markdown("---")
 
         st.markdown("**Selecciona l'equació**")
@@ -724,7 +741,12 @@ def _render_problem_main(s, input_disabled: bool):
         st.markdown(f"### Equació {s['problem_id']}  `{forma}`")
         st.caption(f"Nivell {s['problem']['nivell']} · {s['problem']['tema']}")
     else:
-        st.markdown(f"### Equació de la forma `{forma}`")
+        st.markdown(
+            f"<h3 style='font-size:1.28em;margin-bottom:0.2rem'>"  
+            f"Equació de la forma&nbsp;&nbsp;"
+            f"<code style='font-size:0.9em'>{forma}</code></h3>",
+            unsafe_allow_html=True,
+        )
 
     # Instrucció inicial: només visible abans de la primera interacció.
     # Un cop l'alumne ha fet almenys un pas (la cadena té >1 element),
@@ -744,7 +766,11 @@ def _render_problem_main(s, input_disabled: bool):
     visible_history = _filter_superseded_errors(s["history"])
     for h in visible_history:
         if h["step"] == 0:
-            st.markdown(f"`{h['text']}`  · *equació original*")
+            st.markdown(
+                f"<div class='eq-chain-original'><code>{h['text']}</code>"  
+                f"&nbsp; · <em>equació original</em></div>",
+                unsafe_allow_html=True,
+            )
         else:
             badge = _verdict_badge(h["verdict"])
             err_label = h.get("error_label") if _is_debug_mode() else None
@@ -756,7 +782,7 @@ def _render_problem_main(s, input_disabled: bool):
             else:
                 css_class = ""
             st.markdown(
-                f"<div class='{css_class}'>"
+                f"<div class='eq-chain-step {css_class}'>"
                 f"<code>{h['text']}</code>  · {badge}{err}"
                 f"</div>",
                 unsafe_allow_html=True,
