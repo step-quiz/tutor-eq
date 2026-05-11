@@ -625,8 +625,10 @@ def _process_prereq_turn(state, raw_text):
         # ha de saber QUÈ HA DE FER ARA (continuar amb el problema
         # principal). Sense aquesta indicació, l'alumne es queda amb
         # l'input buit sense saber que ha de continuar resolent.
+        # L'ID intern (PRE-EQUIV, PRE-INV...) no és significatiu per a l'alumne;
+        # s'ometi del missatge. L'explicació va en paràgrafs separats per claredat.
         _push_msg(state, "prereq_resolved",
-                  f"Exercici {prereq_id}: superat correctament. {explanation}\n\n"
+                  f"Superat correctament.\n\n{explanation}\n\n"
                   f"**Ara, aplica el que has après a la teva equació original.**",
                   target="main", persistent=True)
     else:
@@ -640,8 +642,7 @@ def _process_prereq_turn(state, raw_text):
         # explícitament que la seva resposta no era correcta, l'explicació
         # esperada, i la indicació de què fer ara.
         _push_msg(state, "prereq_failed",
-                  f"Exercici {prereq_id}: la teva resposta no és correcta. "
-                  f"La solució és aquesta: {explanation}\n\n"
+                  f"La resposta no era correcta.\n\n{explanation}\n\n"
                   f"**Ara ja pots intentar resoldre l'equació original.**",
                   target="main", persistent=True)
     return state

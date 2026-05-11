@@ -698,15 +698,34 @@ def render_main():
 
 def _render_problem_main(s, input_disabled: bool):
     """Renderitza el problema principal: capçalera, cadena, missatges, input."""
+    debug = _is_debug_mode()
     # Capçalera del problema
-    st.markdown(f"### Equació {s['problem_id']}")
-    st.caption(f"Nivell {s['problem']['nivell']} · {s['problem']['tema']}")
+    # En mode debug mostrem l'ID intern; a l'alumne li mostrem la forma canònica.
+    _FAMILIA_FORMA = {
+        "EQ1-A": "x + b = c",   "EQ1-B": "ax = b",       "EQ1-C": "x − b = c",
+        "EQ2-A": "ax + b = c",  "EQ2-B": "ax − b = c",   "EQ2-C": "−ax + b = c",
+        "EQ2-D": "c = ax + b",  "EQ3-A": "a(x + b) = c", "EQ3-B": "a + b(x + c) = d",
+        "EQ3-C": "ax + b = cx + d", "EQ3-D": "a − (x + b) = c",
+        "EQ4-A": "x/a + b = c", "EQ4-B": "a/b · x + c = d", "EQ4-C": "−(x + b)/a = c",
+    }
+    familia = s["problem"].get("familia", "")
+    forma = _FAMILIA_FORMA.get(familia, familia)
+    if debug:
+        st.markdown(f"### Equació {s['problem_id']}  `{forma}`")
+        st.caption(f"Nivell {s['problem']['nivell']} · {s['problem']['tema']}")
+    else:
+        st.markdown(f"### Equació de la forma `{forma}`")
 
-    st.markdown(
-        "Has de simplificar l'equació per poder estar més a prop d'aïllar la "
-        "incògnita `x`. Atenció, no has de donar directament la solució, sinó "
-        "avançar pas a pas."
-    )
+    # Instrucció inicial: només visible abans de la primera interacció.
+    # Un cop l'alumne ha fet almenys un pas (la cadena té >1 element),
+    # la instrucció desapareix per no fer soroll.
+    n_steps = len([h for h in s["history"] if h["step"] > 0])
+    if n_steps == 0:
+        st.markdown(
+            "Has de simplificar l'equació per poder estar més a prop d'aïllar la "
+            "incògnita `x`. Atenció, no has de donar directament la solució, sinó "
+            "avançar pas a pas."
+        )
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
@@ -725,7 +744,7 @@ def _render_problem_main(s, input_disabled: bool):
             st.markdown(f"`{h['text']}`  · *equació original*")
         else:
             badge = _verdict_badge(h["verdict"])
-            err_label = h.get("error_label")
+            err_label = h.get("error_label") if _is_debug_mode() else None
             err = f"<span class='err-label'> · {err_label}</span>" if err_label else ""
             if h["verdict"] == "error":
                 css_class = "eq-error"
