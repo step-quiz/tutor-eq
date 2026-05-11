@@ -386,8 +386,13 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
     attempt_eq = V.parse_equation(raw_text)
     coef_last   = V.x_coefficient(last_correct_eq)
     coef_attempt = V.x_coefficient(attempt_eq)
+    # Només disparem si el coeficient canvia a un valor que NO és ±1.
+    # Si c_attempt == ±1, l'alumne ha intentat aïllar x dividint pels
+    # dos costats — pot ser un error de signe, però NO un error de
+    # coeficient; deixem que la IA classifiqui correctament.
     if (coef_last is not None and coef_attempt is not None
-            and coef_last != coef_attempt):
+            and coef_last != coef_attempt
+            and coef_attempt not in (1, -1)):
         _record_step(state, raw_text, parsed_ok=True,
                      verdict="error", error_label="GEN_arithmetic")
         _push_msg(state, "feedback",
