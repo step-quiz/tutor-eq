@@ -357,9 +357,11 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
         if v == "correcte_progres":
             _push_msg(state, "feedback", f"Correcte. {jp.get('reason','')}".strip())
         else:
+            # No mostrem la raó del LLM a l'alumne: pot ser incorrecta
+            # (el LLM pot al·lucinar "no equivalent" quan SymPy ja ha
+            # confirmat l'equivalència). La raó queda al rastre JSON.
             _push_msg(state, "feedback",
-                      "L'equació és correcta, però no t'acosta més a la solució. "
-                      f"{jp.get('reason','')}".strip())
+                      "L'equació és correcta, però no t'acosta més a la solució.")
 
         _post_verdict_bookkeeping(state, v, original_text)
         return state
@@ -585,6 +587,21 @@ def _process_prereq_turn(state, raw_text):
     explanation = prereq.get("explanation", "")
     prereq_id = prereq.get("id", state["active_prereq"])
 
+    if correct == "typo":
+        # Resposta correcta de fons però amb errada ortogràfica.
+        # Màxim 3 avisos; al 4t intent acceptem per evitar bloqueig.
+        typo_key = f"typo_attempts_{prereq_id}"
+        state.setdefault(typo_key, 0)
+        state[typo_key] += 1
+        if state[typo_key] <= 3:
+            _push_msg(state, "feedback",
+                      "Sembla que és correcte el que dius, però has comès una "
+                      "errada ortogràfica. Repassa-ho i torna a escriure la frase.",
+                      target="prereq")
+            return state
+        # Al 4t intent: acceptem i continuem (correct = True implícit).
+        correct = True
+
     if correct:
         # Feedback al panell del prereq abans que es tanqui (l'alumne
         # encara el veu un instant). El missatge auxiliar persistent va
@@ -621,8 +638,37 @@ def _process_prereq_turn(state, raw_text):
     return state
 
 
-def _check_prereq_answer(prereq, raw_text) -> bool:
-    """Avaluació determinista del prerequisit segons el camp present."""
+def _levenshtein(a: str, b: str) -> int:
+    """Distància d'edició entre dues cadenes."""
+    if len(a) < len(b):
+        return _levenshtein(b, a)
+    if not b:
+        return len(a)
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a):
+        curr = [i + 1]
+        for j, cb in enumerate(b):
+            curr.append(min(prev[j + 1] + 1, curr[j] + 1,
+                            prev[j] + (0 if ca == cb else 1)))
+        prev = curr
+    return prev[-1]
+
+
+def _fuzzy_keyword_match(keyword: str, text_words: list) -> bool:
+    """True si alguna paraula s'assembla prou a keyword (Levenshtein).
+    Paraules curtes (<=3 cars) exigeixen coincidència exacta.
+    Llindar: max(1, len(keyword)//4) — 1 errada per cada 4 caràcters."""
+    kw = keyword.lower()
+    if len(kw) <= 3:
+        return kw in text_words
+    threshold = max(1, len(kw) // 4)
+    return any(_levenshtein(kw, w) <= threshold for w in text_words)
+
+
+def _check_prereq_answer(prereq, raw_text):
+    """Avaluació determinista del prerequisit segons el camp present.
+    Retorna True (correcte), False (incorrecte) o "typo" (correcte de
+    fons però amb errada ortogràfica detectada per distància d'edició)."""
     s = (raw_text or "").strip()
 
     if "expected_value" in prereq:
@@ -658,17 +704,18 @@ def _check_prereq_answer(prereq, raw_text) -> bool:
 
     if "keywords_required" in prereq:
         s_low = s.lower()
-        # Comprovació positiva: ha d'aparèixer alguna keyword esperada.
-        has_required = any(kw.lower() in s_low for kw in prereq["keywords_required"])
-        if not has_required:
+        words = s_low.split()
+        has_exact = any(kw.lower() in s_low for kw in prereq["keywords_required"])
+        has_fuzzy = (not has_exact and
+                     any(_fuzzy_keyword_match(kw, words)
+                         for kw in prereq["keywords_required"]))
+        if not has_exact and not has_fuzzy:
             return False
-        # Comprovació negativa: certs prereqs declaren keywords que
-        # invaliden la resposta encara que també hi hagi una de positiva
-        # (ex: si el prereq demana dividir, "multiplico per 3" no val
-        # encara que contingués "/3" per qualsevol motiu).
         forbidden = prereq.get("forbidden_keywords", [])
         if any(kw.lower() in s_low for kw in forbidden):
             return False
+        if has_fuzzy:
+            return "typo"
         return True
 
     return False
