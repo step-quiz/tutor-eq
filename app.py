@@ -42,6 +42,21 @@ def _is_debug_mode() -> bool:
     return st.session_state.debug_mode
 
 
+def _show_fractions() -> bool:
+    """
+    Mostra les equacions de nivell 4 (fraccions) si la URL conté ?fraction=1.
+    Per defecte ocult: no volem saturar els alumnes a l'inici del pilot.
+    Es persisteix a session_state igual que debug_mode.
+    """
+    if "show_fractions" not in st.session_state:
+        try:
+            qp = st.query_params.get("fraction")
+        except Exception:
+            qp = None
+        st.session_state.show_fractions = (qp == "1")
+    return st.session_state.show_fractions
+
+
 st.set_page_config(
     page_title="Tutor IA — equacions lineals",
     layout="wide",
@@ -406,6 +421,8 @@ def render_sidebar():
         st.markdown("**Selecciona l'equació**")
 
         for prob in PB.list_problems():
+            if prob["nivell"] == 4 and not _show_fractions():
+                continue
             if debug:
                 label = f"N{prob['nivell']} · {prob['familia']} · {prob['equacio_text']}"
             else:
