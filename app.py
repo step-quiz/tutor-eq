@@ -735,7 +735,7 @@ def _render_problem_main(s, input_disabled: bool):
     # pot perdre de vista fins on havia arribat. Aquest banner ho recorda.
     best_eq = state_so_far(s["history"])
     if best_eq and best_eq != s["problem"].get("equacio_text", ""):
-        st.info(f"📍 **Fins aquí has arribat:** `{best_eq}`")
+        st.info(f"📌 **Equació vàlida:** <span style='font-size:1.3em'>`{best_eq}`</span>", unsafe_allow_html=True)
 
     st.markdown("**Cadena d'equacions**")
     visible_history = _filter_superseded_errors(s["history"])

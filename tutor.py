@@ -596,19 +596,21 @@ def _process_prereq_turn(state, raw_text):
     explanation = prereq.get("explanation", "")
     prereq_id = prereq.get("id", state["active_prereq"])
 
-    if correct == "typo":
+    if isinstance(correct, tuple) and correct[0] == "typo":
         # Resposta correcta de fons però amb errada ortogràfica.
         # Màxim 3 avisos; al 4t intent acceptem per evitar bloqueig.
+        typo_word = correct[1]
         typo_key = f"typo_attempts_{prereq_id}"
         state.setdefault(typo_key, 0)
         state[typo_key] += 1
         if state[typo_key] <= 3:
             _push_msg(state, "feedback",
-                      "Sembla que és correcte el que dius, però has comès una "
-                      "errada ortogràfica. Repassa-ho i torna a escriure la frase.",
+                      f"Sembla correcte el que escrius, però has comès una errada "
+                      f"ortogràfica. Repassa la paraula '{typo_word}' i torna a "
+                      f"escriure la frase.",
                       target="prereq")
             return state
-        # Al 4t intent: acceptem i continuem (correct = True implícit).
+        # Al 4t intent: acceptem i continuem.
         correct = True
 
     if correct:
@@ -664,15 +666,19 @@ def _levenshtein(a: str, b: str) -> int:
     return prev[-1]
 
 
-def _fuzzy_keyword_match(keyword: str, text_words: list) -> bool:
-    """True si alguna paraula s'assembla prou a keyword (Levenshtein).
+def _fuzzy_keyword_match(keyword: str, text_words: list):
+    """Retorna la paraula mal escrita si s'assembla prou a keyword (Levenshtein),
+    o None si no hi ha coincidència.
     Paraules curtes (<=3 cars) exigeixen coincidència exacta.
     Llindar: max(1, len(keyword)//4) — 1 errada per cada 4 caràcters."""
     kw = keyword.lower()
     if len(kw) <= 3:
-        return kw in text_words
+        return kw if kw in text_words else None
     threshold = max(1, len(kw) // 4)
-    return any(_levenshtein(kw, w) <= threshold for w in text_words)
+    for w in text_words:
+        if _levenshtein(kw, w) <= threshold:
+            return w
+    return None
 
 
 def _check_prereq_answer(prereq, raw_text):
@@ -716,16 +722,20 @@ def _check_prereq_answer(prereq, raw_text):
         s_low = s.lower()
         words = s_low.split()
         has_exact = any(kw.lower() in s_low for kw in prereq["keywords_required"])
-        has_fuzzy = (not has_exact and
-                     any(_fuzzy_keyword_match(kw, words)
-                         for kw in prereq["keywords_required"]))
-        if not has_exact and not has_fuzzy:
+        typo_word = None
+        if not has_exact:
+            for kw in prereq["keywords_required"]:
+                found = _fuzzy_keyword_match(kw, words)
+                if found:
+                    typo_word = found
+                    break
+        if not has_exact and typo_word is None:
             return False
         forbidden = prereq.get("forbidden_keywords", [])
         if any(kw.lower() in s_low for kw in forbidden):
             return False
-        if has_fuzzy:
-            return "typo"
+        if typo_word:
+            return ("typo", typo_word)  # tuple: correcte però amb errada
         return True
 
     return False
