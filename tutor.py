@@ -253,6 +253,16 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
             return state
 
         if ia["verdict"] == "no_eq":
+            # Distingim dos casos:
+            # (a) L'input ÉS matemàtic però li falta el signe d'igualtat
+            #     (ex: "2x-4") → missatge pedagògic, NO penalització.
+            # (b) L'input no és matemàtic (ex: "no sé") → ús inadequat.
+            if V.has_math_content(raw_text):
+                _push_msg(state, "feedback",
+                          "Sembla que falta el signe d'igualtat. "
+                          "Escriu una equació completa amb «=», "
+                          f"per exemple: {ia.get('reconstruction') or '...'}")
+                return state
             return _handle_inappropriate(state, raw_text, ia_already_judged=True)
 
         reconstruction = ia.get("reconstruction")
