@@ -376,14 +376,27 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
         return state
 
     # No equivalent a l'original: és un error.
-    # Passem a la IA també el darrer pas correcte, perquè la classificació
-    # es centri en la transformació local (last_correct → attempt) i no
-    # confongui errors aritmètics simples amb errors de distribució a
-    # només perquè l'enunciat tingui parèntesis.
-    # També li passem els errors recents (Move 1): així pot detectar
-    # patrons (p. ex. tres distribucions parcials seguides) i ajustar
-    # tant la classificació com el to del missatge.
+    # Pre-check determinista: si el coeficient de x ha canviat entre
+    # l'últim pas correcte i l'intent, és un error aritmètic en el
+    # coeficient (independentment de si la resta de la transformació
+    # era correcta). Detectar-ho aquí evita que la IA al·lucini una
+    # causa que no correspon a la transformació real.
     last_correct = _last_correct_step_text(state)
+    last_correct_eq = V.parse_equation(last_correct)
+    attempt_eq = V.parse_equation(raw_text)
+    coef_last   = V.x_coefficient(last_correct_eq)
+    coef_attempt = V.x_coefficient(attempt_eq)
+    if (coef_last is not None and coef_attempt is not None
+            and coef_last != coef_attempt):
+        _record_step(state, raw_text, parsed_ok=True,
+                     verdict="error", error_label="GEN_arithmetic")
+        _push_msg(state, "feedback",
+                  f"Has comès un error en el coeficient de x: "
+                  f"era {coef_last} i has escrit {coef_attempt}. "
+                  f"Comprova els càlculs i torna-ho a intentar.")
+        _post_verdict_bookkeeping(state, "error", original_text)
+        return state
+
     recent_err = _recent_errors(state, limit=3)
     try:
         ce = L.classify_error(

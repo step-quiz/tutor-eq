@@ -428,6 +428,16 @@ def render_sidebar():
             st.caption(f"Model actiu: `{L.MODEL}`")
 
         st.markdown("---")
+
+        # Equació vàlida fins ara — persistent al sidebar, no desapareix amb el scroll.
+        s = st.session_state.session
+        if s is not None and s.get("verdict_final") is None:
+            best = state_so_far(s["history"])
+            if best and best != s["problem"].get("equacio_text", ""):
+                st.markdown("**📌 Equació vàlida:**")
+                st.code(best, language=None)
+                st.markdown("---")
+
         st.markdown("**Selecciona l'equació**")
 
         # CSS dinàmic: ressalta en blau el botó del problema actiu.
@@ -730,43 +740,6 @@ def _render_problem_main(s, input_disabled: bool):
     st.markdown("<hr>", unsafe_allow_html=True)
 
     # Cadena d'equacions
-    # Panel fixe "on som": mostra l'últim pas equivalent acceptat.
-    # Quan hi ha molts missatges (errors, pistes, exemples), l'alumne
-    # pot perdre de vista fins on havia arribat. Aquest banner ho recorda.
-    best_eq = state_so_far(s["history"])
-    if best_eq and best_eq != s["problem"].get("equacio_text", ""):
-        # Banner flotant (position:fixed) que sempre queda visible a dalt
-        # independentment del scroll. Usat un div amb z-index alt per
-        # superposar-se a qualsevol element de Streamlit.
-        st.markdown(
-            f"""<div style="
-                position: fixed;
-                top: 3.5rem;  /* just a sota del header fixe de Streamlit */
-                left: 0;
-                right: 0;
-                z-index: 9999;
-                background: #1c4587;
-                color: #ffffff;
-                padding: 8px 24px;
-                font-size: 1.05em;
-                font-family: monospace;
-                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-                display: flex;
-                align-items: center;
-                gap: 12px;
-            ">
-                <span style="font-size:1.1em">📌</span>
-                <span style="opacity:0.85;font-family:sans-serif;font-size:0.9em">
-                    Equació vàlida:
-                </span>
-                <span style="font-size:1.35em;letter-spacing:0.03em">
-                    {best_eq}
-                </span>
-            </div>
-            <div style="height:48px"></div>""",
-            unsafe_allow_html=True,
-        )
-
     st.markdown("**Cadena d'equacions**")
     visible_history = _filter_superseded_errors(s["history"])
     for h in visible_history:

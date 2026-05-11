@@ -194,6 +194,21 @@ def next_operation_type(eq):
     return None
 
 
+def x_coefficient(eq) -> object:
+    """Retorna el coeficient de x en lhs-rhs (forma estàndard ax+b=0).
+    Retorna None si no és una equació lineal en x."""
+    if eq is None:
+        return None
+    try:
+        from sympy import Poly
+        lhs, rhs = eq
+        expr = lhs - rhs
+        p = Poly(expr, X)
+        return p.nth(1)
+    except Exception:
+        return None
+
+
 def is_terminal(eq, raw_text: str = None) -> bool:
     """
     L'equació és de la forma 'x = c' o 'c = x' (amb c constant).
