@@ -369,6 +369,10 @@ def init_state():
         st.session_state.test_problem_id = None
     if "confirm_exit" not in st.session_state:
         st.session_state.confirm_exit = False
+    if "equation_changes" not in st.session_state:
+        st.session_state.equation_changes = 0   # canvis d'equació amb sessió activa
+    if "confirm_change_eq" not in st.session_state:
+        st.session_state.confirm_change_eq = None  # id del problema pendent de confirmar
 
 
 def start_session(problem_id: str):
@@ -420,6 +424,31 @@ def render_sidebar():
         st.markdown("---")
         st.markdown("**Selecciona l'equació**")
 
+        _MAX_EQ_CHANGES = 3  # més canvis → ús inadequat
+
+        # Diàleg de confirmació de canvi d'equació
+        pending_id = st.session_state.get("confirm_change_eq")
+        if pending_id:
+            prob_pend = PB.PROBLEMS.get(pending_id, {})
+            st.warning(
+                f"Vols canviar a **{prob_pend.get('equacio_text', pending_id)}**? "
+                "Perdràs tota la feina feta."
+            )
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Sí, canvia", key="confirm_change_yes",
+                             use_container_width=True):
+                    st.session_state.equation_changes += 1
+                    st.session_state.confirm_change_eq = None
+                    start_session(pending_id)
+                    st.rerun()
+            with col2:
+                if st.button("Cancel·la", key="confirm_change_no",
+                             use_container_width=True):
+                    st.session_state.confirm_change_eq = None
+                    st.rerun()
+            st.markdown("---")
+
         for prob in PB.list_problems():
             if prob["nivell"] == 4 and not _show_fractions():
                 continue
@@ -428,8 +457,24 @@ def render_sidebar():
             else:
                 label = prob['equacio_text']
             if st.button(label, key=f"btn_{prob['id']}", use_container_width=True):
-                start_session(prob["id"])
-                st.rerun()
+                s = st.session_state.session
+                active = (s is not None
+                          and s.get("verdict_final") is None
+                          and s.get("problem", {}).get("id") != prob["id"])
+                if active:
+                    changes = st.session_state.equation_changes
+                    if changes >= _MAX_EQ_CHANGES:
+                        # Tractem com a ús inadequat: suspensió
+                        T.process_turn(s, "!!")
+                        _push_warning = True
+                        st.rerun()
+                    else:
+                        st.session_state.confirm_change_eq = prob["id"]
+                        st.rerun()
+                else:
+                    st.session_state.confirm_change_eq = None
+                    start_session(prob["id"])
+                    st.rerun()
 
 # "Senyals especials" (codi tècnic ?, !text, !!) només té sentit
         # per al desenvolupador. Per a Aran (13 anys) ho substituïm per

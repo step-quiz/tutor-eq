@@ -255,7 +255,19 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
         if ia["verdict"] == "no_eq":
             return _handle_inappropriate(state, raw_text, ia_already_judged=True)
 
-        text_to_record = ia.get("reconstruction") or raw_text
+        reconstruction = ia.get("reconstruction")
+        text_to_record = reconstruction or raw_text
+
+        # Si la IA ha reconstruït una equació vàlida, la passem a SymPy
+        # per al judici matemàtic real — la IA pot equivocar-se en jutjar
+        # si el pas és correcte o no (ex: "3x 15" → "3x = 15" és correcte
+        # però la IA pot dir "error" per la notació deficient de l'alumne).
+        if reconstruction:
+            reconstructed_eq = V.parse_equation(reconstruction)
+            if reconstructed_eq is not None:
+                _push_msg(state, "info", f"Jo interpreto: {reconstruction}")
+                return _evaluate_equation_step(state, reconstruction)
+
         verdict_map = {
             "correcte_progres": "correcte_progres",
             "correcte_estancat": "correcte_estancat",
