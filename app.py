@@ -741,7 +741,7 @@ def _render_problem_main(s, input_disabled: bool):
         st.markdown(
             f"""<div style="
                 position: fixed;
-                top: 0;
+                top: 3.5rem;  /* just a sota del header fixe de Streamlit */
                 left: 0;
                 right: 0;
                 z-index: 9999;

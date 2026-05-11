@@ -339,7 +339,7 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
 
         # Comprovació determinista de terminal:
         # si x = c i c és la solució correcta, problema resolt sense IA.
-        if V.is_terminal(new_eq):
+        if V.is_terminal(new_eq, raw_text=raw_text):
             sol = V.solve_for_x(new_eq)
             if str(sol) == target_sol:
                 _record_step(state, raw_text, parsed_ok=True,

@@ -194,20 +194,34 @@ def next_operation_type(eq):
     return None
 
 
-def is_terminal(eq) -> bool:
+def is_terminal(eq, raw_text: str = None) -> bool:
     """
     L'equació és de la forma 'x = c' o 'c = x' (amb c constant).
+    Si es passa raw_text, s'afegeix una comprovació textual: el costat
+    de la x al text cru ha de ser literalment 'x', per evitar que
+    expressions com '2x/2=8/2' (que SymPy simplifica a x=4) es
+    considerin terminals sense que l'alumne hagi aïllat realment la x.
     """
     if eq is None:
         return False
     lhs, rhs = eq
-    # Cas x = c
-    if lhs == X and rhs.is_constant():
-        return True
-    # Cas c = x
-    if rhs == X and lhs.is_constant():
-        return True
-    return False
+    # Comprovació algebraica (SymPy)
+    algebraic_ok = (lhs == X and rhs.is_constant()) or                    (rhs == X and lhs.is_constant())
+    if not algebraic_ok:
+        return False
+    # Comprovació textual: si tenim el text original, el costat de la x
+    # ha de ser estrictament 'x' (sense operadors ni coeficients).
+    if raw_text is not None:
+        s = _normalize(raw_text)
+        if "=" not in s:
+            return False
+        parts = s.split("=", 1)
+        left_raw  = parts[0].strip()
+        right_raw = parts[1].strip()
+        x_side = left_raw if lhs == X else right_raw
+        if x_side != "x":
+            return False
+    return True
 
 
 def validate_equation_form(eq):
