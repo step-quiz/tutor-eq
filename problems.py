@@ -329,13 +329,15 @@ PROBLEMS = {
         "familia": "EQ3-B",
         "nivell": 3,
         # Variant del nivell 3: parèntesi precedit per un terme constant.
-        # Camí pedagògic preferit: aïllar el parèntesi primer (restar 5
+        # Camí pedagògic preferit: aïllar el parèntesi primer (restar 3
         # als dos costats), després dividir per 2, després aïllar la x.
-        # El sistema també accepta el camí alternatiu (distribuir primer)
-        # perquè SymPy només comprova equivalència algebraica.
+        # NOTA: l'equació original 5+2(x−3)=7 tenia el problema que l'error
+        # de prioritat d'operacions (sumar 5+2=7 → 7(x−3)=7) produïa una
+        # equació equivalent per coincidència (7=5+2). Substituïda per
+        # 3+2(x−2)=7 on l'error produeix 5(x−2)=7 → x=17/5, inequívoc.
         "tema": "Equació amb parèntesis i un terme al davant",
-        "equacio_text": "5 + 2(x − 3) = 7",
-        "equacio_simetria": "7 = 5 + 2(x − 3)",
+        "equacio_text": "3 + 2(x − 2) = 7",
+        "equacio_simetria": "7 = 3 + 2(x − 2)",
         "solucio": 4,
         "dependencies": ["prop_distributiva", "regla_signes_parens", "operacions_inverses",
                          "principi_equiv"],
@@ -539,28 +541,26 @@ TEST_CASES = {
         ["x = 7", "3x = -7", "x = 18", "3x = -18", "x = 21"],
     ],
     "EQ3-B-001": [
-        # Des de 5 + 2(x − 3) = 7. Camí preferit: restar 5 als dos costats
-        # → 2(x − 3) = 2 (mantenint el parèntesi sense distribuir).
+        # Des de 3 + 2(x − 2) = 7. Camí preferit: restar 3 als dos costats
+        # → 2(x − 2) = 4 (mantenint el parèntesi sense distribuir).
         # Errors:
-        #   - "2(x - 3) = 12": va passar el +5 a la dreta sumant-lo enlloc de restant-lo (L2_transpose_sign)
-        #   - "5 + 2x - 3 = 7": distribució parcial (no va multiplicar 2·(-3)) (L3_distribution_partial)
-        #   - "2(x - 3) = 7": va restar 5 només a l'esquerra (L2_one_side_only)
-        #   - "5 + 2x + 6 = 7": distribució amb error de signe (2·(-3) = +6 en lloc de -6)
-        ["2(x - 3) = 2", "2(x - 3) = 12", "5 + 2x - 3 = 7", "2(x - 3) = 7",
-         "5 + 2x + 6 = 7"],
-        # Des de 2(x − 3) = 2. Camí preferit: dividir per 2 → x − 3 = 1.
+        #   - "5(x - 2) = 7": error de prioritat (suma 3+2=5 com si fossin termes iguals) (L3_distribution_partial)
+        #   - "3 + 2x − 2 = 7": distribució parcial (no va multiplicar 2·(−2)) (L3_distribution_partial)
+        #   - "2(x - 2) = 7": va restar 3 només a l'esquerra (L2_one_side_only)
+        #   - "3 + 2x + 4 = 7": error de signe en distribuir (2·(−2) = +4 en lloc de −4)
+        ["2(x - 2) = 4", "5(x - 2) = 7", "3 + 2x - 2 = 7", "2(x - 2) = 7",
+         "3 + 2x + 4 = 7"],
+        # Des de 2(x − 2) = 4. Camí preferit: dividir per 2 → x − 2 = 2.
         # Errors:
-        #   - "2x - 3 = 2": distribució parcial (L3_distribution_partial)
-        #   - "2(x - 3) = 1": va dividir només la dreta (L2_one_side_only)
-        #   - "2x + 6 = 2": error de signe en distribuir
-        #   - "x - 3 = 4": va multiplicar per 2 enlloc de dividir (L1_inverse_op)
-        ["x - 3 = 1", "2x - 3 = 2", "2(x - 3) = 1", "2x + 6 = 2", "x - 3 = 4"],
-        # Des de x − 3 = 1. Camí preferit: sumar 3 als dos costats → x = 4.
+        #   - "2x - 2 = 4": distribució parcial (L3_distribution_partial)
+        #   - "2(x - 2) = 2": va dividir només la dreta (L2_one_side_only)
+        #   - "x - 2 = 8": va multiplicar per 2 enlloc de dividir (L1_inverse_op)
+        ["x - 2 = 2", "2x - 2 = 4", "2(x - 2) = 2", "x - 2 = 8"],
+        # Des de x − 2 = 2. Camí preferit: sumar 2 als dos costats → x = 4.
         # Errors:
-        #   - "x = -2": va passar el -3 sense canviar-li el signe (L2_transpose_sign)
+        #   - "x = -2": va passar el −2 sense canviar-li el signe (L2_transpose_sign)
         #   - "x = -4": error de signe sumant
-        #   - "x = 1/3": va dividir per 3 enlloc de sumar (L1_inverse_op)
-        ["x = 4", "x = -2", "x = -4", "x = 1/3", "x = 3"],
+        ["x = 4", "x = -2", "x = -4", "x = 0"],
     ],
     "EQ3-C-001": [
         # Des de 2x + 5 = x + 8. Camí preferit: restar x als dos costats
