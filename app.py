@@ -352,21 +352,15 @@ def init_state():
         st.session_state.test_results = None
     if "test_problem_id" not in st.session_state:
         st.session_state.test_problem_id = None
-    if "student_id" not in st.session_state:
-        st.session_state.student_id = ""
     if "confirm_exit" not in st.session_state:
         st.session_state.confirm_exit = False
 
 
 def start_session(problem_id: str):
-    # student_id per defecte "anon" (el camp d'entrada s'ha eliminat de la UI).
-    student_id = (st.session_state.get("student_id") or "").strip() or "anon"
-    st.session_state.session = T.new_session_state(problem_id,
-                                                   student_id=student_id)
+    st.session_state.session = T.new_session_state(problem_id)
     # Propagar el context al thread perquè totes les crides a la IA
-    # d'aquest problema quedin etiquetades amb aquest alumne i sessió.
+    # d'aquest problema quedin etiquetades amb la sessió.
     L.set_log_context(
-        student_id=student_id,
         session_id=st.session_state.session["session_id"],
     )
     st.session_state.input_counter += 1
@@ -894,7 +888,6 @@ def main():
     s = st.session_state.get("session")
     if s is not None:
         L.set_log_context(
-            student_id=s.get("student_id", "anon"),
             session_id=s.get("session_id"),
         )
     render_sidebar()
