@@ -319,7 +319,7 @@ def _render_codi_sessio(s: dict):
 
     st.markdown("**Codi de la sessió**")
     st.caption(
-        "Copia aquest codi i enganxa'l al formulari que t'ha donat el professor."
+        "Copia aquest codi i enganxa'l al formulari que rebràs a la classe."
     )
 
     # Mostrem el codi en monospace i afegim un botó de còpia via JS.
@@ -836,10 +836,10 @@ def _filter_superseded_errors(history: list) -> list:
 
 def _verdict_badge(v: str) -> str:
     return {
-        "correcte_progres": "✓ correcte",
-        "correcte_estancat": "≈ no has simplificat prou",
-        "error": "✗ error",
-        "no_math": "— no detecto matemàtiques",
+        "correcte_progres": "Correcte ✓",
+        "correcte_estancat": "No has simplificat prou",
+        "error": "Errada ✗",
+        "no_math": "No detecto matemàtiques (!)",
         "inicial": "—",
     }.get(v, v)
 

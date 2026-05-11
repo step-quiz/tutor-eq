@@ -480,7 +480,7 @@ def _post_verdict_bookkeeping(state, verdict, original_text):
         if state["stagnation_consecutive"] >= 2 and not state["pending_proactive_offer"]:
             state["pending_proactive_offer"] = True
             _push_msg(state, "system",
-                      "Sembla que estàs donant voltes. Pots clicar al botó de la columna esquerra \"Vull una pista\".")
+                      "Sembla que estàs donant voltes. Pots clicar el botó \"Pista\", a la columna de l'esquerra.")
     else:
         # Reset si surt de l'estancament
         state["stagnation_consecutive"] = 0
@@ -575,7 +575,7 @@ def _start_prereq(state, prereq_id, dep_id):
 
     prereq = PB.get_prerequisite(prereq_id)
     _push_msg(state, "prereq",
-              "Cal treballar abans un exercici de reforç.",
+              "Cal practicar, abans, un exercici de reforç.",
               target="main")
 
 
@@ -700,7 +700,7 @@ def _handle_inappropriate(state, raw_text, ia_already_judged=False):
 
     _push_msg(state, "warning",
               f"Avís {n}/{MAX_INAPPROPRIATE_WARNINGS}: la resposta no conté contingut "
-              "matemàtic. Recorda que pots activar el botó per demanar ajuda, o bé sortir.")
+              "matemàtic. Recorda que pots activar el botó \"Pista\".")
     return state
 
 

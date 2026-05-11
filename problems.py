@@ -132,48 +132,48 @@ PREREQUISITES = {
         "concept": "def_aritm_negatius",
         "question": "Calcula el resultat de: −7 + 3",
         "expected_value": -4,            # validació numèrica
-        "explanation": "Quan sumem un negatiu i un positiu, restem els valors absoluts i posem el signe del més gran en valor absolut.",
+        "explanation": "Quan sumem un enter negatiu i un positiu, hem de restar els valors absoluts i el signe del resultat és el del nombre més gran, en valor absolut.",
     },
     "PRE-FRAC": {
         "id": "PRE-FRAC",
         "concept": "def_fraccions_equiv",
         "question": "Si x/3 = 5/2, quina equació obtens fent el producte creuat?",
         "expected_equation": "2*x = 15",  # validació via SymPy
-        "explanation": "Producte creuat: numerador × denominador de l'altre. 2·x = 3·5.",
+        "explanation": "Fem el producte creuat i obtenim l'equació: 2·x = 3·5.",
     },
     "PRE-MCM": {
         "id": "PRE-MCM",
         "concept": "def_mcm",
         "question": "Quin és el mínim comú múltiple de 2 i 3?",
         "expected_value": 6,
-        "explanation": "El mínim comú múltiple és el menor nombre divisible per tots dos.",
+        "explanation": "El mínim comú múltiple ha de ser múltiple de tots dos nombres, i a més ha de ser el més petit possible.",
     },
     "PRE-DIST": {
         "id": "PRE-DIST",
         "concept": "prop_distributiva",
-        "question": "Desenvolupa aplicant la propietat distributiva: 5 · (x + 2)",
+        "question": "Aplica la propietat distributiva i desenvolupa: 5 · (x + 2)",
         "expected_equation_or_expr": "5*x + 10",
         # Format de l'explicació: "<equació original> = <resultat>, perquè
         # <raó operativa>". L'alumne ha de veure el RESULTAT complet i el
         # PERQUÈ, no només la regla abstracta.
-        "explanation": "5·(x + 2) = 5x + 10, perquè el factor 5 multiplica la x i també el 2.",
+        "explanation": "5·(x + 2) = 5x + 10, perquè el factor 5 multiplica la x però també multiplica el 2.",
     },
     "PRE-SIGNES": {
         "id": "PRE-SIGNES",
         "concept": "regla_signes_parens",
         "question": "Desenvolupa i escriu sense haver de fer servir el parèntesi: −(x − 3)",
         "expected_equation_or_expr": "-x + 3",
-        "explanation": "−(x − 3) = −x + 3, perquè el menys de davant canvia el signe de cada terme de dins: la x passa a −x i el −3 passa a +3.",
+        "explanation": "−(x − 3) = −x + 3, perquè hem de canviar de signe tots els termes. Per tant, x passa a −x i −3 passa a +3.",
     },
     "PRE-INV": {
         "id": "PRE-INV",
         "concept": "operacions_inverses",
-        "question": "Si tens 3 + x = 10, quina operació fas als dos membres de l'equació, per poder aïllar la x? Explica-ho en català.",
+        "question": "Si tens 3 + x = 10, quina operació fas als dos costats de l'equació, per poder aïllar la x? Explica-ho en català.",
         "keywords_required": ["restar", "resta", "−3", "-3", "menys 3", "treure"],
         # Operacions equivocades per a aquest cas (additiu): rebutgem
         # respostes que parlin de multiplicar o dividir aquí.
         "forbidden_keywords": ["multiplic", "divid"],
-        "explanation": "3 + x = 10 → x = 10 − 3 = 7. Per desfer el +3 restem 3 als dos costats.",
+        "explanation": "3 + x = 10 → x = 10 − 3 → x = 7",
     },
     "PRE-INV-MULT": {
         "id": "PRE-INV-MULT",
@@ -187,7 +187,7 @@ PREREQUISITES = {
         # contesta "multiplico", "sumar" o "restar", la resposta és falsa
         # encara que de retruc inclogui "/3" o similar.
         "forbidden_keywords": ["multiplic", "sumar", "restar"],
-        "explanation": "3·x = 12 → x = 12 : 3 = 4. Per desfer una multiplicació per 3 dividim entre 3 als dos costats.",
+        "explanation": "3·x = 12 → x = 12 : 3 → x = 4",
     },
     "PRE-EQUIV": {
         "id": "PRE-EQUIV",
@@ -197,7 +197,7 @@ PREREQUISITES = {
         #     (que és el snare de "fer la mateixa cosa als dos costats").
         #   - L2_one_side_only: aplicar una operació només a un costat.
         # La pregunta força explicitar l'operació I la simetria.
-        "question": "Tens 3x − 5 = 10 i vols passar el −5 a l'altre costat. Quina operació fas, i a quants costats l'apliques?",
+        "question": "Tens 3x − 5 = 10 i vols passar el −5 a l'altre costat de l'equació. Quina operació fas? Explica-ho en català.",
         # Conjugacions comunes del verb "sumar" en respostes d'alumne:
         # infinitiu, 1a persona present (la més freqüent), 2a, 3a, 1a plural,
         # més sinònim "afegir" en diverses formes, més notació "+5".
@@ -210,7 +210,7 @@ PREREQUISITES = {
         # "restar" perquè els altres stems ("multiplic", "divid") ja cobreixen
         # totes les seves variants.
         "forbidden_keywords": ["restar", "resto", "resta", "restem", "multiplic", "divid"],
-        "explanation": "Per moure el −5, sumem 5 als DOS costats: 3x − 5 + 5 = 10 + 5, és a dir 3x = 15. La clau és aplicar la mateixa operació als dos costats.",
+        "explanation": "3x − 5 + 5 = 10 + 5 → 3x = 15. La clau és aplicar la mateixa operació als dos costats. En aquest cas, hem sumat 5 als dos costats.",
     },
 }
 
