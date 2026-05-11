@@ -83,6 +83,12 @@ st.markdown(
           color: #8a1c2b;
           font-weight: 500;
       }
+      /* Equacions estancades (correcte però sense progrés): gris neutre */
+      .eq-stagnant code {
+          background-color: #f0f0f0 !important;
+          color: #666666 !important;
+          border: 1px solid #d0d0d0;
+      }
       /* Limitar amplada del bloc central perquè no s'estiri massa
          en el layout wide quan no hi ha prerequisit actiu */
       .main-narrow { max-width: 720px; }
@@ -679,7 +685,12 @@ def _render_problem_main(s, input_disabled: bool):
             badge = _verdict_badge(h["verdict"])
             err_label = h.get("error_label")
             err = f"<span class='err-label'> · {err_label}</span>" if err_label else ""
-            css_class = "eq-error" if h["verdict"] == "error" else ""
+            if h["verdict"] == "error":
+                css_class = "eq-error"
+            elif h["verdict"] == "correcte_estancat":
+                css_class = "eq-stagnant"
+            else:
+                css_class = ""
             st.markdown(
                 f"<div class='{css_class}'>"
                 f"<code>{h['text']}</code>  · {badge}{err}"
