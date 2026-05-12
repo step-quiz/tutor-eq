@@ -15,6 +15,7 @@ Mode debug:
 """
 
 import os
+import re
 import uuid
 import random
 import string
@@ -73,26 +74,66 @@ st.markdown(
       .block-container { padding-top: 2rem !important; }
 
       /* Equacions amb error: text en vermell burdeus i fons subtil */
-      .eq-error code {
+      .eq-error .eq-text {
           background-color: #fbe9eb !important;
           color: #8a1c2b !important;
           border: 1px solid #e6b8be;
+          border-radius: 4px;
           font-weight: 500;
+          padding: 2px 6px;
       }
       .eq-error .err-label {
           color: #8a1c2b;
           font-weight: 500;
       }
       /* Equacions estancades (correcte però sense progrés): gris neutre */
-      .eq-stagnant code {
+      .eq-stagnant .eq-text {
           background-color: #f0f0f0 !important;
           color: #666666 !important;
           border: 1px solid #d0d0d0;
+          border-radius: 4px;
+          padding: 2px 6px;
       }
       /* Tamany de font de les equacions de la cadena (+20%) */
       .eq-chain-step code, .eq-chain-original code {
           font-size: 1.2em !important;
       }
+      /* Fraccions visuals a la cadena d'equacions */
+      .eq-chain-step .eq-text, .eq-chain-original .eq-text {
+          font-family: monospace;
+          font-size: 1.2em;
+          display: inline-block;
+          vertical-align: middle;
+      }
+      .eq-frac {
+          display: inline-flex;
+          flex-direction: column;
+          align-items: center;
+          vertical-align: middle;
+          font-size: 0.82em;
+          line-height: 1.15;
+          margin: 0 1px;
+      }
+      .eq-frac-num {
+          border-bottom: 1.5px solid currentColor;
+          padding: 0 3px 1px;
+          text-align: center;
+      }
+      .eq-frac-den {
+          padding: 1px 3px 0;
+          text-align: center;
+      }
+      /* Fraccions al capçalera (forma canònica) */
+      .eq-forma {
+          font-family: monospace;
+          font-size: 0.9em;
+          color: #2e7d32;
+          display: inline-block;
+          vertical-align: middle;
+      }
+      .eq-forma .eq-frac-num { border-bottom-color: #2e7d32; }
+      /* Fraccions al sidebar (millor equació fins ara) */
+      .eq-sidebar-best .eq-frac { font-size: 0.82em; }
       /* Equació vàlida al sidebar: +20% i contorn negre */
       .eq-sidebar-best {
           font-size: 1.2em !important;
@@ -425,6 +466,38 @@ L.set_progress_callback(_on_api_retry)
 # ------------------------------------------------------------
 # Sidebar
 # ------------------------------------------------------------
+def _frac_html(text: str) -> str:
+    """Converteix expressions a/b del text d'equació a HTML de fracció visual.
+
+    Exemples:
+        "x/2 + x/3 = 5"      → HTML amb x sobre 2 i x sobre 3
+        "(x + 1)/3 = 4"      → HTML amb (x + 1) sobre 3
+        "5 − (x − 1)/2 = 3"  → HTML amb (x − 1) sobre 2
+
+    L'input de l'alumne NO passa per aquí — es mostra com a text pla.
+    """
+    # Captura: (expr_parèntesi | terme_simple) / denominador
+    # − Unicode (U+2212) i - ASCII tots dos com a signe de numerador
+    _FRAC_RE = re.compile(
+        r'(\([^)]+\)|[−\-]?(?:[0-9]*[a-zA-Z]+|[0-9]+))\s*/\s*([a-zA-Z0-9]+)'
+    )
+
+    def _replace(m: re.Match) -> str:
+        num = m.group(1)
+        den = m.group(2)
+        # Treu parèntesis exteriors del numerador si n'hi ha
+        if num.startswith('(') and num.endswith(')'):
+            num = num[1:-1]
+        return (
+            f"<span class='eq-frac'>"
+            f"<span class='eq-frac-num'>{num}</span>"
+            f"<span class='eq-frac-den'>{den}</span>"
+            f"</span>"
+        )
+
+    return _FRAC_RE.sub(_replace, text)
+
+
 def render_sidebar():
     debug = _is_debug_mode()
     with st.sidebar:
@@ -450,7 +523,7 @@ def render_sidebar():
             if best and best != s["problem"].get("equacio_text", ""):
                 st.markdown("**📌 Equació vàlida:**")
                 st.markdown(
-                    f"<div class='eq-sidebar-best'>{best}</div>",
+                    f"<div class='eq-sidebar-best'>{_frac_html(best)}</div>",
                     unsafe_allow_html=True,
                 )
                 st.markdown("---")
@@ -742,9 +815,9 @@ def _render_problem_main(s, input_disabled: bool):
         st.caption(f"Nivell {s['problem']['nivell']} · {s['problem']['tema']}")
     else:
         st.markdown(
-            f"<h3 style='font-size:1.28em;margin-bottom:0.2rem'>"  
+            f"<h3 style='font-size:1.28em;margin-bottom:0.2rem'>"
             f"Equació de la forma&nbsp;&nbsp;"
-            f"<code style='font-size:0.9em'>{forma}</code></h3>",
+            f"<span class='eq-forma'>{_frac_html(forma)}</span></h3>",
             unsafe_allow_html=True,
         )
 
@@ -767,7 +840,8 @@ def _render_problem_main(s, input_disabled: bool):
     for h in visible_history:
         if h["step"] == 0:
             st.markdown(
-                f"<div class='eq-chain-original'><code>{h['text']}</code>"  
+                f"<div class='eq-chain-original'>"
+                f"<span class='eq-text'>{_frac_html(h['text'])}</span>"
                 f"&nbsp; · <em>equació original</em></div>",
                 unsafe_allow_html=True,
             )
@@ -783,7 +857,8 @@ def _render_problem_main(s, input_disabled: bool):
                 css_class = ""
             st.markdown(
                 f"<div class='eq-chain-step {css_class}'>"
-                f"<code>{h['text']}</code>  · {badge}{err}"
+                f"<span class='eq-text'>{_frac_html(h['text'])}</span>"
+                f"  · {badge}{err}"
                 f"</div>",
                 unsafe_allow_html=True,
             )
