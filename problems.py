@@ -816,6 +816,226 @@ TEST_CASES = {
         #   - "−x = 5": va restar 11 només de l'esquerra (o va perdre el signe de la dreta)
         ["x = 5", "x = 17", "x = -5", "−x = 5"],
     ],
+    # ------------------------------------------------------------------
+    # 11 problemes nous integrats el 2026-05-11 (F0 resolt). TEST_CASES
+    # proposats per Claude i revisats pel professor el mateix dia.
+    # ------------------------------------------------------------------
+    "EQ1-D-001": [
+        # Des de x/3 = 4. Camí preferit: multiplicar per 3 als dos costats → x = 12.
+        # Errors:
+        #   - "x = 1": va dividir 4/3 ≈ 1 (L1_inverse_op: dividir enlloc de multiplicar)
+        #   - "x = 7": va sumar 4 + 3 (L1_inverse_op variant additiva)
+        #   - "x = 4/3": va dividir per 3 explícitament (L1_inverse_op)
+        #   - "x/3 = 12": va multiplicar només la dreta (L2_one_side_only)
+        #   - "x = 11": error aritmètic (GEN_arithmetic)
+        ["x = 12", "x = 1", "x = 7", "x = 4/3", "x/3 = 12", "x = 11"],
+    ],
+    "EQ2-X-001": [
+        # Des de 2x/3 = 6. Camí preferit: multiplicar per 3 → 2x = 18.
+        # Errors:
+        #   - "2x = 9": va cancel·lar el 3 sense multiplicar la dreta (L4_illegal_cancel)
+        #   - "2x = 2": va dividir 6/3 (L1_inverse_op: divisió en comptes de multiplicació)
+        #   - "2x = 6": va ignorar el /3 (L4_illegal_cancel agressiu)
+        #   - "2x/3 = 18": va multiplicar només la dreta (L2_one_side_only)
+        ["2x = 18", "2x = 9", "2x = 2", "2x = 6", "2x/3 = 18"],
+        # Des de 2x = 18. Camí preferit: dividir per 2 → x = 9.
+        # Errors:
+        #   - "x = 36": va multiplicar per 2 enlloc de dividir (L1_inverse_op)
+        #   - "x = 16": va restar 2 (L1_inverse_op variant)
+        #   - "x = 20": va sumar 2 (L1_inverse_op variant)
+        #   - "2x = 9/2": va dividir només la dreta (L2_one_side_only)
+        ["x = 9", "x = 36", "x = 16", "x = 20", "2x = 9/2"],
+    ],
+    "EQ2-E-001": [
+        # Des de 2x + 5x = 21. Camí preferit: combinar termes → 7x = 21.
+        # Errors:
+        #   - "10x = 21": va multiplicar 2·5 enlloc de sumar (L2_like_terms)
+        #   - "3x = 21": va restar 5 - 2 (L2_like_terms variant)
+        #   - "2x + 5x = 7": va simplificar només la dreta (L2_one_side_only-like)
+        ["7x = 21", "10x = 21", "3x = 21", "2x + 5x = 7"],
+        # Des de 7x = 21. Camí preferit: dividir per 7 → x = 3.
+        # Errors:
+        #   - "x = 14": va sumar 21 + 7 enlloc de dividir (L1_inverse_op variant additiva)
+        #   - "x = 21": va ignorar el 7 (L1_inverse_op)
+        #   - "x = 7": va escriure el coeficient enlloc del resultat
+        #   - "7x = 3": va dividir només la dreta (L2_one_side_only)
+        ["x = 3", "x = 14", "x = 21", "x = 7", "7x = 3"],
+    ],
+    "EQ2-F-001": [
+        # Des de 5 + 2x + 3 − x = 12. Camí preferit: combinar termes
+        # (2x − x = x, 5 + 3 = 8) → x + 8 = 12.
+        # Errors:
+        #   - "3x + 8 = 12": va sumar 2 + 1 enlloc de restar (L2_like_terms)
+        #   - "x + 2 = 12": va combinar malament les constants (L2_like_terms)
+        #   - "x + 8 = 4": va passar el 12 mentalment a l'esquerra (L2_order)
+        #   - "−x + 8 = 12": va invertir 2x − x → −x (L1_sign_error)
+        ["x + 8 = 12", "3x + 8 = 12", "x + 2 = 12", "x + 8 = 4", "−x + 8 = 12"],
+        # Des de x + 8 = 12. Camí preferit: restar 8 → x = 4.
+        # Errors:
+        #   - "x = 20": va sumar 8 enlloc de restar (L1_inverse_op)
+        #   - "x = -4": va calcular 8 - 12 (L1_sign_error)
+        #   - "x + 8 = 4": va restar només a la dreta (L2_one_side_only)
+        ["x = 4", "x = 20", "x = -4", "x + 8 = 4"],
+    ],
+    "EQ2-H-001": [
+        # Des de 5x − 2x + 3 − 1 = 2x + 4 + 2. Camí preferit: combinar termes
+        # a cada costat → 3x + 2 = 2x + 6.
+        # Errors:
+        #   - "7x + 2 = 2x + 6": va sumar 5 + 2 = 7 enlloc de restar (L2_like_terms)
+        #   - "3x + 2 = 2x + 8": va sumar bé el LHS però malament el RHS (GEN_arithmetic)
+        #   - "3x + 4 = 2x + 6": va sumar 3 + 1 = 4 enlloc de restar (L2_like_terms variant)
+        #   - "3x − 4 = 2x + 6": confusió signes: 3 − 1 → -4 (L1_sign_error)
+        ["3x + 2 = 2x + 6", "7x + 2 = 2x + 6", "3x + 2 = 2x + 8",
+         "3x + 4 = 2x + 6", "3x − 4 = 2x + 6"],
+        # Des de 3x + 2 = 2x + 6. Camí preferit: restar 2x → x + 2 = 6.
+        # Errors:
+        #   - "5x + 2 = 6": va sumar 2x enlloc de restar (L3_combine_terms)
+        #   - "x + 2 = 2x + 6": va restar 2x només a l'esquerra (L2_one_side_only)
+        #   - "x + 8 = 6": error en transposar constants (L2_transpose_sign)
+        ["x + 2 = 6", "5x + 2 = 6", "x + 2 = 2x + 6", "x + 8 = 6"],
+        # Des de x + 2 = 6. Camí preferit: restar 2 → x = 4.
+        # Errors:
+        #   - "x = 8": va sumar 2 enlloc de restar (L1_inverse_op)
+        #   - "x = 3": error aritmètic
+        #   - "x + 2 = 4": va restar 2 només a la dreta (L2_one_side_only)
+        ["x = 4", "x = 8", "x = 3", "x + 2 = 4"],
+    ],
+    "EQ2-I-001": [
+        # Des de 4x + x − 3 + 6 = 2x + 12 − 3. Camí preferit: combinar
+        # termes → 5x + 3 = 2x + 9.
+        # Errors:
+        #   - "3x + 3 = 2x + 9": va restar 4 - 1 enlloc de sumar (L2_like_terms)
+        #   - "5x + 3 = 2x + 15": va sumar 12 + 3 enlloc de restar (L1_sign_error)
+        #   - "5x + 9 = 2x + 9": va sumar -3 + 6 = 9 al LHS (GEN_arithmetic)
+        #   - "5x − 3 = 2x + 9": confusió de signes en combinar (L1_sign_error)
+        ["5x + 3 = 2x + 9", "3x + 3 = 2x + 9", "5x + 3 = 2x + 15",
+         "5x + 9 = 2x + 9", "5x − 3 = 2x + 9"],
+        # Des de 5x + 3 = 2x + 9. Camí preferit: restar 2x → 3x + 3 = 9.
+        # Errors:
+        #   - "7x + 3 = 9": va sumar 2x (L3_combine_terms)
+        #   - "5x + 3 = 9": va restar 2x només a la dreta (L2_one_side_only)
+        #   - "3x + 3 = 2x + 9": no va restar res (L3_combine_terms variant)
+        ["3x + 3 = 9", "7x + 3 = 9", "5x + 3 = 9", "3x + 3 = 2x + 9"],
+        # Des de 3x + 3 = 9. Camí preferit: restar 3 i dividir per 3 → x = 2.
+        # Errors:
+        #   - "x = 4": va sumar 3 enlloc de restar (L1_inverse_op)
+        #   - "x = 6": va calcular 9/3 sense restar primer els 3 (L2_order)
+        #   - "x = 12": va ignorar el coeficient (L1_inverse_op)
+        ["x = 2", "x = 4", "x = 6", "x = 12"],
+    ],
+    "EQ3-E-001": [
+        # Des de 4x + 1 = 2x + 7. Camí preferit: restar 2x → 2x + 1 = 7.
+        # Errors:
+        #   - "6x + 1 = 7": va sumar 2x (L3_combine_terms)
+        #   - "4x + 1 = 7": va restar 2x només a la dreta (L2_one_side_only)
+        #   - "2x + 1 = 2x + 7": va restar 2x només a l'esquerra (L2_one_side_only)
+        #   - "2x − 1 = 7": confusió signe en transposar (L2_transpose_sign)
+        ["2x + 1 = 7", "6x + 1 = 7", "4x + 1 = 7",
+         "2x + 1 = 2x + 7", "2x − 1 = 7"],
+        # Des de 2x + 1 = 7. Camí preferit: restar 1 → 2x = 6.
+        # Errors:
+        #   - "2x = 8": va sumar 1 (L2_transpose_sign)
+        #   - "2x + 1 = 6": va restar només a la dreta (L2_one_side_only)
+        #   - "2x = 7": va ignorar el +1 (L2_one_side_only variant)
+        ["2x = 6", "2x = 8", "2x + 1 = 6", "2x = 7"],
+        # Des de 2x = 6. Camí preferit: dividir per 2 → x = 3.
+        # Errors:
+        #   - "x = 4": va restar 2 enlloc de dividir (L1_inverse_op)
+        #   - "x = 12": va multiplicar per 2 (L1_inverse_op)
+        #   - "2x = 3": va dividir només a la dreta (L2_one_side_only)
+        ["x = 3", "x = 4", "x = 12", "2x = 3"],
+    ],
+    "EQ3-F-001": [
+        # Des de 7 − 2x = 3x + 2. Camí preferit: sumar 2x als dos costats
+        # → 7 = 5x + 2.
+        # Errors:
+        #   - "7 = x + 2": va restar 2x enlloc de sumar (L1_sign_error)
+        #   - "7 − 4x = 2": va restar 3x només al LHS (L1_sign_error)
+        #   - "9 = 5x + 2": va sumar 2 a l'esquerra sense raó (GEN_arithmetic)
+        #   - "7 = 5x − 2": va canviar signe a la dreta sense raó (L1_sign_error)
+        ["7 = 5x + 2", "7 = x + 2", "7 − 4x = 2",
+         "9 = 5x + 2", "7 = 5x − 2"],
+        # Des de 7 = 5x + 2. Camí preferit: restar 2 → 5 = 5x.
+        # Errors:
+        #   - "9 = 5x": va sumar 2 (L2_transpose_sign)
+        #   - "7 = 5x": va ignorar el +2 (L2_one_side_only)
+        #   - "5 = 5x + 2": va restar només a l'esquerra (L2_one_side_only)
+        ["5 = 5x", "9 = 5x", "7 = 5x", "5 = 5x + 2"],
+        # Des de 5 = 5x. Camí preferit: dividir per 5 → x = 1.
+        # Errors:
+        #   - "x = 0": va calcular 5 - 5 (L1_inverse_op variant)
+        #   - "x = 25": va multiplicar per 5 (L1_inverse_op)
+        #   - "x = 5": va escriure el coeficient
+        ["x = 1", "x = 0", "x = 25", "x = 5"],
+    ],
+    "EQ3-G-001": [
+        # Des de −2x + 1 = x − 8. Camí preferit: restar x → −3x + 1 = −8.
+        # Errors:
+        #   - "−x + 1 = −8": va sumar x enlloc de restar (L3_combine_terms)
+        #   - "−2x + 1 = −8": va restar x només a la dreta (L2_one_side_only)
+        #   - "−3x + 1 = 8": va perdre el signe (L1_sign_error)
+        #   - "x + 1 = −8": error en combinar -2x i -x (L3_combine_terms)
+        ["−3x + 1 = −8", "−x + 1 = −8", "−2x + 1 = −8",
+         "−3x + 1 = 8", "x + 1 = −8"],
+        # Des de −3x + 1 = −8. Camí preferit: restar 1 → −3x = −9.
+        # Errors:
+        #   - "−3x = −7": va sumar 1 (L2_transpose_sign)
+        #   - "−3x + 1 = −9": va restar només a la dreta (L2_one_side_only)
+        #   - "−3x = 9": va canviar signe a la dreta (L1_sign_error)
+        ["−3x = −9", "−3x = −7", "−3x + 1 = −9", "−3x = 9"],
+        # Des de −3x = −9. Camí preferit: dividir per −3 → x = 3.
+        # Errors:
+        #   - "x = −3": va perdre el signe en dividir (L1_sign_error)
+        #   - "x = 27": va multiplicar (L1_inverse_op)
+        #   - "x = −12": va sumar -3 i -9 (L1_inverse_op)
+        ["x = 3", "x = −3", "x = 27", "x = −12"],
+    ],
+    "EQ3-H-001": [
+        # Des de 2(x + 1) = 3(x − 2). Camí preferit: distribuir ambdós
+        # costats → 2x + 2 = 3x − 6.
+        # Errors:
+        #   - "2x + 1 = 3x − 6": va distribuir només la x al primer parèntesi (L3_distribution_partial)
+        #   - "2x + 2 = 3x − 2": va distribuir només la x al segon parèntesi (L3_distribution_partial)
+        #   - "2x + 2 = 3x + 6": va equivocar el signe en distribuir (L1_sign_error)
+        #   - "x + 1 = x − 2": va eliminar parèntesi sense distribuir (L3_distribution_partial)
+        ["2x + 2 = 3x − 6", "2x + 1 = 3x − 6", "2x + 2 = 3x − 2",
+         "2x + 2 = 3x + 6", "x + 1 = x − 2"],
+        # Des de 2x + 2 = 3x − 6. Camí preferit: restar 2x → 2 = x − 6.
+        # Errors:
+        #   - "5x + 2 = −6": va sumar 2x i 3x (L3_combine_terms)
+        #   - "2 = 5x − 6": va sumar 2x al RHS (L3_combine_terms)
+        #   - "2x + 2 = x − 6": va restar 2x només a la dreta (L2_one_side_only)
+        ["2 = x − 6", "5x + 2 = −6", "2 = 5x − 6", "2x + 2 = x − 6"],
+        # Des de 2 = x − 6. Camí preferit: sumar 6 → 8 = x.
+        # Errors:
+        #   - "−4 = x": va restar 6 (L2_transpose_sign)
+        #   - "2 = x": va ignorar el −6 (L2_one_side_only)
+        #   - "8 = x − 6": va sumar 6 només a l'esquerra (L2_one_side_only)
+        ["8 = x", "−4 = x", "2 = x", "8 = x − 6"],
+    ],
+    "EQ3-I-001": [
+        # Des de 2(x + 3) − 3(x − 1) = 0. Camí preferit: distribuir
+        # → 2x + 6 − 3x + 3 = 0. Atenció: −3(x − 1) = −3x + 3 (NO −3x − 3).
+        # Errors:
+        #   - "2x + 6 − 3x − 3 = 0": va distribuir −3 sense canviar el signe del −1 (L3_minus_paren)
+        #   - "2x + 3 − 3x + 3 = 0": va distribuir només la x al primer parèntesi (L3_distribution_partial)
+        #   - "2x + 6 − 3x + 1 = 0": va distribuir només la x al segon parèntesi (L3_distribution_partial)
+        #   - "2x + 6 − x + 3 = 0": va perdre el coeficient del 3 (GEN_arithmetic)
+        ["2x + 6 − 3x + 3 = 0", "2x + 6 − 3x − 3 = 0", "2x + 3 − 3x + 3 = 0",
+         "2x + 6 − 3x + 1 = 0", "2x + 6 − x + 3 = 0"],
+        # Des de 2x + 6 − 3x + 3 = 0. Camí preferit: combinar → −x + 9 = 0.
+        # Errors:
+        #   - "−x + 3 = 0": va restar 6 − 3 enlloc de sumar (L2_like_terms)
+        #   - "5x + 9 = 0": va sumar 2x + 3x enlloc de restar (L3_combine_terms)
+        #   - "x + 9 = 0": va perdre el signe (L1_sign_error)
+        ["−x + 9 = 0", "−x + 3 = 0", "5x + 9 = 0", "x + 9 = 0"],
+        # Des de −x + 9 = 0. Camí preferit: passar 9 i canviar signe → x = 9.
+        # Errors:
+        #   - "x = −9": va perdre el signe (L1_sign_error)
+        #   - "−x = 9": va restar 9 (no acabat: cal canviar signe)
+        #   - "x = 0": va calcular 9 − 9 (errors múltiples)
+        ["x = 9", "x = −9", "−x = 9", "x = 0"],
+    ],
 }
 
 

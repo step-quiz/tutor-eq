@@ -2,7 +2,7 @@
 
 > Mètrica viva: `len(PROBLEMS)` = <!-- problem-count -->25<!-- /problem-count --> (verificat per `test_docs_match_code.py`).
 
-Document viu. S'actualitza a cada bloc de feina. Última actualització: 2026-05-11 (integració dels 11 problemes pendents — F0 i F3 resolts. TEST_CASES dels nous problemes encara pendents).
+Document viu. S'actualitza a cada bloc de feina. Última actualització: 2026-05-11 (F0 i F3 completament resolts: integració dels 11 problemes + TEST_CASES revisats pel professor. Base actual: 25 problemes, 58 rondes, 265 inputs).
 
 ---
 

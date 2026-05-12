@@ -122,19 +122,11 @@ class TestTestCasesIntegrity(unittest.TestCase):
         no camins algebraics vàlids alternatius)
     """
 
-    # Whitelist F0: els 11 problemes integrats el 2026-05-11 (vegeu
-    # TODO_DEFERRED.md F0) encara no tenen `TEST_CASES` perquè aquests
-    # requereixen disseny pedagògic explícit (errors típics que un alumne
-    # de 2n d'ESO faria) i estem esperant al company/professor.
-    #
-    # Quan els TEST_CASES estiguin escrits per als 11, **treure aquesta
-    # llista** (no és necessari treure cada problema un per un — la
-    # condició és que la suite passi amb la whitelist buida).
-    KNOWN_PENDING_TEST_CASES = {
-        "EQ1-D-001",
-        "EQ2-E-001", "EQ2-F-001", "EQ2-H-001", "EQ2-I-001", "EQ2-X-001",
-        "EQ3-E-001", "EQ3-F-001", "EQ3-G-001", "EQ3-H-001", "EQ3-I-001",
-    }
+    # Whitelist F0: buidada el 2026-05-11 quan els 11 problemes nous
+    # van rebre TEST_CASES (proposats per Claude, revisats pel professor).
+    # Si s'integra un problema nou sense TEST_CASES, afegir-lo aquí
+    # temporalment amb una nota.
+    KNOWN_PENDING_TEST_CASES = set()
 
     def test_every_problem_has_test_cases(self):
         for pid in PB.PROBLEMS:

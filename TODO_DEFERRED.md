@@ -85,10 +85,16 @@ Els 11 problemes pendents (`EQ1-D-001`, `EQ2-X-001`, `EQ2-E/F/H/I-001`,
 de `README.md` i `STATUS.md` actualitzats a 25. `KNOWN_PENDING_F0` a
 `test_docs_match_code.py` buidat.
 
-**Pendent associat**: els nous problemes no tenen encara `TEST_CASES`.
-Estan whitelistats a `test_problems.py:TestTestCasesIntegrity.KNOWN_PENDING_TEST_CASES`.
-Quan el professor/company els tingui, treure'ls de la whitelist i
-validar amb test exhaustiu (mode debug ?debug=1).
+**TEST_CASES dels 11 nous problemes**: completats el mateix dia. Proposta
+generada per Claude i revisada pel professor — 28 rondes addicionals i
+125 inputs nous (total base: 58 rondes, 265 inputs). La whitelist
+`KNOWN_PENDING_TEST_CASES` de `test_problems.py` també està buidada.
+
+**Encara pendent (no bloquejant)**: validació pedagògica via test
+exhaustiu (`?debug=1` a l'app). Confirmaria que les etiquetes d'error
+proposades coincideixen amb les que la IA assigna realment. Si hi ha
+discrepàncies, ajustar les descripcions del `ERROR_CATALOG` o els
+inputs concrets dels TEST_CASES.
 
 ### F2. ~~`L3_combine_terms` només té cobertura d'un problema~~ ✅ Resolt (2026-05-11)
 
