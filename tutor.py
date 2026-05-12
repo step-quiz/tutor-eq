@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 import problems as PB
 import verifier as V
 import llm as L
+import invariants as INV
 
 
 # Profunditat màxima de retrocés a prerequisits (Fase 0, §3)
@@ -192,7 +193,18 @@ def process_turn(state: dict, raw_input: str) -> dict:
     """
     Punt d'entrada únic. Modifica state in-place i retorna state.
     Tota la lògica de classificació, retrocés, estancaments, etc., passa aquí.
+
+    Wrapper sobre `_process_turn_impl` que afegeix una verificació
+    d'invariants estructurals a la sortida (veure `invariants.py`). Si una
+    excepció s'allibera des de la implementació, la deixem propagar sense
+    verificar res — l'excepció ja és prou clara.
     """
+    state = _process_turn_impl(state, raw_input)
+    INV.check_state_invariants(state, label="process_turn")
+    return state
+
+
+def _process_turn_impl(state: dict, raw_input: str) -> dict:
     # Reset dels missatges de UI per al nou torn. Els missatges
     # marcats com a persistent (típicament prereq_resolved /
     # prereq_failed) es conserven perquè l'alumne segueixi veient
