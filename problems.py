@@ -35,18 +35,46 @@ ERROR_CATALOG = {
         "longer equivalent because the same operation wasn't done on both sides."
     ),
     "L2_like_terms": (
-        "failed to collect like terms before isolating: treated ax + bx as "
-        "a single step without first simplifying the coefficient "
-        "(e.g. 2x + 5x left as-is, or combined incorrectly as 10x)"
+        "incorrectly combined like terms with x: when the previous step had "
+        "two or more x-terms on the same side (e.g. ax + bx or ax - bx), "
+        "the attempt shows a single x-term with a wrong coefficient. "
+        "Examples: from '2x + 5x = 21' writing '10x = 21' (multiplied 2*5 "
+        "instead of adding), or '3x = 21' (subtracted instead of adding), "
+        "or kept '2x + 5x' unchanged when adjacent steps needed isolation. "
+        "This is DIFFERENT from L1_inverse_op (which is about choosing the "
+        "wrong inverse to undo the coefficient once it's already a single "
+        "number)."
     ),
     # Nivell 3
     "L3_distribution_partial": "incomplete distribution: a(x+b) = ax+b instead of ax+ab",
     "L3_minus_paren": "sign error after a minus sign in front of parenthesis: -(x-3) = -x-3 instead of -x+3",
     "L3_combine_terms": "incorrect combination of x-terms when they appear on both sides",
     # Nivell 4
-    "L4_mcm_partial": "multiplied by the lcm only some terms of the equation, not all",
+    "L4_mcm_partial": (
+        "multiplied by the lcm only some terms when clearing fractions: "
+        "the previous step had two or more fractions with different "
+        "denominators, and the attempt removed denominators inconsistently. "
+        "Examples: from 'x/2 + x/3 = 5' writing '3x + 2x = 5' (multiplied "
+        "LHS terms by 6 but not the RHS), or 'x + x/3 = 5' (multiplied only "
+        "the first fraction), or 'x/2 + x/3 = 30' (multiplied only the RHS). "
+        "This is DIFFERENT from L2_one_side_only because here the "
+        "inconsistency is between TERMS within the same equation, not "
+        "between the two sides as wholes."
+    ),
     "L4_minus_fraction": "sign error in front of a fraction: -(x+1)/2 treated as (-x+1)/2",
-    "L4_illegal_cancel": "illegal cancellation of denominators that are not common factors",
+    "L4_illegal_cancel": (
+        "cancelled or removed a denominator without applying the inverse "
+        "operation to both sides. Specifically: the previous step had a "
+        "fraction expression/n on one side, and the attempt shows the "
+        "expression without /n but the OTHER side unchanged. Examples: "
+        "from '2x/3 = 6' writing '2x = 6' (denominator dropped, RHS "
+        "unchanged), or from '(x+1)/3 = 4' writing 'x+1 = 4' (same pattern). "
+        "This is DIFFERENT from L1_inverse_op: in L1_inverse_op the student "
+        "picked the wrong inverse operation across both sides; in "
+        "L4_illegal_cancel the operation was correct on one side but "
+        "missing on the other. It is also DIFFERENT from L2_one_side_only, "
+        "which applies to non-fractional operations."
+    ),
     # Genèric
     "GEN_arithmetic": "arithmetic mistake (computation error in numbers)",
     "GEN_other": "other transformation error not listed in the catalog",
