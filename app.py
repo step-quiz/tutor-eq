@@ -74,36 +74,25 @@ st.markdown(
       .block-container { padding-top: 2rem !important; }
 
       /* Equacions amb error: text en vermell burdeus i fons subtil */
-      .eq-error .eq-text {
+      .eq-error code {
           background-color: #fbe9eb !important;
           color: #8a1c2b !important;
           border: 1px solid #e6b8be;
-          border-radius: 4px;
           font-weight: 500;
-          padding: 2px 6px;
       }
       .eq-error .err-label {
           color: #8a1c2b;
           font-weight: 500;
       }
       /* Equacions estancades (correcte però sense progrés): gris neutre */
-      .eq-stagnant .eq-text {
+      .eq-stagnant code {
           background-color: #f0f0f0 !important;
           color: #666666 !important;
           border: 1px solid #d0d0d0;
-          border-radius: 4px;
-          padding: 2px 6px;
       }
       /* Tamany de font de les equacions de la cadena (+20%) */
       .eq-chain-step code, .eq-chain-original code {
           font-size: 1.2em !important;
-      }
-      /* Fraccions visuals a la cadena d'equacions */
-      .eq-chain-step .eq-text, .eq-chain-original .eq-text {
-          font-family: monospace;
-          font-size: 1.2em;
-          display: inline-block;
-          vertical-align: middle;
       }
       .eq-frac {
           display: inline-flex;
@@ -840,8 +829,7 @@ def _render_problem_main(s, input_disabled: bool):
     for h in visible_history:
         if h["step"] == 0:
             st.markdown(
-                f"<div class='eq-chain-original'>"
-                f"<span class='eq-text'>{_frac_html(h['text'])}</span>"
+                f"<div class='eq-chain-original'><code>{_frac_html(h['text'])}</code>"
                 f"&nbsp; · <em>equació original</em></div>",
                 unsafe_allow_html=True,
             )
@@ -857,8 +845,7 @@ def _render_problem_main(s, input_disabled: bool):
                 css_class = ""
             st.markdown(
                 f"<div class='eq-chain-step {css_class}'>"
-                f"<span class='eq-text'>{_frac_html(h['text'])}</span>"
-                f"  · {badge}{err}"
+                f"<code>{_frac_html(h['text'])}</code>  · {badge}{err}"
                 f"</div>",
                 unsafe_allow_html=True,
             )
