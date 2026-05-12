@@ -2,23 +2,19 @@
 
 Document creat el 2026-05-11 com a complement de la sessió d'enduriment del
 tutor (afegida la suite de propietats, el simulador de sessions i el sistema
-d'invariants en runtime). Recull dues coses:
+d'invariants en runtime). Revisat el mateix dia després d'una troballa que
+canvia l'arquitectura del document (veure F0 més avall).
 
-1. **Findings**: bugs reals descoberts per les noves suites que no s'han
-   arreglat automàticament i requereixen decisió humana (pedagògica o
-   estructural).
-2. **Recomanacions no implementades**: les propostes (a), (b), (c), (e) que
-   van quedar fora d'aquest sprint i que tindrien sentit fer abans del pilot
-   o just després.
+Estructura:
+
+- **A.** Troballes concretes: bugs reals al codi i a la base de dades.
+- **B.** Discrepàncies entre documentació i codi.
+- **C.** Recomanacions arquitecturals no implementades.
+- **D.** Tasques de procés i qualitat descobertes durant la implementació.
 
 ---
 
-## A. Findings concrets de les noves suites
-
-Aquests són bugs reals que el sistema **no detectava** abans i que ara
-queden marcats explícitament a `test_problems_properties.py` amb una
-whitelist (`KNOWN_UNREACHABLE`, `KNOWN_SINGLETONS`). La suite passa, però
-treure'ls de la whitelist els fa fallar, validant que es resolen quan toqui.
+## A. Troballes concretes — bugs reals
 
 ### F1. `EQ4-A-001` i `EQ4-C-001` declaren `L4_mcm_partial` sense `def_mcm` a `dependencies`
 
@@ -42,70 +38,14 @@ inconsistència entre problemes de la mateixa família Nivell 4.
   estigui disponible.
 - (b) Treure `L4_mcm_partial` dels `errors_freqüents` d'aquests dos
   problemes (només una sola fracció en cada cas — potser no és un error
-  realista en aquests problemes concrets). Argument a favor:
-  `L4_mcm_partial` està pensat per a equacions amb DUES o més fraccions
-  que requereixen mcm; en `(x+1)/3 = 4` el mcm és trivial.
+  realista en aquests problemes concrets).
 
-Recomanat: (b) per `EQ4-A-001` (només una fracció) i `EQ4-C-001` (només
-una fracció), si el professor confirma que no hi ha un error de "mcm
-parcial" realista en aquests casos.
+Recomanat: (b) per `EQ4-A-001` i `EQ4-C-001`, si el professor confirma
+que no hi ha un error de "mcm parcial" realista en aquests casos.
 
-**Com es treu de la whitelist quan estigui fix**: editar
-`test_problems_properties.py`, treure les dues entrades de
-`KNOWN_UNREACHABLE`. La suite ha de continuar passant.
-
-### F2. `L3_combine_terms` només té cobertura d'un problema (`EQ3-C-001`)
-
-**Severitat**: baixa. **Localització**: `problems.py`, `PROBLEMS`.
-
-La `STATUS.md` afirma "L3_combine_terms (5+ — el forat de Fase 3 ara
-cobert per GAPs 3b/4/5)". A la base actual, només `EQ3-C-001` té aquesta
-etiqueta. Els problemes `EQ2-H-001`, `EQ2-I-001`, `EQ3-E-001`,
-`EQ3-F-001`, `EQ3-G-001` haurien d'haver-la rebut segons la documentació
-i no la tenen.
-
-**Cap d'aquests és necessàriament un bug**: la classificació d'errors
-del professor pot ser correcta i la `STATUS.md` desactualitzada. Però la
-discrepància entre doc i codi suggereix una decisió pendent.
-
-**Fix proposat**: en una revisió dels `errors_freqüents` dels 5 problemes
-mencionats, afegir `L3_combine_terms` als que correspongui (probablement
-tots els que tenen x a ambdós costats: `EQ3-E`, `EQ3-F`, `EQ3-G`).
-
-**Com es treu de la whitelist**: editar
-`test_problems_properties.py:TestCoverageHealth.KNOWN_SINGLETONS`, treure
-`"L3_combine_terms"`. Si la cobertura puja a 2+, la suite passa.
-
-### F3. `L2_like_terms` està a la documentació però **no és a `ERROR_CATALOG`**
-
-**Severitat**: mitjana-alta. **Localització**: `problems.py`, `ERROR_CATALOG`.
-
-`SCHEMA.md` i `STATUS.md` llisten `L2_like_terms` com a etiqueta vigent
-("Fet manualment per l'usuari... `L2_like_terms` afegit ara al
-`ERROR_CATALOG`"). El codi real **no la conté**. Els problemes nous dels
-GAPs 2-5 (`EQ2-E-001`, `EQ2-F-001`, etc.) no poden declarar aquesta
-etiqueta sense fer fallar `test_problems.py`. La IA, en classificar, mai
-no la veurà a la llista que se li passa, i per tant mai no la triarà.
-
-**Fix proposat**: afegir l'entrada al catàleg amb la descripció que ja
-apareix a `SCHEMA.md:264`:
-
-```python
-"L2_like_terms": (
-    "failed to collect like terms before isolating: treated ax + bx as "
-    "a single step without first simplifying the coefficient "
-    "(e.g. 2x + 5x left as-is, or combined incorrectly as 10x)"
-),
-```
-
-I, en una segona passada, revisar quins dels 11 problemes nous GAPs 1-5
-haurien de declarar-la a `errors_freqüents`.
-
-**Aquest finding no està a la whitelist** perquè cap test de propietats
-el detecta directament (és una discrepància doc-vs-codi). Convindria
-afegir un test que parsejés `SCHEMA.md` o, més senzill, llistar les
-etiquetes oficialment vigents en una constant compartida i que tant
-`SCHEMA.md` com `ERROR_CATALOG` derivin d'ella.
+**Status del test**: el bug està whitelistat a
+`test_problems_properties.py:TestErrorToDependencyReachability.KNOWN_UNREACHABLE`.
+Quan es fixi, treure les dues entrades; la suite ha de continuar passant.
 
 ### F4. La branca "terminal correcte" no crida `_post_verdict_bookkeeping`
 
@@ -130,18 +70,107 @@ branca terminal:
 _post_verdict_bookkeeping(state, "correcte_progres", original_text)
 ```
 
-Es pot fer ara o post-pilot. Si es fa, comprovar que `test_session_simulator`
-continua verd (un test podria dependre del comportament actual; en aquest
-moment cap ho fa).
+**Status del test**: el comportament actual està documentat (no testat)
+a `test_session_simulator.py:TestStagnationDetection.test_progress_resets_stagnation`.
+Si es fa el fix, el comentari del test ja no aplica i es pot simplificar.
 
 ---
 
-## B. Recomanacions no implementades
+## B. Discrepàncies entre documentació i codi
 
-Vam acordar (d) + (f) + (g). Les següents van quedar fora però tenen
-sentit. Estan ordenades per palanca / ratio benefici-cost.
+### F0. *(Meta-troballa)* `STATUS.md` descriu un estat que no és el del codi
 
-### B1. Verificador post-IA per a `classify_error` (recomanació (c))
+**Severitat**: alta com a font de confusió; nul·la com a bug d'execució.
+**Localització**: `STATUS.md` vs. `problems.py`.
+
+`STATUS.md` afirma:
+
+> "**25 problemes** a `PROBLEMS`, distribuïts: 4 nivell 1, 9 nivell 2,
+> 9 nivell 3, 3 nivell 4. Els 14 originals amb `TEST_CASES` validats per
+> SymPy; els 11 nous pendents de validació."
+
+`problems.py` real conté **14 problemes**: 3 de nivell 1 (A, B, C), 4 de
+nivell 2 (A, B, C, D), 4 de nivell 3 (A, B, C, D), 3 de nivell 4 (A, B, C).
+Els 11 problemes nous mencionats **no són enlloc del repositori**: ni a
+`problems.py`, ni en una branca, ni en un fitxer separat.
+
+**Implicacions:**
+
+- La frase "11 nous pendents de validació" del `STATUS.md` no descriu
+  una tasca de validació pendent: descriu una tasca d'**integració**
+  pendent. Algú (probablement el company a qui es va delegar
+  l'autoria) té els 11 nous en algun lloc fora del repo i encara no
+  han entrat.
+- `README.md` diu "4 problemes (un per nivell): EQ1-A, EQ2-A, EQ3-A,
+  EQ4-B" — això reflecteix la Fase 0 original, abans dels GAPs 1-5
+  que ompliren els 14 actuals. També està desactualitzat.
+- Els findings F2 i F3 d'aquest document (vegeu més avall) són
+  **conseqüències directes** d'aquesta discrepància, no problemes
+  independents.
+
+**Fix proposat**:
+
+1. Reconciliar `STATUS.md` amb la realitat del codi: afirmar 14
+   problemes integrats, descriure els 11 com a "pendents d'integració
+   per part del company" amb un enllaç on són (Drive, branca local, etc.).
+2. Actualitzar `README.md` amb el número real.
+3. Establir un test mecànic que verifiqui que la xifra mencionada a
+   `STATUS.md` i `README.md` coincideix amb `len(problems.PROBLEMS)`.
+   Es pot fer amb una constant compartida o amb un test que parsegi els
+   .md amb regex.
+
+### F2. `L3_combine_terms` només té cobertura d'un problema (`EQ3-C-001`)
+
+**Severitat**: baixa-mitjana (un cop F0 entès). **Localització**: `problems.py`.
+
+`STATUS.md` afirma "L3_combine_terms (5+ — el forat de Fase 3 ara cobert
+per GAPs 3b/4/5)". A la base actual només `EQ3-C-001` té aquesta etiqueta.
+
+**Diagnosi revisada**: els 5+ esmentats són dins de la tongada
+d'11 problemes no integrats (F0). Mentre aquesta tongada no entri al
+codi, la cobertura real és d'un sol problema.
+
+**Acció recomanada**: cap acció autònoma — quan la tongada s'integri
+(F0), comprovar que els problemes corresponents declaren `L3_combine_terms`
+i treure'l de `KNOWN_SINGLETONS` a `test_problems_properties.py`.
+
+### F3. `L2_like_terms` està a la documentació però **no és a `ERROR_CATALOG`**
+
+**Severitat**: baixa (un cop F0 entès). **Localització**: `problems.py`,
+`SCHEMA.md`.
+
+`SCHEMA.md` documenta `L2_like_terms` com a etiqueta. El catàleg real
+no la conté.
+
+**Diagnosi revisada**: aquesta etiqueta està documentada en previsió
+de la tongada d'11 problemes (F0). Sense aquests problemes al codi,
+cap alumne pot generar un error que la requereixi, i la IA no la veu
+mai a la llista que se li passa per classificar — per tant tampoc no
+hi ha cap classificació silenciosament desviada cap a altres
+etiquetes.
+
+**Acció recomanada**: quan la tongada s'integri (F0), afegir l'entrada
+al `ERROR_CATALOG` amb la descripció que apareix a `SCHEMA.md:264`:
+
+```python
+"L2_like_terms": (
+    "failed to collect like terms before isolating: treated ax + bx as "
+    "a single step without first simplifying the coefficient "
+    "(e.g. 2x + 5x left as-is, or combined incorrectly as 10x)"
+),
+```
+
+I un cop al catàleg, comprovar via test exhaustiu que la IA la tria
+correctament per als errors d'aquesta naturalesa als problemes nous.
+
+---
+
+## C. Recomanacions arquitecturals no implementades
+
+Vam acordar (d) + (f) + (g) (propietats, simulador, invariants).
+Les següents van quedar fora però tenen sentit. Ordenades per palanca.
+
+### B1. Verificador post-IA per a `classify_error`
 
 **Què és**: una funció determinista que, donada la classificació de la
 IA (`error_label`) i el delta entre `last_correct_text` i `attempt_text`,
@@ -149,99 +178,98 @@ comprova si l'etiqueta és consistent amb la transformació real.
 Si no, descarta l'etiqueta i cau a `GEN_arithmetic`.
 
 **Per què importa**: és la xarxa de seguretat contra el bug A3 del
-catàleg (la IA al·lucina causes plausibles però falses). Avui el
-pre-check de coeficient (`x_coefficient`) cobreix només una part molt
-concreta. Una funció més general — comparant nombre de termes, presència
-de parèntesis, signes — atraparia més casos.
+catàleg d'errors original (la IA al·lucina causes plausibles però
+falses). Avui el pre-check de coeficient (`x_coefficient`) cobreix
+només una part molt concreta.
 
-**Cost**: 1-2 sessions de feina per fer-ho amb cura. Cada error
-classificat fa una comprovació O(1) extra.
+**Cost**: 1-2 sessions de feina. **Quan**: abans del pilot. És la
+palanca més gran que queda sense activar.
 
-**Quan fer-ho**: abans del pilot. És la palanca més gran que queda
-sense activar.
+### B2. Tipus explícits per als inputs
 
-### B2. Tipus explícits per als inputs (recomanació (a))
-
-**Què és**: un `enum InputKind` amb els 7-8 valors reals (equació
-correcta / incorrecta / amb errada tipogràfica / expressió sense `=` /
-format malformat / no-matemàtic / escapament / abús), i una funció pura
-`classify(raw_text) → InputKind` com a únic punt de decisió. La resta
-del codi rep el tipus, no el text.
+**Què és**: un `enum InputKind` amb els 7-8 valors reals d'input
+(equació correcta / incorrecta / amb errada tipogràfica / expressió
+sense `=` / format malformat / no-matemàtic / escapament / abús), i una
+funció pura `classify(raw_text) → InputKind` com a únic punt de decisió.
 
 **Per què importa**: la classificació està avui escampada en `if`s al
-llarg de `_evaluate_equation_step`. Els bugs B2 i B3 van existir
-precisament per aquesta dispersió.
+llarg de `_evaluate_equation_step`. Els bugs B2 i B3 del catàleg
+original van existir per aquesta dispersió.
 
-**Cost**: refactor mitjà. Requereix tocar `tutor.py` i `verifier.py` amb
-cura.
+**Cost**: refactor mitjà de `tutor.py` i `verifier.py`.
+**Quan**: oportunista, si es fa una refactor de `tutor.py` per qualsevol
+altre motiu. No urgent per al pilot.
 
-**Quan fer-ho**: si es fa una refactor de `tutor.py` (per qualsevol
-altre motiu), aprofitar el moment. No és urgent per al pilot.
-
-### B3. Capa de validació pedagògica entre SymPy i el veredicte (recomanació (b))
+### B3. Capa de validació pedagògica entre SymPy i el veredicte
 
 **Què és**: una funció `pedagogically_acceptable(prev, new) → bool` que,
 després de SymPy dir "equivalent", verifica invariants pedagògics
-explícits abans de declarar un pas com a correcte. Inclou la
-comprovació que ja existeix a `is_terminal(raw_text)` però generalitzada
-(forma simplificada, no termes residuals, etc.).
+explícits abans de declarar un pas com a correcte. Inclou la comprovació
+que ja existeix a `is_terminal(raw_text)` però generalitzada (forma
+simplificada, no termes residuals, etc.).
 
-**Per què importa**: B4 (cas `2x/2 = 8/2`) ja està parcialment cobert
-amb la comprovació textual a `is_terminal`, però és un pegat puntual.
-Una capa formal cobriria casos no anticipats (per exemple, formes
-"vàlides però estranyes" com `x + 0 = 5`).
+**Per què importa**: el bug B4 (cas `2x/2 = 8/2`) ja està parcialment
+cobert amb la comprovació textual a `is_terminal`, però és un pegat
+puntual. Una capa formal cobriria casos no anticipats (per exemple,
+`x + 0 = 5` declarat resolt).
 
-**Cost**: mig sprint. Requereix decidir quines són les "formes
-acceptables" per a cada estat pedagògic (és en part decisió del
-professor).
+**Cost**: mig sprint. Decideix quines són les "formes acceptables" per
+a cada estat pedagògic (és en part decisió del professor).
+**Quan**: post-pilot, si els rastres mostren alumnes que produeixen
+formes estranyes acceptades com a correctes.
 
-**Quan fer-ho**: post-pilot, si la recol·lecció de rastres mostra que
-els alumnes troben formes pedagògicament estranyes que el sistema deixa
-passar com a correctes.
+### B4. Fuzz del parser
 
-### B4. Fuzz del parser (recomanació (e))
-
-**Què és**: un script (Hypothesis o propi) que genera 1000+ strings rars
-(Unicode mesclat, espais combinats, símbols barrejats) i comprova que
+**Què és**: un script (Hypothesis o propi) que generi 1000+ strings rars
+(Unicode mesclat, espais combinats, símbols barrejats) i comprovi que
 `verifier.parse_equation` mai peta i que `has_math_content` és consistent.
 
 **Cost**: 1-2 hores.
-
-**Quan fer-ho**: oportunista. Si surt un cas com B1 (fullwidth equals)
-durant el pilot, val la pena dedicar-hi un matí.
+**Quan**: oportunista. Si surt un cas com el fullwidth equals durant
+el pilot, val la pena dedicar-hi un matí.
 
 ---
 
-## C. Tasques noves descobertes durant la implementació
+## D. Procés i qualitat
 
-### C1. Documentació-vs-codi: caldria un "single source of truth" per a `ERROR_CATALOG`
+### D1. *Single source of truth* per a la documentació tècnica
 
-El finding F3 mostra el problema: `SCHEMA.md` i `ERROR_CATALOG` poden
-divergir sense que cap test ho atrapi. Opció senzilla: que `SCHEMA.md`
-generi la taula d'etiquetes a partir d'`ERROR_CATALOG` automàticament
-(via un petit script `scripts/render_schema.py`), o a l'inrevés, que
-`ERROR_CATALOG` es carregui d'un YAML que `SCHEMA.md` també referencia.
+La troballa F0 fa aquesta tasca obligatòria abans del pilot, no
+opcional. Almenys tres documents (`README.md`, `SCHEMA.md`, `STATUS.md`)
+contenen xifres i llistes que poden divergir de `problems.py` i
+`ERROR_CATALOG` sense que cap test ho atrapi.
 
-**Cost**: 1-2 hores. **Quan**: si tornem a tocar el catàleg.
+**Acció mínima**: un test `test_docs_match_code.py` que verifiqui:
 
-### C2. Test "every session ends in a valid final verdict"
+- El nombre de problemes a `problems.PROBLEMS` coincideix amb el que diu
+  `STATUS.md` i `README.md` (regex sobre el .md).
+- Cada etiqueta documentada a `SCHEMA.md` (els `Lx_*` i `GEN_*`)
+  apareix a `ERROR_CATALOG`, i a l'inrevés.
 
-El simulador comprova `verdict_final` en cada test individual. Una bona
-addició seria un test que, donat un fuzzer d'inputs aleatoris, garanteixi
-que cap seqüència porta a un estat sense `verdict_final` o amb un
-`verdict_final` invàlid. Els invariants ja ho cobreixen estructuralment;
+**Acció ideal**: derivar la taula de problemes i etiquetes de
+`SCHEMA.md` a partir del codi amb un petit script
+`scripts/render_schema.py`. Aleshores la doc mai no pot divergir.
+
+**Cost**: 2-3 hores. **Quan**: abans del pilot.
+
+### D2. Fuzzer de seqüències per a `process_turn`
+
+El simulador comprova escenaris específics. Una bona addició seria un
+test que, donat un fuzzer d'inputs aleatoris, garanteixi que cap
+seqüència porta a un estat sense `verdict_final` o amb invariants
+trencats. Els invariants ja ho cobreixen estructuralment al runtime;
 això seria belt-and-suspenders.
 
 **Cost**: 1 hora. **Quan**: opcional.
 
-### C3. Mètrica: cobertura de codi de `tutor.py` pel simulador
+### D3. Cobertura del simulador sobre `tutor.py`
 
-Mesurada el 2026-05-11 amb `coverage.py`: el simulador cobreix **57% de
-`tutor.py`** i **76% de `invariants.py`**. Les branques no cobertes són
-majoritàriament codi de fallback d'errors d'API (`except Exception → push
-warning`) i escenaris secundaris (`generate_hint` dins de prereq actiu,
-verbatim `is_same_text` per a casos específics). Per pujar al 80%+
-caldrien 5-8 escenaris més.
+Mesurada el 2026-05-11 amb `coverage.py`: el simulador cobreix **57%
+de `tutor.py`** i **76% de `invariants.py`**. Les branques no cobertes
+són majoritàriament codi de fallback d'errors d'API
+(`except Exception → push warning`) i escenaris secundaris
+(`generate_hint` dins de prereq actiu, casos específics de
+`is_same_text`).
 
 **Per reproduir**:
 
@@ -250,30 +278,13 @@ coverage run --source=tutor,invariants -m unittest test_session_simulator
 coverage report
 ```
 
-**Cost per arribar al 80%**: 2-3 hores. **Quan**: oportunista. Acceptable
-per al pilot tal com està (les branques crítiques de la màquina d'estats
-sí que estan cobertes).
+**Cost per arribar al 80%**: 2-3 hores afegint 5-8 escenaris.
+**Quan**: oportunista. Acceptable per al pilot tal com està (les
+branques crítiques de la màquina d'estats sí que estan cobertes).
 
 ---
 
-## D. Notes sobre les noves suites
-
-- `invariants.py` es pot desactivar amb `TUTOR_INVARIANTS=off`. **No
-  recomanat en producció**: el cost dels invariants és microscòpic i
-  detecten classes senceres de bugs.
-- `test_problems_properties.py` actualment passa amb 3 forats whitelistats
-  (vegeu F1 i F2 més amunt). Si afegim problemes nous, les propietats
-  s'apliquen automàticament — no cal tocar res excepte si el problema nou
-  expandeix un forat conegut, cas en què caldria justificar a la
-  whitelist.
-- `test_session_simulator.py` mocka la IA amb `unittest.mock.patch`. Cap
-  test fa crides reals: cost zero, executable en CI. Si afegim una
-  branca nova a `process_turn`, afegir un escenari corresponent al
-  simulador.
-
----
-
-**Resum quantitatiu de l'estat post-sprint:**
+## Estat final de les noves suites
 
 | Mòdul | Tests | Detecta |
 |---|---|---|
@@ -282,4 +293,16 @@ sí que estan cobertes).
 | `test_problems_properties.py` | 13 | Forats estructurals (reachability, famílies, trampes) |
 | `test_session_simulator.py` | 24 | Bugs a la màquina d'estats sense cost API |
 | `test_api_logger.py` | 8 | Filtre per session/student |
-| **Total** | **135** | **+3 findings reals documentats** |
+| **Total** | **135** | |
+
+Notes operatives:
+
+- `invariants.py` es pot desactivar amb `TUTOR_INVARIANTS=off`. **No
+  recomanat en producció**: el cost és microscòpic i detecten classes
+  senceres de bugs.
+- `test_problems_properties.py` passa amb 2 forats whitelistats
+  (els dos casos d'F1: `EQ4-A-001` i `EQ4-C-001`). F2 està
+  whitelistat com a "singleton conegut" — quan F0 es resolgui i els
+  11 problemes nous s'integrin, caldrà revisar si segueix
+  whitelistat o ja no.
+- `test_session_simulator.py` mocka la IA. Cap test fa crides reals.
