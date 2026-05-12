@@ -1,6 +1,8 @@
 # STATUS — seguiment del Tutor d'equacions lineals
 
-Document viu. S'actualitza a cada bloc de feina. Última actualització: 2026-05-10 (11 problemes nous GAPs 1-5, L2_like_terms, model de privadesa, cua delegada).
+> Mètrica viva: `len(PROBLEMS)` = <!-- problem-count -->14<!-- /problem-count --> (verificat per `test_docs_match_code.py`).
+
+Document viu. S'actualitza a cada bloc de feina. Última actualització: 2026-05-11 (suite d'enduriment afegida: invariants en runtime, propietats de la base, simulador de sessions, test de coherència doc-codi).
 
 ---
 

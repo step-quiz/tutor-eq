@@ -232,25 +232,26 @@ el pilot, val la pena dedicar-hi un matí.
 
 ## D. Procés i qualitat
 
-### D1. *Single source of truth* per a la documentació tècnica
+### D1. ~~*Single source of truth* per a la documentació tècnica~~ ✅ Fet (2026-05-11)
 
-La troballa F0 fa aquesta tasca obligatòria abans del pilot, no
-opcional. Almenys tres documents (`README.md`, `SCHEMA.md`, `STATUS.md`)
-contenen xifres i llistes que poden divergir de `problems.py` i
-`ERROR_CATALOG` sense que cap test ho atrapi.
+**Implementat com a `test_docs_match_code.py`** (7 tests). Comprova:
 
-**Acció mínima**: un test `test_docs_match_code.py` que verifiqui:
+- Famílies marcades "Existent" a SCHEMA.md vs. famílies reals a `PROBLEMS`.
+- Etiquetes a la taula d'`ERROR_CATALOG` de SCHEMA.md vs. claus reals.
+- Marcadors HTML `<!-- problem-count -->N<!-- /problem-count -->` a README/STATUS vs. `len(PROBLEMS)`.
+- Marcadors `<!-- prereq-count -->N<!-- /prereq-count -->` vs. `len(PREREQUISITES)`.
 
-- El nombre de problemes a `problems.PROBLEMS` coincideix amb el que diu
-  `STATUS.md` i `README.md` (regex sobre el .md).
-- Cada etiqueta documentada a `SCHEMA.md` (els `Lx_*` i `GEN_*`)
-  apareix a `ERROR_CATALOG`, i a l'inrevés.
+**Whitelists explícites**:
+- `TestErrorCatalogMatchesSchema.known_pending_f3`: tolera `L2_like_terms` mentre F0/F3 no es resolguin.
+- `TestFamiliesMatchSchema.KNOWN_PENDING_F0`: tolera les 11 famílies pendents d'integració.
 
-**Acció ideal**: derivar la taula de problemes i etiquetes de
-`SCHEMA.md` a partir del codi amb un petit script
-`scripts/render_schema.py`. Aleshores la doc mai no pot divergir.
+Quan F0 es resolgui (els 11 problemes nous entren al codi *o* es retiren
+de SCHEMA.md), buidar ambdues whitelists i confirmar que la suite passa.
 
-**Cost**: 2-3 hores. **Quan**: abans del pilot.
+**Restant de l'acció ideal** (no implementat): derivar la taula de
+SCHEMA.md automàticament a partir del codi. Es pot fer post-pilot si la
+divergència torna a aparèixer. Per ara, el test detecta la deriva amb
+prou claredat per al manteniment manual.
 
 ### D2. Fuzzer de seqüències per a `process_turn`
 
@@ -292,8 +293,9 @@ branques crítiques de la màquina d'estats sí que estan cobertes).
 | `test_problems.py` | 19 | Integritat d'esquema de la base |
 | `test_problems_properties.py` | 13 | Forats estructurals (reachability, famílies, trampes) |
 | `test_session_simulator.py` | 24 | Bugs a la màquina d'estats sense cost API |
+| `test_docs_match_code.py` | 7 | Discrepàncies entre doc i codi (F0/F3) |
 | `test_api_logger.py` | 8 | Filtre per session/student |
-| **Total** | **135** | |
+| **Total** | **142** | |
 
 Notes operatives:
 
