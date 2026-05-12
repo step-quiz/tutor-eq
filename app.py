@@ -17,6 +17,7 @@ Mode debug:
 import os
 import re
 import html
+import json
 import uuid
 import random
 import string
@@ -716,6 +717,89 @@ def render_sidebar():
                 pass
             st.caption(f"Log: `{api_logger.get_log_path()}`")
 
+            # ----- Test 1-for-all -----
+            # Aquest botó és independent del problema actiu: itera sobre
+            # TOTS els problemes amb TEST_CASES i genera un únic JSON
+            # consolidat. Pensat per al professor / desenvolupador per
+            # validar pedagògicament la base sencera en una sola passada.
+            # Usa un patró de doble confirmació via session_state per
+            # protegir-se de clics accidentals (cost API).
+            st.markdown("---")
+            st.markdown("**Test 1-for-all**")
+            n_total = len(PB.TEST_CASES)
+            st.caption(
+                f"Executa el test exhaustiu sobre els {n_total} "
+                "problemes seqüencialment. Genera un únic informe JSON. "
+                "**Cost API alt** — només per a validació puntual."
+            )
+
+            awaiting = st.session_state.get("awaiting_1forall_confirm", False)
+
+            if not awaiting:
+                if st.button(
+                    "🧪 Test 1-for-all",
+                    key="test_1forall_btn",
+                    use_container_width=True,
+                ):
+                    st.session_state.awaiting_1forall_confirm = True
+                    st.rerun()
+            else:
+                st.warning(
+                    "Confirmes que vols fer aquest test? "
+                    "Pot tenir un cost elevat!"
+                )
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    if st.button(
+                        "✅ Acceptar",
+                        key="test_1forall_accept",
+                        use_container_width=True,
+                    ):
+                        st.session_state.awaiting_1forall_confirm = False
+                        _run_1forall_test_and_store()
+                        st.rerun()
+                with col_b:
+                    if st.button(
+                        "❌ Cancel·lar",
+                        key="test_1forall_cancel",
+                        use_container_width=True,
+                    ):
+                        st.session_state.awaiting_1forall_confirm = False
+                        st.rerun()
+
+            # Si hi ha informe disponible, mostrar download + opció de
+            # netejar. El JSON es construeix on-the-fly per evitar
+            # mantenir-lo en memòria si l'usuari no el baixa.
+            if st.session_state.get("test_1forall_report"):
+                report = st.session_state.test_1forall_report
+                summary = report.get("summary", {})
+                st.success(
+                    f"Test acabat: {summary.get('n_problems_ok', 0)}/"
+                    f"{summary.get('n_problems_total', 0)} problemes OK · "
+                    f"{summary.get('n_items_match', 0)}/"
+                    f"{summary.get('n_items_total', 0)} inputs match · "
+                    f"~${summary.get('cost', {}).get('cost_usd', 0):.4f}"
+                )
+                json_bytes = json.dumps(
+                    report, ensure_ascii=False, indent=2
+                ).encode("utf-8")
+                ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+                st.download_button(
+                    label="⬇️ Descarregar informe JSON",
+                    data=json_bytes,
+                    file_name=f"test_1forall_{ts}.json",
+                    mime="application/json",
+                    key="test_1forall_download",
+                    use_container_width=True,
+                )
+                if st.button(
+                    "Tanca informe",
+                    key="test_1forall_clear",
+                    use_container_width=True,
+                ):
+                    st.session_state.test_1forall_report = None
+                    st.rerun()
+
 
 def _run_test_and_store(problem_id: str):
     """Executa el test exhaustiu i guarda els resultats a session_state."""
@@ -748,6 +832,159 @@ def _run_test_and_store(problem_id: str):
         "tokens_out": summary["tokens_output"],
         "cost_usd": summary["cost_usd"],
     }
+
+
+def _run_1forall_test_and_store():
+    """Executa el test exhaustiu seqüencialment sobre TOTS els problemes
+    de la base que tinguin TEST_CASES, i genera un únic informe JSON
+    consolidat per analitzar offline (per exemple, perquè un LLM
+    auxiliar el revisi i suggereixi millores al catàleg).
+
+    Política d'errors: si un problema concret falla amb una excepció
+    catastròfica (no en una crida individual — això ja ho gestiona
+    `run_exhaustive_test` internament al camp `exception` de cada
+    item), el problema es marca amb `error_api=True` i el cicle
+    continua amb el següent. NO interrompem el lot per un error
+    aïllat: el valor del lliurable és veure quants problemes han
+    passat i quins han fallat.
+
+    L'informe és estrictament un volcat estructurat (opció (b) acordada
+    amb el professor el 2026-05-11): no genera resum llegible humà,
+    només dades que un LLM pot processar.
+    """
+    progress_box = st.empty()
+
+    problem_ids = sorted(PB.TEST_CASES.keys())
+    n_problems = len(problem_ids)
+
+    # Session id propi per al lot sencer. Cada problema individual
+    # rep un sub-session-id derivat per poder fer agregacions de cost
+    # per-problema si calgués més endavant, però el cost total del
+    # lot es calcula sobre `batch_sid`.
+    batch_sid = uuid.uuid4().hex[:12]
+
+    report = {
+        "schema_version": 1,
+        "kind": "test_1forall",
+        "started_at": datetime.now().isoformat(timespec="seconds"),
+        "model": getattr(L, "MODEL_NAME", "unknown"),
+        "n_problems_total": n_problems,
+        "batch_session_id": batch_sid,
+        "problems": [],
+        "summary": {},  # omplit al final
+    }
+
+    n_done = 0
+    n_with_error = 0
+
+    with st.spinner(
+        f"Test 1-for-all en marxa ({n_problems} problemes). "
+        "No tanquis la pestanya. Pot trigar uns minuts..."
+    ):
+        for pid in problem_ids:
+            n_done += 1
+            progress_box.info(
+                f"Test 1-for-all: problema {n_done}/{n_problems} ({pid})..."
+            )
+
+            problem_entry = {
+                "problem_id": pid,
+                "equacio_text": PB.PROBLEMS[pid].get("equacio_text"),
+                "solucio": str(PB.PROBLEMS[pid].get("solucio")),
+                "errors_freqüents_declarats": list(
+                    PB.PROBLEMS[pid].get("errors_freqüents", [])
+                ),
+                "n_rounds": len(PB.TEST_CASES.get(pid, [])),
+                "results": None,
+                "error_api": False,
+                "error_message": None,
+                "sub_session_id": None,
+            }
+
+            sub_sid = f"{batch_sid}_{pid}"
+            try:
+                results = T.run_exhaustive_test(
+                    pid, on_progress=None, session_id=sub_sid,
+                )
+                problem_entry["results"] = results
+                problem_entry["sub_session_id"] = sub_sid
+            except Exception as e:
+                # Error catastròfic: el problema sencer s'ha romput.
+                # No interrompem el lot — marquem i continuem.
+                problem_entry["error_api"] = True
+                problem_entry["error_message"] = f"{type(e).__name__}: {e}"
+                n_with_error += 1
+
+            report["problems"].append(problem_entry)
+
+    progress_box.empty()
+
+    # Resum agregat: comptem matches/mismatches i excepcions per input
+    # per facilitar el primer cop d'ull a l'LLM analitzador.
+    n_items_total = 0
+    n_items_match = 0
+    n_items_exception = 0
+    mismatches_by_problem = {}
+
+    for pe in report["problems"]:
+        if pe["error_api"] or pe["results"] is None:
+            continue
+        for round_data in pe["results"]:
+            for item in round_data.get("items", []):
+                n_items_total += 1
+                if item.get("exception"):
+                    n_items_exception += 1
+                if item.get("match"):
+                    n_items_match += 1
+                else:
+                    mismatches_by_problem.setdefault(pe["problem_id"], []).append({
+                        "round": round_data["round"],
+                        "input": item["input"],
+                        "expected": item["expected"],
+                        "got_verdict": item.get("verdict"),
+                        "got_error_label": item.get("error_label"),
+                        "exception": item.get("exception"),
+                    })
+
+    # Cost total del lot: el sumari per `batch_sid` no inclou les
+    # crides perquè cada sub-test usa un sub_sid diferent. Cal sumar
+    # els sub_sids manualment.
+    total_calls = 0
+    total_tokens_in = 0
+    total_tokens_out = 0
+    total_cost = 0.0
+    for pe in report["problems"]:
+        sid = pe.get("sub_session_id")
+        if not sid:
+            continue
+        try:
+            s = api_logger.summarize_session(sid)
+            total_calls += s.get("calls_total", 0)
+            total_tokens_in += s.get("tokens_input", 0)
+            total_tokens_out += s.get("tokens_output", 0)
+            total_cost += s.get("cost_usd", 0.0)
+        except Exception:
+            pass
+
+    report["summary"] = {
+        "n_problems_total": n_problems,
+        "n_problems_ok": n_problems - n_with_error,
+        "n_problems_error_api": n_with_error,
+        "n_items_total": n_items_total,
+        "n_items_match": n_items_match,
+        "n_items_mismatch": n_items_total - n_items_match,
+        "n_items_exception": n_items_exception,
+        "mismatches_by_problem": mismatches_by_problem,
+        "cost": {
+            "calls_total": total_calls,
+            "tokens_input": total_tokens_in,
+            "tokens_output": total_tokens_out,
+            "cost_usd": round(total_cost, 6),
+        },
+    }
+    report["finished_at"] = datetime.now().isoformat(timespec="seconds")
+
+    st.session_state.test_1forall_report = report
 
 
 # ------------------------------------------------------------
