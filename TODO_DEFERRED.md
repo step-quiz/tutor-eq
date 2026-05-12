@@ -170,20 +170,32 @@ correctament per als errors d'aquesta naturalesa als problemes nous.
 Vam acordar (d) + (f) + (g) (propietats, simulador, invariants).
 Les següents van quedar fora però tenen sentit. Ordenades per palanca.
 
-### B1. Verificador post-IA per a `classify_error`
+### B1. ~~Verificador post-IA per a `classify_error`~~ ✅ Fet (2026-05-11)
 
-**Què és**: una funció determinista que, donada la classificació de la
-IA (`error_label`) i el delta entre `last_correct_text` i `attempt_text`,
-comprova si l'etiqueta és consistent amb la transformació real.
-Si no, descarta l'etiqueta i cau a `GEN_arithmetic`.
+**Implementat com a `error_consistency.py`** + integració a `tutor.py:436`.
+Per a cada etiqueta del catàleg amb una condició estructural òbvia
+(parèntesis, fraccions, x als dos costats, etc.), una regla determinista
+comprova si l'etiqueta és consistent amb el delta `last_correct → attempt`.
+Si no, l'etiqueta es descarta i es reemplaça per `GEN_arithmetic` amb un
+missatge genèric. La revisió s'anota al pas com a `error_label_revised`
+per a auditoria del rastre JSON.
 
-**Per què importa**: és la xarxa de seguretat contra el bug A3 del
-catàleg d'errors original (la IA al·lucina causes plausibles però
-falses). Avui el pre-check de coeficient (`x_coefficient`) cobreix
-només una part molt concreta.
+**Cobertura inicial** (7 etiquetes amb regla):
+`L3_distribution_partial`, `L3_minus_paren`, `L3_combine_terms`,
+`L4_mcm_partial`, `L4_minus_fraction`, `L4_illegal_cancel`, `L2_like_terms`.
 
-**Cost**: 1-2 sessions de feina. **Quan**: abans del pilot. És la
-palanca més gran que queda sense activar.
+**Etiquetes sense regla** (passen sempre, conservadorisme deliberat):
+`L1_inverse_op`, `L1_sign_error`, `L2_order`, `L2_transpose_sign`,
+`L2_one_side_only`, `GEN_*`. Ampliable afegint entrades a `_CHECKS` —
+cap canvi a la interfície necessari.
+
+**Filosofia**: el verificador atrapa **fals positius** estructurals (la
+IA al·lucina una etiqueta que el context contradiu). NO atrapa errors
+de matís dins de tipologies plausibles: això requeriria una verificació
+semàntica que SymPy no fa. Per al pilot, és la xarxa òptima cost/benefici.
+
+**Tests**: 35 unitaris (`test_error_consistency.py`) + 6 end-to-end al
+simulador (`TestPostIAConsistencyVerifier`).
 
 ### B2. Tipus explícits per als inputs
 
@@ -292,10 +304,11 @@ branques crítiques de la màquina d'estats sí que estan cobertes).
 | `test_verifier.py` | 71 | Bugs de parsing, equivalència, validació de forma |
 | `test_problems.py` | 19 | Integritat d'esquema de la base |
 | `test_problems_properties.py` | 13 | Forats estructurals (reachability, famílies, trampes) |
-| `test_session_simulator.py` | 24 | Bugs a la màquina d'estats sense cost API |
+| `test_session_simulator.py` | 30 | Bugs a la màquina d'estats sense cost API |
 | `test_docs_match_code.py` | 7 | Discrepàncies entre doc i codi (F0/F3) |
+| `test_error_consistency.py` | 35 | Al·lucinacions causals de la IA (bug A3) |
 | `test_api_logger.py` | 8 | Filtre per session/student |
-| **Total** | **142** | |
+| **Total** | **183** | |
 
 Notes operatives:
 

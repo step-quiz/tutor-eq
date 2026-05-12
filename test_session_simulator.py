@@ -555,6 +555,111 @@ class TestUnicodeEqualsRegression(ScenarioCase):
         self.assertFinalVerdict(state, "resolt")
 
 
+class TestPostIAConsistencyVerifier(ScenarioCase):
+    """
+    Tests end-to-end del verificador post-IA (`error_consistency.py`)
+    integrat a `tutor.process_turn`. Si la IA mockejada retorna una
+    etiqueta inconsistent amb el context, el sistema l'ha de descartar
+    i tractar-ho com a error genèric.
+    """
+
+    def test_hallucinated_l3_distribution_partial_is_discarded(self):
+        # EQ2-A-001: 3x − 5 = 10. Cap parèntesi. Si la IA al·lucina
+        # "L3_distribution_partial", s'ha de descartar.
+        script = LLMScript(
+            classify_error={
+                "error_label": "L3_distribution_partial",
+                "is_conceptual": True,
+                "dep_id": "prop_distributiva",
+                "short_msg": "[al·lucinació de la IA — no s'hauria de mostrar]",
+            },
+        )
+        state = self.run_scenario("EQ2-A-001", ["5x = 21"], script=script)
+        # L'etiqueta gravada ha de ser GEN_arithmetic (no L3)
+        self.assertLastErrorLabel(state, "GEN_arithmetic")
+        # I el missatge no ha de ser el de la IA
+        last_feedback = next(
+            (m["text"] for m in reversed(state["messages"])
+             if m["kind"] == "feedback"), None
+        )
+        self.assertIsNotNone(last_feedback)
+        self.assertNotIn("al·lucinació", last_feedback)
+
+    def test_hallucinated_l4_label_no_fraction_is_discarded(self):
+        # EQ2-A-001: 3x − 5 = 10. Sense fraccions. Si la IA diu
+        # "L4_mcm_partial", s'ha de descartar.
+        script = LLMScript(
+            classify_error={
+                "error_label": "L4_mcm_partial",
+                "is_conceptual": True,
+                "dep_id": "def_mcm",
+                "short_msg": "[al·lucinació]",
+            },
+        )
+        state = self.run_scenario("EQ2-A-001", ["5x = 21"], script=script)
+        self.assertLastErrorLabel(state, "GEN_arithmetic")
+
+    def test_legitimate_l3_label_is_preserved(self):
+        # EQ3-A-001: 3(x − 4) = 9. SÍ hi ha parèntesi a distribuir.
+        # Si la IA diu "L3_distribution_partial", NO s'ha de descartar.
+        script = LLMScript(
+            classify_error={
+                "error_label": "L3_distribution_partial",
+                "is_conceptual": True,
+                "dep_id": "prop_distributiva",
+                "short_msg": "Has distribuït parcialment.",
+            },
+        )
+        state = self.run_scenario("EQ3-A-001", ["3x − 4 = 9"], script=script)
+        # L'etiqueta legítima s'ha de mantenir
+        self.assertLastErrorLabel(state, "L3_distribution_partial")
+        # I el prereq s'activa (no s'ha descartat la conceptualitat)
+        self.assertEqual(state["active_prereq"], "PRE-DIST")
+
+    def test_revision_metadata_recorded_on_history(self):
+        # Quan es descarta, el rastre ha d'incloure la metadata
+        # d'auditoria al pas.
+        script = LLMScript(
+            classify_error={
+                "error_label": "L4_minus_fraction",
+                "is_conceptual": True,
+                "dep_id": "regla_signes_parens",
+                "short_msg": "fals diagnòstic",
+            },
+        )
+        # EQ1-A-001: x + 7 = 12. Sense fraccions, sense parèntesis.
+        state = self.run_scenario("EQ1-A-001", ["x = 4"], script=script)
+        last_step = state["history"][-1]
+        self.assertIn("error_label_revised", last_step)
+        rev = last_step["error_label_revised"]
+        self.assertEqual(rev["original_label"], "L4_minus_fraction")
+        self.assertIn("fracció", rev["reason"])  # raó humana legible
+
+    def test_no_revision_means_no_metadata(self):
+        # Un pas correcte (no error) no té metadata de revisió.
+        state = self.run_scenario("EQ1-A-001", ["x = 5"])
+        for h in state["history"]:
+            self.assertNotIn("error_label_revised", h)
+
+    def test_revision_disables_concept_streak(self):
+        # Si l'etiqueta es descarta, no ha d'incrementar el comptador
+        # de fallades del concepte (que portaria a l'escalada errònia).
+        script = LLMScript(
+            classify_error={
+                "error_label": "L3_minus_paren",
+                "is_conceptual": True,
+                "dep_id": "regla_signes_parens",
+                "short_msg": "fals",
+            },
+        )
+        # EQ2-A-001 no té parèntesi amb menys; descartem.
+        state = self.run_scenario("EQ2-A-001", ["5x = 21"], script=script)
+        self.assertEqual(
+            state["concept_failure_streak"].get("regla_signes_parens", 0), 0,
+            "El streak conceptual no ha de pujar quan l'etiqueta s'ha descartat",
+        )
+
+
 @unittest.skipIf(
     __import__("os").environ.get("TUTOR_INVARIANTS", "on").lower() == "off",
     "Tests d'invariants es salten quan TUTOR_INVARIANTS=off",

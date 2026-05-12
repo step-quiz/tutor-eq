@@ -17,6 +17,7 @@ import problems as PB
 import verifier as V
 import llm as L
 import invariants as INV
+import error_consistency as EC
 
 
 # Profunditat màxima de retrocés a prerequisits (Fase 0, §3)
@@ -433,8 +434,37 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
                      error_label="GEN_other")
         return state
 
+    # Verificador post-IA: comprova que l'etiqueta retornada per la IA
+    # és estructuralment consistent amb el context. Atrapa al·lucinacions
+    # del tipus "L3_distribution_partial" quan no hi ha cap parèntesi a
+    # last_correct, o "L4_mcm_partial" quan no hi ha cap fracció.
+    # Veure error_consistency.py per a la llista de regles.
+    revision_info = None
+    if not EC.is_label_consistent(ce["error_label"], last_correct, raw_text):
+        original_label = ce["error_label"]
+        revision_info = {
+            "original_label": original_label,
+            "reason": EC.explain_inconsistency(original_label, last_correct)
+                      or "inconsistència estructural",
+        }
+        # Sobreescrivim: el pas és un error genèric (sabem per SymPy
+        # que no és equivalent), però el diagnòstic concret de la IA
+        # no és fiable. Buidem també is_conceptual i dep_id perquè no
+        # s'activi cap retrocés basat en una etiqueta descartada.
+        ce["error_label"] = "GEN_arithmetic"
+        ce["short_msg"] = (
+            "Hi ha un error en aquest pas. Revisa els càlculs amb cura."
+        )
+        ce["is_conceptual"] = False
+        ce["dep_id"] = None
+
     _record_step(state, raw_text, parsed_ok=True,
                  verdict="error", error_label=ce["error_label"])
+    # Si la classificació de la IA s'ha revisat, anotem-ho al pas per
+    # poder auditar el rastre JSON posteriorment. Camp opcional: només
+    # apareix quan ha hagut revisió.
+    if revision_info is not None:
+        state["history"][-1]["error_label_revised"] = revision_info
     _push_msg(state, "feedback", ce["short_msg"])
 
     # Fallback determinista per al retrocés a prerequisits.
