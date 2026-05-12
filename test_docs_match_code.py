@@ -152,17 +152,16 @@ class TestErrorCatalogMatchesSchema(unittest.TestCase):
 
     def test_no_labels_in_schema_missing_from_code(self):
         missing = self.schema_labels - self.code_labels
-        # Whitelist conscient: F3 a TODO_DEFERRED.md. `L2_like_terms`
-        # està documentada a SCHEMA.md en previsió dels 11 problemes
-        # pendents d'integrar (F0). Quan F0 es resolgui, treure aquesta
-        # tolerància — la propietat estricta és la que volem.
-        known_pending_f3 = {"L2_like_terms"}
+        # F3 resolt el 2026-05-11: `L2_like_terms` es va afegir al
+        # ERROR_CATALOG quan es van integrar els 11 problemes nous.
+        # Si torna a haver-hi etiquetes documentades sense codi,
+        # afegir-les aquí amb una nota de la motivació.
+        known_pending_f3 = set()
         unexpected = missing - known_pending_f3
         self.assertEqual(
             unexpected, set(),
             f"Etiquetes documentades a SCHEMA.md però absents d'"
-            f"`ERROR_CATALOG`, FORA de la whitelist F0/F3: "
-            f"{sorted(unexpected)}. "
+            f"`ERROR_CATALOG`: {sorted(unexpected)}. "
             f"Cal afegir-les al codi o eliminar-les de la doc.",
         )
 
@@ -195,15 +194,11 @@ class TestFamiliesMatchSchema(unittest.TestCase):
         self.schema_families = set(self._FAMILY_PATTERN.findall(text))
         self.code_families = {prob["familia"] for prob in PB.PROBLEMS.values()}
 
-    # Whitelist F0: famílies marcades 'Existent' a SCHEMA.md que en
-    # realitat encara no s'han integrat al codi (els 11 problemes nous
-    # que el company té pendents de pujar al repo). Quan F0 es resolgui
-    # — integrant els problemes o reclassificant les famílies a
-    # 'Reservada' — buidar aquesta llista.
-    KNOWN_PENDING_F0 = {
-        "EQ1-D", "EQ2-E", "EQ2-F", "EQ2-H", "EQ2-I", "EQ2-X",
-        "EQ3-E", "EQ3-F", "EQ3-G", "EQ3-H", "EQ3-I",
-    }
+    # Whitelist F0: buidada el 2026-05-11 quan els 11 problemes nous
+    # (GAPs 1-5) es van integrar a `problems.py`. Si torna a haver-hi
+    # famílies a SCHEMA però no al codi, afegir-les aquí amb una nota
+    # de la motivació.
+    KNOWN_PENDING_F0 = set()
 
     def test_no_existent_families_missing_from_code(self):
         missing = self.schema_families - self.code_families

@@ -301,12 +301,7 @@ class TestCoverageHealth(unittest.TestCase):
 
     # Etiquetes que poden viure amb cobertura mínima per disseny estructural.
     # Si una etiqueta nova hi entra, documentar el motiu.
-    # NOTA 2026-05-11: L3_combine_terms tenia 5+ problemes segons STATUS.md
-    # ("forat de Fase 3 ara cobert per GAPs 3b/4/5"), però a la base actual
-    # només apareix a EQ3-C-001. Discrepància entre doc i codi (veure
-    # TODO_DEFERRED.md). Marcada com a singleton-coneguda fins que es
-    # decideixi com tractar-ho.
-    KNOWN_SINGLETONS = {"L4_minus_fraction", "L3_combine_terms"}
+    KNOWN_SINGLETONS = {"L4_minus_fraction"}
 
     def test_singletons_are_documented(self):
         usage = {k: 0 for k in PB.ERROR_CATALOG}

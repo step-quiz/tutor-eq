@@ -1,8 +1,8 @@
 # STATUS — seguiment del Tutor d'equacions lineals
 
-> Mètrica viva: `len(PROBLEMS)` = <!-- problem-count -->14<!-- /problem-count --> (verificat per `test_docs_match_code.py`).
+> Mètrica viva: `len(PROBLEMS)` = <!-- problem-count -->25<!-- /problem-count --> (verificat per `test_docs_match_code.py`).
 
-Document viu. S'actualitza a cada bloc de feina. Última actualització: 2026-05-11 (suite d'enduriment afegida: invariants en runtime, propietats de la base, simulador de sessions, test de coherència doc-codi).
+Document viu. S'actualitza a cada bloc de feina. Última actualització: 2026-05-11 (integració dels 11 problemes pendents — F0 i F3 resolts. TEST_CASES dels nous problemes encara pendents).
 
 ---
 

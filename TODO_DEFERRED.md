@@ -78,90 +78,31 @@ Si es fa el fix, el comentari del test ja no aplica i es pot simplificar.
 
 ## B. Discrepàncies entre documentació i codi
 
-### F0. *(Meta-troballa)* `STATUS.md` descriu un estat que no és el del codi
+### F0. ~~*(Meta-troballa)* `STATUS.md` descriu un estat que no és el del codi~~ ✅ Resolt (2026-05-11)
 
-**Severitat**: alta com a font de confusió; nul·la com a bug d'execució.
-**Localització**: `STATUS.md` vs. `problems.py`.
+Els 11 problemes pendents (`EQ1-D-001`, `EQ2-X-001`, `EQ2-E/F/H/I-001`,
+`EQ3-E/F/G/H/I-001`) s'han integrat a `problems.py`. Marcadors `<!-- problem-count -->`
+de `README.md` i `STATUS.md` actualitzats a 25. `KNOWN_PENDING_F0` a
+`test_docs_match_code.py` buidat.
 
-`STATUS.md` afirma:
+**Pendent associat**: els nous problemes no tenen encara `TEST_CASES`.
+Estan whitelistats a `test_problems.py:TestTestCasesIntegrity.KNOWN_PENDING_TEST_CASES`.
+Quan el professor/company els tingui, treure'ls de la whitelist i
+validar amb test exhaustiu (mode debug ?debug=1).
 
-> "**25 problemes** a `PROBLEMS`, distribuïts: 4 nivell 1, 9 nivell 2,
-> 9 nivell 3, 3 nivell 4. Els 14 originals amb `TEST_CASES` validats per
-> SymPy; els 11 nous pendents de validació."
+### F2. ~~`L3_combine_terms` només té cobertura d'un problema~~ ✅ Resolt (2026-05-11)
 
-`problems.py` real conté **14 problemes**: 3 de nivell 1 (A, B, C), 4 de
-nivell 2 (A, B, C, D), 4 de nivell 3 (A, B, C, D), 3 de nivell 4 (A, B, C).
-Els 11 problemes nous mencionats **no són enlloc del repositori**: ni a
-`problems.py`, ni en una branca, ni en un fitxer separat.
+Amb la integració dels 11 problemes nous, `L3_combine_terms` ara apareix
+a `EQ2-H-001`, `EQ2-I-001`, `EQ3-C-001`, `EQ3-E-001`, `EQ3-F-001`,
+`EQ3-G-001`, `EQ3-H-001`, `EQ3-I-001` — 8 problemes. La whitelist
+`KNOWN_SINGLETONS` de `test_problems_properties.py` ja no inclou aquesta
+etiqueta.
 
-**Implicacions:**
+### F3. ~~`L2_like_terms` està a la documentació però no és a `ERROR_CATALOG`~~ ✅ Resolt (2026-05-11)
 
-- La frase "11 nous pendents de validació" del `STATUS.md` no descriu
-  una tasca de validació pendent: descriu una tasca d'**integració**
-  pendent. Algú (probablement el company a qui es va delegar
-  l'autoria) té els 11 nous en algun lloc fora del repo i encara no
-  han entrat.
-- `README.md` diu "4 problemes (un per nivell): EQ1-A, EQ2-A, EQ3-A,
-  EQ4-B" — això reflecteix la Fase 0 original, abans dels GAPs 1-5
-  que ompliren els 14 actuals. També està desactualitzat.
-- Els findings F2 i F3 d'aquest document (vegeu més avall) són
-  **conseqüències directes** d'aquesta discrepància, no problemes
-  independents.
-
-**Fix proposat**:
-
-1. Reconciliar `STATUS.md` amb la realitat del codi: afirmar 14
-   problemes integrats, descriure els 11 com a "pendents d'integració
-   per part del company" amb un enllaç on són (Drive, branca local, etc.).
-2. Actualitzar `README.md` amb el número real.
-3. Establir un test mecànic que verifiqui que la xifra mencionada a
-   `STATUS.md` i `README.md` coincideix amb `len(problems.PROBLEMS)`.
-   Es pot fer amb una constant compartida o amb un test que parsegi els
-   .md amb regex.
-
-### F2. `L3_combine_terms` només té cobertura d'un problema (`EQ3-C-001`)
-
-**Severitat**: baixa-mitjana (un cop F0 entès). **Localització**: `problems.py`.
-
-`STATUS.md` afirma "L3_combine_terms (5+ — el forat de Fase 3 ara cobert
-per GAPs 3b/4/5)". A la base actual només `EQ3-C-001` té aquesta etiqueta.
-
-**Diagnosi revisada**: els 5+ esmentats són dins de la tongada
-d'11 problemes no integrats (F0). Mentre aquesta tongada no entri al
-codi, la cobertura real és d'un sol problema.
-
-**Acció recomanada**: cap acció autònoma — quan la tongada s'integri
-(F0), comprovar que els problemes corresponents declaren `L3_combine_terms`
-i treure'l de `KNOWN_SINGLETONS` a `test_problems_properties.py`.
-
-### F3. `L2_like_terms` està a la documentació però **no és a `ERROR_CATALOG`**
-
-**Severitat**: baixa (un cop F0 entès). **Localització**: `problems.py`,
-`SCHEMA.md`.
-
-`SCHEMA.md` documenta `L2_like_terms` com a etiqueta. El catàleg real
-no la conté.
-
-**Diagnosi revisada**: aquesta etiqueta està documentada en previsió
-de la tongada d'11 problemes (F0). Sense aquests problemes al codi,
-cap alumne pot generar un error que la requereixi, i la IA no la veu
-mai a la llista que se li passa per classificar — per tant tampoc no
-hi ha cap classificació silenciosament desviada cap a altres
-etiquetes.
-
-**Acció recomanada**: quan la tongada s'integri (F0), afegir l'entrada
-al `ERROR_CATALOG` amb la descripció que apareix a `SCHEMA.md:264`:
-
-```python
-"L2_like_terms": (
-    "failed to collect like terms before isolating: treated ax + bx as "
-    "a single step without first simplifying the coefficient "
-    "(e.g. 2x + 5x left as-is, or combined incorrectly as 10x)"
-),
-```
-
-I un cop al catàleg, comprovar via test exhaustiu que la IA la tria
-correctament per als errors d'aquesta naturalesa als problemes nous.
+Afegida l'entrada al `ERROR_CATALOG`. La utilitzen 4 problemes:
+`EQ2-E-001`, `EQ2-F-001`, `EQ2-H-001`, `EQ2-I-001`. La whitelist
+`known_pending_f3` de `test_docs_match_code.py` buidada.
 
 ---
 
@@ -316,8 +257,8 @@ Notes operatives:
   recomanat en producció**: el cost és microscòpic i detecten classes
   senceres de bugs.
 - `test_problems_properties.py` passa amb 2 forats whitelistats
-  (els dos casos d'F1: `EQ4-A-001` i `EQ4-C-001`). F2 està
-  whitelistat com a "singleton conegut" — quan F0 es resolgui i els
-  11 problemes nous s'integrin, caldrà revisar si segueix
-  whitelistat o ja no.
+  (els dos casos d'F1: `EQ4-A-001` i `EQ4-C-001`). F0, F2, F3 resolts.
+- `test_problems.py` té una whitelist `KNOWN_PENDING_TEST_CASES` amb
+  els 11 problemes nous (F0). Quan tinguin `TEST_CASES` dissenyats,
+  buidar-la.
 - `test_session_simulator.py` mocka la IA. Cap test fa crides reals.

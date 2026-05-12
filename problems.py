@@ -34,6 +34,11 @@ ERROR_CATALOG = {
         "The arithmetic on the modified side may be correct, but the equation is no "
         "longer equivalent because the same operation wasn't done on both sides."
     ),
+    "L2_like_terms": (
+        "failed to collect like terms before isolating: treated ax + bx as "
+        "a single step without first simplifying the coefficient "
+        "(e.g. 2x + 5x left as-is, or combined incorrectly as 10x)"
+    ),
     # Nivell 3
     "L3_distribution_partial": "incomplete distribution: a(x+b) = ax+b instead of ax+ab",
     "L3_minus_paren": "sign error after a minus sign in front of parenthesis: -(x-3) = -x-3 instead of -x+3",
@@ -257,6 +262,20 @@ PROBLEMS = {
         "dependencies": ["operacions_inverses", "principi_equiv"],
         "errors_freqüents": ["L1_inverse_op", "L1_sign_error", "L2_one_side_only"],
     },
+    "EQ1-D-001": {
+        "id": "EQ1-D-001",
+        "familia": "EQ1-D",
+        "nivell": 1,
+        # Variant del nivell 1 amb DIVISIÓ. Dual a EQ1-B-001 (multiplicació):
+        # ara la x està dividida i l'operació inversa correcta és multiplicar.
+        # Reforça L1_inverse_op en la direcció oposada.
+        "tema": "Equació que es resol amb un pas (divisió)",
+        "equacio_text": "x/3 = 4",
+        "equacio_simetria": "4 = x/3",
+        "solucio": 12,
+        "dependencies": ["operacions_inverses", "principi_equiv"],
+        "errors_freqüents": ["L1_inverse_op", "L2_one_side_only", "GEN_arithmetic"],
+    },
     "EQ2-A-001": {
         "id": "EQ2-A-001",
         "familia": "EQ2-A",
@@ -311,6 +330,75 @@ PROBLEMS = {
         "solucio": 4,
         "dependencies": ["operacions_inverses", "principi_equiv"],
         "errors_freqüents": ["L2_transpose_sign", "L2_one_side_only", "L1_inverse_op"],
+    },
+    "EQ2-E-001": {
+        "id": "EQ2-E-001",
+        "familia": "EQ2-E",
+        "nivell": 2,
+        # Termes semblants a un sol costat (LHS): l'alumne ha de combinar
+        # 2x + 5x abans d'aïllar. Motiu d'existir: L2_like_terms.
+        "tema": "Equació amb termes semblants a un costat",
+        "equacio_text": "2x + 5x = 21",
+        "equacio_simetria": "21 = 2x + 5x",
+        "solucio": 3,
+        "dependencies": ["operacions_inverses", "principi_equiv"],
+        "errors_freqüents": ["L2_like_terms", "L1_inverse_op", "GEN_arithmetic"],
+    },
+    "EQ2-F-001": {
+        "id": "EQ2-F-001",
+        "familia": "EQ2-F",
+        "nivell": 2,
+        # Termes semblants INTERCALATS amb constants. Variant més complexa
+        # que EQ2-E perquè cal recollir constants i x's per separat, i hi
+        # ha un `−x` que pot induir errors de signe.
+        "tema": "Equació amb termes semblants intercalats",
+        "equacio_text": "5 + 2x + 3 − x = 12",
+        "equacio_simetria": "12 = 5 + 2x + 3 − x",
+        "solucio": 4,
+        "dependencies": ["operacions_inverses", "principi_equiv", "def_aritm_negatius"],
+        "errors_freqüents": ["L2_like_terms", "L2_order", "L1_sign_error"],
+    },
+    "EQ2-H-001": {
+        "id": "EQ2-H-001",
+        "familia": "EQ2-H",
+        "nivell": 2,
+        # "GAP 3b" segons STATUS.md: termes semblants a recollir als DOS
+        # costats abans de transposar. Estructuralment toca nivell 3
+        # (x als dos costats), però es classifica a nivell 2 com a
+        # consolidació del concepte de recollida.
+        "tema": "Equació amb termes semblants a recollir als dos costats",
+        "equacio_text": "5x − 2x + 3 − 1 = 2x + 4 + 2",
+        "equacio_simetria": "2x + 4 + 2 = 5x − 2x + 3 − 1",
+        "solucio": 4,
+        "dependencies": ["operacions_inverses", "principi_equiv", "def_aritm_negatius"],
+        "errors_freqüents": ["L2_like_terms", "L3_combine_terms", "L2_transpose_sign"],
+    },
+    "EQ2-I-001": {
+        "id": "EQ2-I-001",
+        "familia": "EQ2-I",
+        "nivell": 2,
+        # Variant d'EQ2-H amb números diferents i una constant final
+        # negativa al RHS.
+        "tema": "Equació amb termes semblants als dos costats (variant)",
+        "equacio_text": "4x + x − 3 + 6 = 2x + 12 − 3",
+        "equacio_simetria": "2x + 12 − 3 = 4x + x − 3 + 6",
+        "solucio": 2,
+        "dependencies": ["operacions_inverses", "principi_equiv", "def_aritm_negatius"],
+        "errors_freqüents": ["L2_like_terms", "L3_combine_terms", "L2_transpose_sign"],
+    },
+    "EQ2-X-001": {
+        "id": "EQ2-X-001",
+        "familia": "EQ2-X",
+        "nivell": 2,
+        # Coeficient fraccionari propi `(a/b)x = c`. La inversa correcta
+        # és multiplicar pel recíproc (`* 3/2`). Distingit per la família
+        # `X` per evitar col·lisió alfabètica amb EQ2-G (lliure).
+        "tema": "Equació amb coeficient fraccionari",
+        "equacio_text": "2x/3 = 6",
+        "equacio_simetria": "6 = 2x/3",
+        "solucio": 9,
+        "dependencies": ["operacions_inverses", "principi_equiv", "def_fraccions_equiv"],
+        "errors_freqüents": ["L1_inverse_op", "L4_illegal_cancel", "GEN_arithmetic"],
     },
     "EQ3-A-001": {
         "id": "EQ3-A-001",
@@ -371,6 +459,79 @@ PROBLEMS = {
         "dependencies": ["regla_signes_parens", "operacions_inverses", "principi_equiv",
                          "def_aritm_negatius"],
         "errors_freqüents": ["L3_minus_paren", "L2_one_side_only", "L2_transpose_sign"],
+    },
+    "EQ3-E-001": {
+        "id": "EQ3-E-001",
+        "familia": "EQ3-E",
+        "nivell": 3,
+        # Variant d'EQ3-C amb números diferents: x als dos costats,
+        # ambdós coeficients positius. Reforça L3_combine_terms.
+        "tema": "Equació amb la incògnita als dos costats (coef. positius)",
+        "equacio_text": "4x + 1 = 2x + 7",
+        "equacio_simetria": "2x + 7 = 4x + 1",
+        "solucio": 3,
+        "dependencies": ["operacions_inverses", "principi_equiv"],
+        "errors_freqüents": ["L3_combine_terms", "L2_one_side_only", "L2_transpose_sign"],
+    },
+    "EQ3-F-001": {
+        "id": "EQ3-F-001",
+        "familia": "EQ3-F",
+        "nivell": 3,
+        # x als dos costats amb coeficient negatiu al LHS. La presència
+        # del `−2x` fa que els errors de signe siguin més probables que
+        # els d'aplicar-ho a un sol costat.
+        "tema": "Equació amb la incògnita als dos costats (coef. negatiu LHS)",
+        "equacio_text": "7 − 2x = 3x + 2",
+        "equacio_simetria": "3x + 2 = 7 − 2x",
+        "solucio": 1,
+        "dependencies": ["operacions_inverses", "principi_equiv", "def_aritm_negatius"],
+        "errors_freqüents": ["L3_combine_terms", "L2_transpose_sign", "L1_sign_error"],
+    },
+    "EQ3-G-001": {
+        "id": "EQ3-G-001",
+        "familia": "EQ3-G",
+        "nivell": 3,
+        # x als dos costats amb coeficient negatiu, solució positiva.
+        # Variant d'EQ3-F amb signe i números diferents.
+        "tema": "Equació amb la incògnita als dos costats (coef. negatiu, solució positiva)",
+        "equacio_text": "−2x + 1 = x − 8",
+        "equacio_simetria": "x − 8 = −2x + 1",
+        "solucio": 3,
+        "dependencies": ["operacions_inverses", "principi_equiv", "def_aritm_negatius"],
+        "errors_freqüents": ["L3_combine_terms", "L2_transpose_sign", "L1_sign_error"],
+    },
+    "EQ3-H-001": {
+        "id": "EQ3-H-001",
+        "familia": "EQ3-H",
+        "nivell": 3,
+        # Parèntesis als DOS costats. Combinació d'EQ3-A (distribució)
+        # i EQ3-C/E (x als dos costats). Pas obligat: distribuir ambdós
+        # costats abans de recollir.
+        "tema": "Equació amb parèntesis als dos costats",
+        "equacio_text": "2(x + 1) = 3(x − 2)",
+        "equacio_simetria": "3(x − 2) = 2(x + 1)",
+        "solucio": 8,
+        "dependencies": ["prop_distributiva", "regla_signes_parens",
+                         "operacions_inverses", "principi_equiv"],
+        "errors_freqüents": ["L3_distribution_partial", "L3_combine_terms",
+                             "L2_transpose_sign"],
+    },
+    "EQ3-I-001": {
+        "id": "EQ3-I-001",
+        "familia": "EQ3-I",
+        "nivell": 3,
+        # Dos parèntesis al LHS amb el segon precedit per menys. Combina
+        # EQ3-A (distribució) + EQ3-D (menys davant parèntesi). El RHS = 0
+        # és intencional: força distribuir i recollir abans d'aïllar.
+        "tema": "Equació amb dos parèntesis al LHS i menys davant del segon",
+        "equacio_text": "2(x + 3) − 3(x − 1) = 0",
+        "equacio_simetria": "0 = 2(x + 3) − 3(x − 1)",
+        "solucio": 9,
+        "dependencies": ["prop_distributiva", "regla_signes_parens",
+                         "operacions_inverses", "principi_equiv",
+                         "def_aritm_negatius"],
+        "errors_freqüents": ["L3_minus_paren", "L3_distribution_partial",
+                             "L3_combine_terms"],
     },
     "EQ4-A-001": {
         "id": "EQ4-A-001",
