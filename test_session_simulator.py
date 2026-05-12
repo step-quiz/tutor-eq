@@ -270,9 +270,9 @@ class TestStagnationDetection(ScenarioCase):
         #  1) literalment l'enunciat → estancat via is_same_text (no crida LLM)
         #  2) reformulació equivalent → estancat via judge_progress mock
         #  3) progrés cap a la solució → reset
-        # Si fos terminal el 3r, la branca correcte_terminal no crida
-        # _post_verdict_bookkeeping (veure TODO_DEFERRED.md, finding F1).
-        # Per això el 3r pas és intermedi (3x = 15, no x = 5).
+        # El 3r pas és intermedi (3x = 15) per fer evident que el reset
+        # passa abans de la resolució. El cas terminal-correcte també
+        # reseteja desprès del fix de F4 (vegeu test_terminal_resets_stagnation).
         script = LLMScript(judge_progress=[
             LLMScript.DEFAULT_STAGNANT,
             LLMScript.DEFAULT_PROGRESS,
@@ -285,6 +285,27 @@ class TestStagnationDetection(ScenarioCase):
         self.assertEqual(state["stagnation_consecutive"], 0)
         self.assertFalse(state["pending_proactive_offer"])
         # Però stagnation_max conserva el pic
+        self.assertEqual(state["stagnation_max"], 2)
+
+    def test_terminal_resets_stagnation(self):
+        # Regressió del fix de F4 (2026-05-11): la branca terminal-correcta
+        # ara crida _post_verdict_bookkeeping com totes les altres branques.
+        # Cas: l'alumne acumula estancament i després escriu directament la
+        # solució. Els comptadors han de reset-se en arribar a x = c.
+        script = LLMScript(judge_progress=LLMScript.DEFAULT_STAGNANT)
+        # EQ1-A-001: x + 7 = 12 → solució x = 5.
+        # Pas 1 i 2 estancats, pas 3 terminal i correcte.
+        state = self.run_scenario(
+            "EQ1-A-001",
+            ["x + 7 + 0 = 12", "x + 7 − 0 = 12", "x = 5"],
+            script=script,
+        )
+        self.assertEqual(state["verdict_final"], "resolt")
+        # Després de resoldre, els comptadors d'estancament han de
+        # estar reseteg-jats.
+        self.assertEqual(state["stagnation_consecutive"], 0)
+        self.assertFalse(state["pending_proactive_offer"])
+        # Però stagnation_max conserva el pic històric.
         self.assertEqual(state["stagnation_max"], 2)
 
 

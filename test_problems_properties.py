@@ -68,14 +68,13 @@ class TestErrorToDependencyReachability(unittest.TestCase):
     nou (incloent-nos) sense que cap test detectés res.
     """
 
-    # Forats coneguts detectats per aquest test el 2026-05-11. NO ampliar
-    # aquesta llista sense documentar el motiu a TODO_DEFERRED.md: cada
-    # entrada és un cas on un alumne podria fer aquest error i no rebre
-    # remediació conceptual automàtica.
-    KNOWN_UNREACHABLE = {
-        ("EQ4-A-001", "L4_mcm_partial"),   # falta def_mcm a deps
-        ("EQ4-C-001", "L4_mcm_partial"),   # falta def_mcm a deps
-    }
+    # Forats coneguts: cap. F1 resolt el 2026-05-11 traient
+    # L4_mcm_partial dels errors_freqüents d'EQ4-A-001 i EQ4-C-001 (només
+    # tenen una fracció cadascun, no apliquen mcm).
+    # Si en el futur cal afegir una excepció, fer-ho amb una nota a
+    # TODO_DEFERRED.md explicant per què el retrocés conceptual no
+    # és necessari en aquest cas.
+    KNOWN_UNREACHABLE = set()
 
     def test_implied_deps_present_in_problem_dependencies(self):
         for pid, prob in PB.PROBLEMS.items():
@@ -301,7 +300,13 @@ class TestCoverageHealth(unittest.TestCase):
 
     # Etiquetes que poden viure amb cobertura mínima per disseny estructural.
     # Si una etiqueta nova hi entra, documentar el motiu.
-    KNOWN_SINGLETONS = {"L4_minus_fraction"}
+    #
+    # L4_minus_fraction: cobreix l'únic patró "menys davant fracció"
+    #   (EQ4-C-001). Cap altre problema de la base té aquesta estructura.
+    # L4_mcm_partial: requereix dues o més fraccions amb denominadors
+    #   diferents — només EQ4-B-001 té aquesta estructura. (Decisió F1,
+    #   2026-05-11: retirat d'EQ4-A i EQ4-C, que només tenen 1 fracció.)
+    KNOWN_SINGLETONS = {"L4_minus_fraction", "L4_mcm_partial"}
 
     def test_singletons_are_documented(self):
         usage = {k: 0 for k in PB.ERROR_CATALOG}

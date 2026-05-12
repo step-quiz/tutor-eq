@@ -540,14 +540,16 @@ PROBLEMS = {
         # Variant simple del nivell 4: una sola fracció amb numerador
         # entre parèntesis. Sense menys davant (això és EQ4-C-001).
         # L'error més probable és cancel·lar el denominador sense
-        # multiplicar el costat dret (L4_illegal_cancel), o multiplicar
-        # només una part del numerador (L4_mcm_partial).
+        # multiplicar el costat dret (L4_illegal_cancel).
+        # NOTA: L4_mcm_partial NO és a errors_freqüents perquè requereix
+        # dues o més fraccions amb denominadors diferents (veure F1 a
+        # TODO_DEFERRED.md, decisió 2026-05-11).
         "tema": "Equació amb una fracció",
         "equacio_text": "(x + 1)/3 = 4",
         "equacio_simetria": "4 = (x + 1)/3",
         "solucio": 11,
         "dependencies": ["def_fraccions_equiv", "operacions_inverses", "principi_equiv"],
-        "errors_freqüents": ["L4_illegal_cancel", "L4_mcm_partial", "L2_one_side_only"],
+        "errors_freqüents": ["L4_illegal_cancel", "L2_one_side_only"],
     },
     "EQ4-B-001": {
         "id": "EQ4-B-001",
@@ -570,13 +572,16 @@ PROBLEMS = {
         # sobre el numerador), error del catàleg que no està exercitat
         # enlloc més. Camí preferit: multiplicar per 2, després
         # distribuir el menys, després combinar i aïllar.
+        # NOTA: L4_mcm_partial NO és a errors_freqüents perquè requereix
+        # dues o més fraccions amb denominadors diferents (veure F1 a
+        # TODO_DEFERRED.md, decisió 2026-05-11).
         "tema": "Equació amb un menys davant d'una fracció",
         "equacio_text": "5 − (x − 1)/2 = 3",
         "equacio_simetria": "3 = 5 − (x − 1)/2",
         "solucio": 5,
         "dependencies": ["def_fraccions_equiv", "regla_signes_parens",
                          "operacions_inverses", "principi_equiv"],
-        "errors_freqüents": ["L4_minus_fraction", "L3_minus_paren", "L4_mcm_partial",
+        "errors_freqüents": ["L4_minus_fraction", "L3_minus_paren",
                              "L2_one_side_only"],
     },
 }

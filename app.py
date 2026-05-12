@@ -16,6 +16,7 @@ Mode debug:
 
 import os
 import re
+import html
 import uuid
 import random
 import string
@@ -463,13 +464,27 @@ def _frac_html(text: str) -> str:
         "(x + 1)/3 = 4"      → HTML amb (x + 1) sobre 3
         "5 − (x − 1)/2 = 3"  → HTML amb (x − 1) sobre 2
 
-    L'input de l'alumne NO passa per aquí — es mostra com a text pla.
+    Aplicat tant a l'enunciat (forma canònica del problema) com als passos
+    de l'alumne a l'historial. Inputs sense fraccions són retornats com a
+    HTML amb caràcters especials (`<`, `>`, `&`) escapats — `verifier`
+    rebutja inputs amb aquests caràcters, però `_frac_html` és la barrera
+    visual i no pot assumir que ho són sempre.
+
+    Defensa en profunditat: tot text que arribi aquí passa per `html.escape`
+    abans de ser inserit a la cadena HTML, perquè un futur canvi al
+    pipeline (per exemple, mostrar inputs malformats abans de validar)
+    podria saltar-se les validacions de `verifier`.
     """
     # Captura: (expr_parèntesi | terme_simple) / denominador
     # − Unicode (U+2212) i - ASCII tots dos com a signe de numerador
     _FRAC_RE = re.compile(
         r'(\([^)]+\)|[−\-]?(?:[0-9]*[a-zA-Z]+|[0-9]+))\s*/\s*([a-zA-Z0-9]+)'
     )
+
+    # Escapem primer els caràcters HTML especials del text complet. Això
+    # converteix per exemple `<` en `&lt;`. El regex segueix funcionant
+    # perquè només cerca `/`, dígits, lletres, parèntesis i signes menys.
+    safe_text = html.escape(text)
 
     def _replace(m: re.Match) -> str:
         num = m.group(1)
@@ -484,7 +499,7 @@ def _frac_html(text: str) -> str:
             f"</span>"
         )
 
-    return _FRAC_RE.sub(_replace, text)
+    return _FRAC_RE.sub(_replace, safe_text)
 
 
 def render_sidebar():

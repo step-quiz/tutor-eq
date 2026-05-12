@@ -16,63 +16,24 @@ Estructura:
 
 ## A. Troballes concretes — bugs reals
 
-### F1. `EQ4-A-001` i `EQ4-C-001` declaren `L4_mcm_partial` sense `def_mcm` a `dependencies`
+### F1. ~~`EQ4-A-001` i `EQ4-C-001` declaren `L4_mcm_partial` sense `def_mcm` a `dependencies`~~ ✅ Resolt (2026-05-11)
 
-**Severitat**: mitjana. **Localització**: `problems.py`, `PROBLEMS`.
+Aplicada l'opció (b): `L4_mcm_partial` retirat dels `errors_freqüents`
+d'`EQ4-A-001` i `EQ4-C-001`, perquè cap dels dos té dues o més fraccions
+amb denominadors diferents (la condició necessària per al concepte de mcm
+parcial). `EQ4-B-001`, que sí en té, manté l'etiqueta com a único portador.
 
-`L4_mcm_partial` està al mapatge `_ERROR_TO_DEPENDENCY` (→ `def_mcm`). Quan
-la IA classifica un error d'un alumne com `L4_mcm_partial` en aquests dos
-problemes, la lògica de fallback determinista a `tutor.py:434` mira si la
-dep implicada (`def_mcm`) és a les `dependencies` del problema; com que no
-hi és, **no es dispara el retrocés a `PRE-MCM`**. L'alumne rep un missatge
-d'error genèric però no es desencadena cap remediació conceptual.
+La whitelist `KNOWN_UNREACHABLE` de `test_problems_properties.py` està
+buidada. Conseqüència: `L4_mcm_partial` és ara singleton (un sol problema),
+documentat explícitament a `KNOWN_SINGLETONS` amb justificació estructural.
 
-`EQ4-B-001`, en canvi, sí que té `def_mcm` declarada — per tant és
-inconsistència entre problemes de la mateixa família Nivell 4.
+### F4. ~~La branca "terminal correcte" no crida `_post_verdict_bookkeeping`~~ ✅ Resolt (2026-05-11)
 
-**Fix proposat (decisió pedagògica)**: triar una de les opcions:
-
-- (a) Afegir `def_mcm` a les `dependencies` d'`EQ4-A-001` i `EQ4-C-001`.
-  Argument a favor: si la IA detecta `L4_mcm_partial`, vol dir que
-  l'alumne ha intentat usar el mcm; per tant té sentit que el prereq
-  estigui disponible.
-- (b) Treure `L4_mcm_partial` dels `errors_freqüents` d'aquests dos
-  problemes (només una sola fracció en cada cas — potser no és un error
-  realista en aquests problemes concrets).
-
-Recomanat: (b) per `EQ4-A-001` i `EQ4-C-001`, si el professor confirma
-que no hi ha un error de "mcm parcial" realista en aquests casos.
-
-**Status del test**: el bug està whitelistat a
-`test_problems_properties.py:TestErrorToDependencyReachability.KNOWN_UNREACHABLE`.
-Quan es fixi, treure les dues entrades; la suite ha de continuar passant.
-
-### F4. La branca "terminal correcte" no crida `_post_verdict_bookkeeping`
-
-**Severitat**: baixa. **Localització**: `tutor.py:342-350` (dins
-`_evaluate_equation_step`).
-
-Quan l'alumne arriba a `x = c` amb `c` igual a la solució, el codi grava
-el pas, marca `verdict_final = "resolt"`, i retorna directament sense
-passar per `_post_verdict_bookkeeping`. Conseqüència: els comptadors
-`stagnation_consecutive`, `pending_proactive_offer` i el dict
-`concept_failure_streak` **no es reseteg** al moment de resoldre.
-
-Impacte funcional: cap mentre la sessió s'acaba aquí (és el final). Però
-si en algun moment futur algú implementa una transició "post-resolt"
-(seguir amb el problema següent, recompte agregat, etc.), aquests
-comptadors arrossegaran valors de pre-solució i donaran mètriques falses.
-
-**Fix proposat**: una sola línia abans del `return state` final de la
-branca terminal:
-
-```python
-_post_verdict_bookkeeping(state, "correcte_progres", original_text)
-```
-
-**Status del test**: el comportament actual està documentat (no testat)
-a `test_session_simulator.py:TestStagnationDetection.test_progress_resets_stagnation`.
-Si es fa el fix, el comentari del test ja no aplica i es pot simplificar.
+Afegida la crida una línia abans del `return state` final de la branca
+terminal correcte a `tutor.py:_evaluate_equation_step`. Els comptadors
+d'estancament i streaks conceptuals ara es reseteg en arribar a `x = c`
+solució correcta, com a la resta de branques. Comportament documentat
+amb el test de regressió `TestStagnationDetection.test_terminal_resets_stagnation`.
 
 ---
 
@@ -251,20 +212,23 @@ branques crítiques de la màquina d'estats sí que estan cobertes).
 | `test_verifier.py` | 71 | Bugs de parsing, equivalència, validació de forma |
 | `test_problems.py` | 19 | Integritat d'esquema de la base |
 | `test_problems_properties.py` | 13 | Forats estructurals (reachability, famílies, trampes) |
-| `test_session_simulator.py` | 30 | Bugs a la màquina d'estats sense cost API |
+| `test_session_simulator.py` | 31 | Bugs a la màquina d'estats sense cost API |
 | `test_docs_match_code.py` | 7 | Discrepàncies entre doc i codi (F0/F3) |
 | `test_error_consistency.py` | 35 | Al·lucinacions causals de la IA (bug A3) |
 | `test_api_logger.py` | 8 | Filtre per session/student |
-| **Total** | **183** | |
+| **Total** | **184** | |
 
 Notes operatives:
 
 - `invariants.py` es pot desactivar amb `TUTOR_INVARIANTS=off`. **No
   recomanat en producció**: el cost és microscòpic i detecten classes
   senceres de bugs.
-- `test_problems_properties.py` passa amb 2 forats whitelistats
-  (els dos casos d'F1: `EQ4-A-001` i `EQ4-C-001`). F0, F2, F3 resolts.
-- `test_problems.py` té una whitelist `KNOWN_PENDING_TEST_CASES` amb
-  els 11 problemes nous (F0). Quan tinguin `TEST_CASES` dissenyats,
-  buidar-la.
+- `test_problems_properties.py` ja no té forats reals whitelistats.
+  Conté només `KNOWN_SINGLETONS = {"L4_minus_fraction", "L4_mcm_partial"}`,
+  ambdues amb justificació estructural (singletons per disseny).
+- `test_problems.py` no té whitelists actives: tots els 25 problemes
+  tenen `TEST_CASES` complets.
 - `test_session_simulator.py` mocka la IA. Cap test fa crides reals.
+- F0, F1, F2, F3, F4 i D1 (single source of truth) resolts. Cap finding
+  obert en aquest document. Tots els tests verds (184/184) en ambdós
+  modes (amb i sense invariants).
