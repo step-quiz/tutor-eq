@@ -105,6 +105,57 @@ semàntica que SymPy no fa. Per al pilot, és la xarxa òptima cost/benefici.
 **Tests**: 35 unitaris (`test_error_consistency.py`) + 6 end-to-end al
 simulador (`TestPostIAConsistencyVerifier`).
 
+### B1bis. Filtrat del catàleg d'errors per problema
+
+**Què és**: a `llm.py:classify_error`, en lloc de passar a la IA tot el
+`ERROR_CATALOG` complet (14 etiquetes), passar **només les etiquetes
+declarades als `errors_freqüents` del problema actual** més les
+genèriques (`GEN_arithmetic`, `GEN_other`) i les estructurals (`FORM_*`).
+
+**Per què importa**: el test `test_1forall` del 2026-05-12 va mostrar
+un patró sistemàtic: etiquetes **no declarades** als `errors_freqüents`
+d'un problema es disparen sovint perquè la IA les troba al catàleg
+global i les considera competidores plausibles. Exemples concrets:
+
+- `L2_one_side_only` apareix a `EQ4-B-001` sense estar declarada
+  (apareixia ja a l'informe del 2026-05-12_21:03, i de nou a les
+  21:24).
+- `FORM_no_variable` i `FORM_foreign_var` apareixen a problemes on
+  l'alumne hipotètic no ha introduït cap variable estranya, sinó que
+  ha fet un error pedagògic etiquetable.
+- L'iteració del catàleg del 2026-05-12 (reformulació de
+  `L2_like_terms`, `L4_mcm_partial`, `L4_illegal_cancel`) va portar
+  els disparos d'aquestes tres etiquetes de 0/1/0 a 3/1/4 respectivament,
+  però `EQ2-E-001` (cas paradigmàtic de `L2_like_terms`) i `EQ4-B-001`
+  (cas paradigmàtic de `L4_mcm_partial`) continuen rebent `GEN_arithmetic`.
+  La hipòtesi més plausible és que les etiquetes generals "guanyen"
+  perquè estan al catàleg sencer com a opció.
+
+**Mecanisme proposat**: a `classify_error`, abans de construir
+`catalog_str`, filtrar:
+
+```python
+declared = set(problem_dependencies_or_errors_declarats)
+allowed = {k for k in error_catalog
+           if k in declared or k.startswith(("GEN_", "FORM_"))}
+filtered_catalog = {k: v for k, v in error_catalog.items() if k in allowed}
+```
+
+(Caldria passar la llista d'`errors_freqüents` del problema, no
+només `dependencies`, perquè ara la signatura només té `dependencies`.)
+
+**Risc**: si una IA mira el catàleg filtrat i creu que cap etiqueta
+encaixa, podria caure a `GEN_other` amb més freqüència. Cal mesurar.
+
+**Quan fer-ho**: **després del pilot real**, no abans. La decisió
+depèn de si les classificacions massa genèriques (`GEN_arithmetic` per
+errors estructurals) molesten pedagògicament. Avui no tenim aquesta
+dada; tenir-la abans del canvi és l'única forma d'evitar
+optimització prematura.
+
+**Cost estimat**: 2-3 hores d'implementació + 1 hora de tests +
+1 execució de `test_1forall` per validar (~$0,20).
+
 ### B2. Tipus explícits per als inputs
 
 **Què és**: un `enum InputKind` amb els 7-8 valors reals d'input
