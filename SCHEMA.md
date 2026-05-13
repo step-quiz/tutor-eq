@@ -52,6 +52,7 @@ Cada entrada del dict `PROBLEMS` és un problema. Clau = `id`.
 | `solucio` | int / Rational | Sí | Solució única de l'equació. Ha de coincidir amb el que SymPy retorna en `solve_for_x`. |
 | `dependencies` | list[str] | Sí | Conceptes que aquest problema posa en joc. Cada element ha d'existir com a clau a `DEPENDENCIES`. Determina quins prereqs es poden activar. |
 | `errors_freqüents` | list[str] | Sí | Errors típics esperats. Cada element ha d'existir com a clau a `ERROR_CATALOG`. **Pista per a la IA classificadora** — no és un filtre estricte, però acota els labels més probables. |
+| `passos_esperats` | int | Opcional | Nombre de passos correctes esperats per resoldre el problema (sense comptar l'enunciat). Si està declarat i `≤ 6`, l'UI mostra un indicador de progrés visual amb punts (`●○○`) al panell de l'alumne; si és `> 6`, mostra només el text "Pas N de M"; si no està declarat, no es mostra cap indicador. **Sense conseqüència funcional** — només afecta la presentació. Si t'oblides de declarar-lo, l'alumne treballa igual però sense visual de progrés. |
 
 ### Convencions per a l'equació (`equacio_text`)
 
@@ -225,8 +226,35 @@ ambigua.
 |---|---|---|
 | `id` | str | Mateix que la clau (`PRE-NEG`, etc.). |
 | `concept` | str | Concepte de `DEPENDENCIES` que aquest prereq cobreix. |
-| `question` | str | Pregunta visible per a l'alumne. **Adaptada al to de 13 anys.** |
+| `question` | str | Pregunta visible per a l'alumne. **Adaptada al to de 13 anys.** Veure §"Patró de redacció" més avall. |
 | `explanation` | str | Explicació mostrada quan es resol o falla el prereq. Format pedagògic: "<equació original> = <resultat>, perquè <raó operativa>". |
+
+### Patró de redacció per a `question`
+
+L'UI parseja el text de `question` amb un regex per renderitzar-lo en tres
+línies separades visualment (equació en monospace, pregunta en bold, frase
+"Explica-ho amb les teves paraules" en gris). Per que el regex funcioni,
+la `question` ha de seguir **un dels dos patrons** següents:
+
+```
+Si tens <EQUACIÓ>, quina <pregunta>? Explica-ho amb les teves paraules.
+Tens <EQUACIÓ> i vols <context>. Quina <pregunta>? Explica-ho amb les teves paraules.
+```
+
+Concretament, el regex busca:
+
+- Text que comenci per `Si tens ` o `Tens ` seguit de l'equació, acabada per coma+minúscula o ` i ` o punt.
+- Una pregunta que comenci per `Quina` o `quina` i acabi en `?`.
+
+Si la `question` no segueix cap dels dos patrons, **no és un error**:
+l'UI fa un fallback al format antic (la pregunta sencera en bold). El
+resultat és lleig però funcional. Si vols el render bonic, ajusta't al
+patró.
+
+**Recomanació pràctica:** quan escriguis prereqs nous, comprova
+visualment al `?debug=1` que la pregunta es renderitza en tres línies.
+Si veus la pregunta sencera en una sola línia bold, el regex no l'ha
+trobada i has caigut al fallback.
 
 ---
 
