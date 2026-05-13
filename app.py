@@ -581,32 +581,60 @@ def render_sidebar():
                     st.rerun()
             st.markdown("---")
 
+        # Millora 1: agrupar per nivell amb capçaleres descriptives
+        _NIVELL_LABELS = {
+            1: "Nivell 1 · Un sol pas",
+            2: "Nivell 2 · Dos passos",
+            3: "Nivell 3 · Parèntesis i termes semblants",
+            4: "Nivell 4 · Fraccions",
+        }
+        from collections import defaultdict
+        probs_by_nivell: dict = defaultdict(list)
         for prob in PB.list_problems():
             if prob["nivell"] == 4 and not _show_fractions():
                 continue
-            if debug:
-                label = f"N{prob['nivell']} · {prob['familia']} · {prob['equacio_text']}"
-            else:
-                label = prob['equacio_text']
-            if st.button(label, key=f"btn_{prob['id']}", use_container_width=True):
-                s = st.session_state.session
-                active = (s is not None
-                          and s.get("verdict_final") is None
-                          and s.get("problem", {}).get("id") != prob["id"])
-                if active:
-                    changes = st.session_state.equation_changes
-                    if changes >= _MAX_EQ_CHANGES:
-                        # Tractem com a ús inadequat: suspensió
-                        T.process_turn(s, "!!")
-                        _push_warning = True
-                        st.rerun()
-                    else:
-                        st.session_state.confirm_change_eq = prob["id"]
-                        st.rerun()
+            probs_by_nivell[prob["nivell"]].append(prob)
+
+        first_group = True
+        for nivell in sorted(probs_by_nivell.keys()):
+            sep_style = (
+                "" if first_group
+                else "border-top: 1px solid #e2e8f0; margin-top: 0.5rem; padding-top: 0.5rem;"
+            )
+            first_group = False
+            label_text = _NIVELL_LABELS.get(nivell, f"Nivell {nivell}")
+            st.markdown(
+                f"<div style='{sep_style} background-color:#f1f5f9; "
+                f"font-size:0.78em; font-weight:600; text-transform:uppercase; "
+                f"letter-spacing:0.06em; color:#475569; "
+                f"padding:4px 6px; border-radius:4px; margin-bottom:0.3rem;'>"
+                f"{label_text}</div>",
+                unsafe_allow_html=True,
+            )
+            for prob in probs_by_nivell[nivell]:
+                if debug:
+                    label = f"N{prob['nivell']} · {prob['familia']} · {prob['equacio_text']}"
                 else:
-                    st.session_state.confirm_change_eq = None
-                    start_session(prob["id"])
-                    st.rerun()
+                    label = prob['equacio_text']
+                if st.button(label, key=f"btn_{prob['id']}", use_container_width=True):
+                    s = st.session_state.session
+                    active = (s is not None
+                              and s.get("verdict_final") is None
+                              and s.get("problem", {}).get("id") != prob["id"])
+                    if active:
+                        changes = st.session_state.equation_changes
+                        if changes >= _MAX_EQ_CHANGES:
+                            # Tractem com a ús inadequat: suspensió
+                            T.process_turn(s, "!!")
+                            _push_warning = True
+                            st.rerun()
+                        else:
+                            st.session_state.confirm_change_eq = prob["id"]
+                            st.rerun()
+                    else:
+                        st.session_state.confirm_change_eq = None
+                        start_session(prob["id"])
+                        st.rerun()
 
 # "Senyals especials" (codi tècnic ?, !text, !!) només té sentit
         # per al desenvolupador. Per a Aran (13 anys) ho substituïm per
@@ -1078,14 +1106,68 @@ def _render_problem_main(s, input_disabled: bool):
     # Cadena d'equacions
     st.markdown("**Cadena d'equacions**")
     visible_history = _filter_superseded_errors(s["history"])
+
+    # Millora 4: indicador de progrés (punts + text)
+    steps_done = len([h for h in visible_history
+                      if h["step"] > 0 and h.get("verdict") != "error"])
+    steps_expected = s["problem"].get("passos_esperats", None)
+    if steps_expected is not None:
+        if steps_expected <= 6:
+            dots_html = "".join(
+                f"<span style='color:#1e40af;font-size:1em;'>●</span>"
+                if i < steps_done else
+                f"<span style='color:#cbd5e1;font-size:1em;'>○</span>"
+                for i in range(steps_expected)
+            )
+            progress_html = (
+                f"<div style='margin:0.3rem 0 0.5rem 0; display:flex; "
+                f"align-items:center; gap:6px;'>"
+                f"{dots_html}"
+                f"<span style='color:#64748b; font-size:0.82em; margin-left:4px;'>"
+                f"Pas {steps_done} de {steps_expected}</span></div>"
+            )
+        else:
+            progress_html = (
+                f"<div style='margin:0.3rem 0 0.5rem 0; color:#64748b; "
+                f"font-size:0.82em;'>Pas {steps_done} de {steps_expected}</div>"
+            )
+        st.markdown(progress_html, unsafe_allow_html=True)
+
+    # Millora 3: injectar CSS per a l'espaiat i el grid de numeració
+    st.markdown(
+        """
+        <style>
+        .eq-chain-step, .eq-chain-original {
+            margin-bottom: 0.55rem;
+        }
+        .eq-chain-numbered {
+            display: grid;
+            grid-template-columns: 2.5rem 1fr;
+            align-items: start;
+            margin-bottom: 0.55rem;
+        }
+        .eq-chain-step-num {
+            color: #94a3b8;
+            font-size: 0.85em;
+            font-family: monospace;
+            padding-top: 2px;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    step_display_counter = 0
     for h in visible_history:
         if h["step"] == 0:
             st.markdown(
-                f"<div class='eq-chain-original'><code>{_frac_html(h['text'])}</code>"
+                f"<div class='eq-chain-original' style='margin-bottom:0.55rem;'>"
+                f"<code>{_frac_html(h['text'])}</code>"
                 f"&nbsp; · <em>equació original</em></div>",
                 unsafe_allow_html=True,
             )
         else:
+            step_display_counter += 1
             badge = _verdict_badge(h["verdict"])
             err_label = h.get("error_label") if _is_debug_mode() else None
             err = f"<span class='err-label'> · {err_label}</span>" if err_label else ""
@@ -1096,9 +1178,11 @@ def _render_problem_main(s, input_disabled: bool):
             else:
                 css_class = ""
             st.markdown(
+                f"<div class='eq-chain-numbered'>"
+                f"<span class='eq-chain-step-num'>{step_display_counter}.</span>"
                 f"<div class='eq-chain-step {css_class}'>"
                 f"<code>{_frac_html(h['text'])}</code>  · {badge}{err}"
-                f"</div>",
+                f"</div></div>",
                 unsafe_allow_html=True,
             )
 
@@ -1143,8 +1227,10 @@ def _render_problem_main(s, input_disabled: bool):
         # Hi ha prerequisit actiu: l'input principal queda desactivat,
         # l'alumne ha de respondre primer al panell dret.
         st.markdown("<hr>", unsafe_allow_html=True)
-        st.caption(
-            "Respon, en primer lloc, la pregunta al panell de la dreta."
+        st.markdown(
+            "<p style='color:#92400e; font-size:1em; margin:0;'>"
+            "→ Primer, respon l'exercici de la dreta.</p>",
+            unsafe_allow_html=True,
         )
         return
 
@@ -1156,7 +1242,45 @@ def _render_problem_main(s, input_disabled: bool):
 def _render_prereq_panel(s):
     """Panell dret per a la sub-tasca del prerequisit."""
     prereq = PB.get_prerequisite(s["active_prereq"])
-    st.markdown("### ↻ Exercici de reforç")
+
+    # Millora 2: injectar CSS per al contenidor del panell de reforç.
+    # Streamlit no permet passar estils directament a st.container(),
+    # però podem injectar un bloc CSS que seleccioni el div pel data-testid
+    # que Streamlit afegeix automàticament a cada contenidor amb key.
+    st.markdown(
+        """
+        <style>
+        [data-testid="stVerticalBlock"] > [data-testid="stVerticalBlock"]:has(
+            [data-testid="stMarkdownContainer"] > p > strong
+        ) {}
+        /* Classe per al contenidor del prereq via key CSS */
+        .prereq-panel-wrapper {
+            background-color: #fffbeb;
+            border-left: 4px solid #f59e0b;
+            border-radius: 6px;
+            padding: 1rem 1.2rem;
+            margin-top: 0.4rem;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        "<div class='prereq-panel-wrapper'>",
+        unsafe_allow_html=True,
+    )
+
+    # Avís d'obligatorietat
+    st.markdown(
+        "<div style='background:#fef3c7; border:1px solid #f59e0b; "
+        "border-radius:4px; padding:0.5rem 0.8rem; margin-bottom:0.6rem; "
+        "color:#92400e; font-size:0.95em;'>"
+        "Respon aquest exercici abans de continuar.</div>",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("**Exercici de reforç**")
     st.caption(prereq.get("concept", ""))
 
     st.markdown("<hr>", unsafe_allow_html=True)
@@ -1171,11 +1295,37 @@ def _render_prereq_panel(s):
     st.markdown("<hr>", unsafe_allow_html=True)
     _render_input_form(s, key_prefix="prereq")
 
+    st.markdown("</div>", unsafe_allow_html=True)
+
 
 def _render_input_form(s, key_prefix: str):
     """Form d'input. Comú al fil principal i al prerequisit."""
     key_in = f"input_{key_prefix}_{st.session_state.input_counter}"
     key_form = f"form_{key_prefix}_{st.session_state.input_counter}"
+
+    # Millora 5: contenidor visual prominent per a la zona d'input.
+    # Injectem un selector CSS basat en el key del form per donar-li
+    # un fons subtil i un contorn que el distingeixi de la resta de la pàgina.
+    safe_key = key_form.replace("-", "\\-")
+    st.markdown(
+        f"""
+        <style>
+        [data-testid="stForm"][id="{key_form}"] {{
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem 1.2rem;
+            margin-top: 0.8rem;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Nombre de passos correctes fets fins ara (per al helper inicial)
+    n_steps_done = len([h for h in s["history"] if h["step"] > 0
+                        and h.get("verdict") != "error"])
+
     # IMPORTANT: clear_on_submit=False. Si el posem a True, el text que
     # l'alumne ha escrit desapareix immediatament en clicar Enter, abans
     # que el sistema acabi d'avaluar-lo (typically ~0.5-2s amb el thinking
@@ -1184,16 +1334,29 @@ def _render_input_form(s, key_prefix: str):
     # i només es buida quan el rerun final renderitza un nou camp (gràcies
     # a `input_counter` que canvia el key del widget).
     with st.form(key=key_form, clear_on_submit=False):
+        # Etiqueta amb més pes visual (Millora 5)
+        st.markdown(
+            "<p style='font-weight:600; font-size:1em; color:#1e293b; margin-bottom:0.3rem;'>"
+            "Escriu el pas següent:</p>",
+            unsafe_allow_html=True,
+        )
         # `autocomplete="off"` ja s'aplica també des del JS injectat al cap
         # de l'app (juntament amb autocorrect / autocapitalize / spellcheck
         # i un name aleatori). El passem aquí com a defensa redundant per
         # si el script no s'arriba a executar.
         raw = st.text_input(
-            "La teva resposta:",
+            "Escriu el pas següent:",
+            label_visibility="collapsed",
             key=key_in,
             autocomplete="off",
         )
         submit = st.form_submit_button("Enviar", type="primary")
+
+    # Helper inicial: desapareix després del primer pas correcte (Millora 5)
+    if n_steps_done == 0 and key_prefix == "main":
+        st.caption(
+            "Escriu l'equació equivalent al primer pas de la resolució."
+        )
 
     if submit and raw:
         st.session_state.retry_messages = []
