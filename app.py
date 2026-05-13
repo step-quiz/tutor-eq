@@ -1367,28 +1367,37 @@ def _render_prereq_panel(s):
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
-    # Reformatem la pregunta per mostrar-la en tres línies:
+    # Reformatem la pregunta del prereq en tres línies:
     #   [equació]
-    #   [pregunta principal]
+    #   [Quina...?]
     #   Explica-ho amb les teves paraules.
-    # Patró habitual: "Si tens [EQ], [PREGUNTA]? Explica-ho ..."
+    #
+    # Funciona per als dos patrons observats al catàleg:
+    #   - "Si tens [EQ], quina operació...? Explica-ho..."
+    #   - "Tens [EQ] i vols [context]. Quina operació...? Explica-ho..."
     _q_raw = prereq.get("question", "")
-    import re as _re
-    _q_match = _re.match(
-        r"Si tens\s+(.+?),\s*(.+?\?)\s*Explica-ho[^.]*\.",
+
+    # 1. Extreu l'equació: text entre "Si tens"/"Tens" i
+    #    la primera coma seguida de minúscula, " i " o punt.
+    _eq_m = re.search(
+        r'(?:Si tens|Tens)\s+(.+?)(?=,\s+[a-zàèéíïòóúü]|\s+i\s+[a-zàèéíïòóúü]|\.)',
         _q_raw,
-        _re.DOTALL,
     )
-    if _q_match:
-        _eq_part  = html.escape(_q_match.group(1).strip())
-        _q_raw2   = _q_match.group(2).strip()
-        _q_part   = html.escape(_q_raw2[0].upper() + _q_raw2[1:] if _q_raw2 else _q_raw2)
+    # 2. Extreu la pregunta "Quina...?" (majúscula o minúscula)
+    _qm = re.search(r'[Qq]uina[^?]+\?', _q_raw)
+
+    if _eq_m and _qm:
+        _eq_part = html.escape(_eq_m.group(1).strip())
+        _qtext   = _qm.group(0).strip()
+        _qtext   = _qtext[0].upper() + _qtext[1:]   # primera lletra en majúscula
+        _q_part  = html.escape(_qtext)
         question_html = (
-            f"<p style='margin:0; font-weight:600; font-size:1.05em; line-height:1.6;'>"
-            f"<span style='font-family:monospace; font-size:1.1em;'>{_eq_part}</span>"
-            f"<br>{_q_part}"
-            f"<br><span style='font-weight:400; color:#78716c;'>"
-            f"Explica-ho amb les teves paraules.</span></p>"
+            f"<p style='margin:0; line-height:1.7;'>"
+            f"<span style='font-family:monospace; font-size:1.1em; "
+            f"font-weight:600;'>{_eq_part}</span><br>"
+            f"<span style='font-weight:600;'>{_q_part}</span><br>"
+            f"<span style='color:#78716c;'>Explica-ho amb les teves paraules.</span>"
+            f"</p>"
         )
     else:
         # Fallback: mostrem el text original sense transformar
