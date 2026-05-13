@@ -425,6 +425,8 @@ def init_state():
         st.session_state.equation_changes = 0   # canvis d'equació amb sessió activa
     if "confirm_change_eq" not in st.session_state:
         st.session_state.confirm_change_eq = None  # id del problema pendent de confirmar
+    if "prereq_resolved_history_len" not in st.session_state:
+        st.session_state.prereq_resolved_history_len = None
 
 
 def start_session(problem_id: str):
@@ -439,6 +441,8 @@ def start_session(problem_id: str):
     # anterior i ara comença un problema nou, neteja la flag perquè
     # el botó torni al seu estat inicial.
     st.session_state.confirm_exit = False
+    # Reseteja el marcador del prereq resolt per a la nova sessió.
+    st.session_state.prereq_resolved_history_len = None
     # Si canviem de problema, els resultats del test anterior ja no
     # corresponen — els netegem.
     if st.session_state.test_problem_id != problem_id:
@@ -1249,21 +1253,34 @@ def _render_problem_main(s, input_disabled: bool):
         )
 
     # Missatges del torn anterior dirigits al fil principal.
-    # Els missatges "prereq_resolved" (requadre verd) s'amaguen quan
-    # l'alumne ja ha fet un pas correcte després de tancar el prereq:
-    # la celebració ja no és necessària i ocupa espai visual.
-    last_correct = next(
-        (h for h in reversed(s["history"]) if h["step"] > 0
-         and h.get("verdict") == "correcte_progres"),
-        None,
+    # El requadre verd "prereq_resolved" desapareix des del moment que
+    # l'alumne fa qualsevol pas nou (correcte o erroni) després que el
+    # prereq es va tancar. L'estratègia: guardem la longitud de l'historial
+    # en el moment de la resolució i l'amaguem quan l'historial creix.
+    active_prereq = s.get("active_prereq")
+    has_prereq_resolved_msg = any(
+        m.get("kind") == "prereq_resolved"
+        for m in s.get("messages", [])
+        if m.get("target", "main") == "main"
     )
-    prereq_done_with_correct = (
-        s.get("active_prereq") is None and last_correct is not None
+    prl_key = "prereq_resolved_history_len"
+    if active_prereq is not None:
+        # Nou prereq actiu → reseteja el marcador
+        st.session_state[prl_key] = None
+    elif has_prereq_resolved_msg and st.session_state.get(prl_key) is None:
+        # Primera vegada que veiem el missatge verd sense prereq actiu:
+        # marquem la longitud actual de l'historial.
+        st.session_state[prl_key] = len(s["history"])
+
+    hide_prereq_resolved = (
+        st.session_state.get(prl_key) is not None
+        and len(s["history"]) > st.session_state[prl_key]
     )
+
     main_msgs = [
         m for m in s.get("messages", [])
         if m.get("target", "main") == "main"
-        and not (prereq_done_with_correct and m.get("kind") == "prereq_resolved")
+        and not (hide_prereq_resolved and m.get("kind") == "prereq_resolved")
     ]
     if main_msgs:
         st.markdown("<hr>", unsafe_allow_html=True)
