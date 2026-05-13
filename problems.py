@@ -244,6 +244,14 @@ PREREQUISITES = {
         # totes les seves variants.
         "forbidden_keywords": ["restar", "resto", "resta", "restem", "multiplic", "divid"],
         "explanation": "3x − 5 + 5 = 10 + 5 → 3x = 15. La clau és aplicar la mateixa operació als dos costats. En aquest cas, hem sumat 5 als dos costats.",
+        # Camps per a la visualització estructurada al requadre verd:
+        "initial_equation": "3x − 5 = 10",
+        "explanation_steps": [
+            "3x − 5           = 10",
+            '3x − 5 <span style="color:#1a6fc4;font-weight:700">+5</span> = 10 <span style="color:#1a6fc4;font-weight:700">+5</span>',
+            "3x = 15",
+        ],
+        "explanation_summary": "Hem sumat 5 als dos costats de l'equació.",
     },
 }
 

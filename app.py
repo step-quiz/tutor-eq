@@ -1550,7 +1550,33 @@ def _render_message(m: dict):
         # Caixa auxiliar de "encert al prereq". Petita, verda, clarament
         # diferent dels passos del problema principal. L'alumne sap que
         # ha resolt una tasca paral·lela, no un pas de l'equació original.
-        st.success(f"✓ {text}")
+        extra = m.get("extra", {})
+        if extra and extra.get("initial_equation") and extra.get("steps"):
+            initial_eq = extra["initial_equation"]
+            steps = extra["steps"]
+            summary = extra.get("summary", "")
+            cta = extra.get("cta", "Ara, torna a resoldre l'equació original.")
+            steps_lines = "".join(
+                f'<div style="white-space:pre;font-family:\'Courier New\',Courier,monospace;line-height:1.7">{s}</div>'
+                for s in steps
+            )
+            html = f"""
+<div style="background-color:#d1e7dd;border:1px solid #a3cfbb;
+            border-radius:0.375rem;padding:0.85rem 1.1rem;color:#0a3622;
+            margin-top:0.25rem;">
+  <div style="font-weight:600;margin-bottom:0.55rem;">✓ Correcte.</div>
+  <div style="font-family:'Courier New',Courier,monospace;
+              background:rgba(0,0,0,0.06);border-radius:0.25rem;
+              padding:0.45rem 0.7rem;margin-bottom:0.55rem;">
+    <div style="white-space:pre;line-height:1.7">{initial_eq}</div>
+{steps_lines}
+  </div>
+  <div style="margin-bottom:0.55rem;">{summary}</div>
+  <div style="font-weight:700;">{cta}</div>
+</div>"""
+            st.markdown(html, unsafe_allow_html=True)
+        else:
+            st.success(f"✓ {text}")
     elif kind == "prereq_failed":
         # Caixa auxiliar de "fracàs al prereq". Persistent al viewport
         # (a diferència del missatge dins del panell del prereq, que es
