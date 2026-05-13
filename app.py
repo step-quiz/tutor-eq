@@ -1061,6 +1061,24 @@ def render_main():
     has_prereq = s["active_prereq"] is not None and s["verdict_final"] is None
 
     if has_prereq:
+        # Scroll automàtic de la pàgina principal cap amunt perquè l'alumne
+        # vegi la capçalera del panell de reforç sense haver de fer scroll.
+        # Provem els dos selectors més habituals del contenidor scrollable
+        # de Streamlit (pot variar entre versions).
+        import streamlit.components.v1 as _cv1_scroll_main
+        _cv1_scroll_main.html(
+            """
+            <script>
+            (function() {
+                var doc = window.parent.document;
+                var main = doc.querySelector('[data-testid="stMain"]')
+                        || doc.querySelector('section.main');
+                if (main) main.scrollTop = 0;
+            })();
+            </script>
+            """,
+            height=0,
+        )
         col_main, col_prereq = st.columns([3, 2], gap="large")
         with col_main:
             _render_problem_main(s, input_disabled=True)
@@ -1214,9 +1232,23 @@ def _render_problem_main(s, input_disabled: bool):
             f"· visible al rastre JSON)"
         )
 
-    # Missatges del torn anterior dirigits al fil principal
-    main_msgs = [m for m in s.get("messages", [])
-                 if m.get("target", "main") == "main"]
+    # Missatges del torn anterior dirigits al fil principal.
+    # Els missatges "prereq_resolved" (requadre verd) s'amaguen quan
+    # l'alumne ja ha fet un pas correcte després de tancar el prereq:
+    # la celebració ja no és necessària i ocupa espai visual.
+    last_correct = next(
+        (h for h in reversed(s["history"]) if h["step"] > 0
+         and h.get("verdict") == "correcte_progres"),
+        None,
+    )
+    prereq_done_with_correct = (
+        s.get("active_prereq") is None and last_correct is not None
+    )
+    main_msgs = [
+        m for m in s.get("messages", [])
+        if m.get("target", "main") == "main"
+        and not (prereq_done_with_correct and m.get("kind") == "prereq_resolved")
+    ]
     if main_msgs:
         st.markdown("<hr>", unsafe_allow_html=True)
         for m in main_msgs:
