@@ -1297,34 +1297,47 @@ def _render_problem_main(s, input_disabled: bool):
         )
 
     # Missatges del torn anterior dirigits al fil principal.
-    # El requadre verd "prereq_resolved" desapareix des del moment que
-    # l'alumne fa qualsevol pas nou (correcte o erroni) després que el
-    # prereq es va tancar. L'estratègia: guardem la longitud de l'historial
-    # en el moment de la resolució i l'amaguem quan l'historial creix.
-    active_prereq = s.get("active_prereq")
+    #
+    # Regla pedagògica: el requadre verd "prereq_resolved" viu des que
+    # es resol el prereq fins al primer pas nou de l'alumne al fil
+    # principal. Després, MAI MÉS.
+    #
+    # Implementació: marquem la longitud de l'historial en el moment en
+    # què veiem el missatge verd per primera vegada. Quan l'historial
+    # creix (l'alumne ha fet un pas nou), eliminem físicament tots els
+    # missatges `prereq_resolved` de `s["messages"]`. NO només els
+    # filtrem al render: si un prereq nou s'activa més tard (per culpa
+    # d'un altre error), no volem que el missatge antic ressusciti.
+    # (Bug observat 2026-05-13: l'eliminació era només filtre i el
+    # reset del marcador quan s'activava un nou prereq feia reaparèixer
+    # el verd antic.)
     has_prereq_resolved_msg = any(
         m.get("kind") == "prereq_resolved"
         for m in s.get("messages", [])
         if m.get("target", "main") == "main"
     )
     prl_key = "prereq_resolved_history_len"
-    if active_prereq is not None:
-        # Nou prereq actiu → reseteja el marcador
-        st.session_state[prl_key] = None
-    elif has_prereq_resolved_msg and st.session_state.get(prl_key) is None:
-        # Primera vegada que veiem el missatge verd sense prereq actiu:
-        # marquem la longitud actual de l'historial.
+    if has_prereq_resolved_msg and st.session_state.get(prl_key) is None:
+        # Primera vegada que veiem un missatge verd: marquem la longitud
+        # actual de l'historial.
         st.session_state[prl_key] = len(s["history"])
-
-    hide_prereq_resolved = (
+    elif (
         st.session_state.get(prl_key) is not None
         and len(s["history"]) > st.session_state[prl_key]
-    )
+    ):
+        # L'alumne ha fet un pas nou des que es va resoldre el prereq.
+        # Eliminem físicament el missatge verd perquè no torni a sortir
+        # mai més, encara que un nou prereq s'activi pel mig.
+        s["messages"] = [
+            m for m in s.get("messages", [])
+            if not (m.get("kind") == "prereq_resolved"
+                    and m.get("target", "main") == "main")
+        ]
+        st.session_state[prl_key] = None
 
     main_msgs = [
         m for m in s.get("messages", [])
         if m.get("target", "main") == "main"
-        and not (hide_prereq_resolved and m.get("kind") == "prereq_resolved")
     ]
     if main_msgs:
         st.markdown("<hr>", unsafe_allow_html=True)
@@ -1593,25 +1606,75 @@ def _render_message(m: dict):
     elif kind == "prereq_resolved":
         # Caixa auxiliar de "encert al prereq". Petita, verda, clarament
         # diferent dels passos del problema principal. L'alumne sap que
-        # ha resolt una tasca paral·lela, no un pas de l'equació original.
+        # ha resolt una tasca paral·lera, no un pas de l'equació original.
         extra = m.get("extra", {})
         if extra and extra.get("initial_equation") and extra.get("steps"):
             initial_eq = extra["initial_equation"]
             steps = extra["steps"]
             summary = extra.get("summary", "")
             cta = extra.get("cta", "Ara, torna a resoldre l'equació original.")
-            # `_render_fraction_safe` (helper local) converteix fraccions
-            # textuals com `x/3` en HTML visual sense escapar spans HTML
-            # legítims que l'autor del prereq ja ha escrit (per exemple
-            # spans de color per destacar parts de l'equació). El truc:
-            # si el text ja conté `<span`, assumim que l'autor coneix
-            # l'HTML i no escapem res; només substituïm les fraccions.
+
+            # `_render_fraction_safe` converteix fraccions textuals
+            # (`x/3`) en HTML visual sense escapar spans HTML legítims
+            # que l'autor del prereq ja ha escrit.
             initial_eq_html = _render_fraction_safe(initial_eq)
-            steps_html = [_render_fraction_safe(s) for s in steps]
-            steps_lines = "".join(
-                f'<div style="white-space:pre;font-family:\'Courier New\',Courier,monospace;line-height:1.7">{s}</div>'
-                for s in steps_html
-            )
+
+            # Cada element de `steps` pot ser:
+            #   - str: línia lliure (cas PRE-MCM, PRE-NEG, primera línia).
+            #   - [lhs, rhs]: equació amb `=` central; les dues bandes
+            #     s'alineen automàticament a una columna fixa via CSS
+            #     grid (equivalent al `&=` de LaTeX).
+            #
+            # Implementació: per garantir que els `=` quedin a la mateixa
+            # columna entre línies, totes les línies en format [lhs, rhs]
+            # comparteixen un MATEIX contenidor grid. Si el grid fos
+            # individual per cada línia, l'amplada de cada LHS seria
+            # independent. Per tant agrupem les línies contínues del
+            # mateix tipus en un únic block.
+            html_parts = []
+            current_pairs = []  # buffer de [lhs_html, rhs_html]
+
+            def _flush_pairs():
+                """Volca el buffer de parells [lhs,rhs] com a un únic
+                grid amb totes les línies, alineades a la mateixa
+                columna `=`."""
+                if not current_pairs:
+                    return ""
+                cells = []
+                for lhs_html, rhs_html in current_pairs:
+                    cells.append(f'<div style="white-space:pre">{lhs_html}</div>')
+                    cells.append('<div>=</div>')
+                    cells.append(f'<div style="white-space:pre">{rhs_html}</div>')
+                out = (
+                    '<div style="display:grid;'
+                    'grid-template-columns:max-content max-content 1fr;'
+                    'column-gap:0.4rem;row-gap:0;line-height:1.7;'
+                    'font-family:\'Courier New\',Courier,monospace;">'
+                    + "".join(cells)
+                    + '</div>'
+                )
+                current_pairs.clear()
+                return out
+
+            for s in steps:
+                if isinstance(s, (list, tuple)) and len(s) == 2:
+                    lhs = _render_fraction_safe(s[0])
+                    rhs = _render_fraction_safe(s[1])
+                    current_pairs.append((lhs, rhs))
+                else:
+                    # Línia lliure (string) — primer descarregar el
+                    # buffer de parells (si n'hi havia) i després
+                    # afegir la línia lliure.
+                    html_parts.append(_flush_pairs())
+                    txt = _render_fraction_safe(s)
+                    html_parts.append(
+                        '<div style="white-space:pre;'
+                        'font-family:\'Courier New\',Courier,monospace;'
+                        f'line-height:1.7">{txt}</div>'
+                    )
+            # Descarrega el buffer final
+            html_parts.append(_flush_pairs())
+            steps_lines = "".join(html_parts)
             html = f"""
 <div style="background-color:#d1e7dd;border:1px solid #a3cfbb;
             border-radius:0.375rem;padding:0.85rem 1.1rem;color:#0a3622;

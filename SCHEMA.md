@@ -228,6 +228,9 @@ ambigua.
 | `concept` | str | Concepte de `DEPENDENCIES` que aquest prereq cobreix. |
 | `question` | str | Pregunta visible per a l'alumne. **Adaptada al to de 13 anys.** Veure §"Patró de redacció" més avall. |
 | `explanation` | str | Explicació mostrada quan es resol o falla el prereq. Format pedagògic: "<equació original> = <resultat>, perquè <raó operativa>". |
+| `initial_equation` | str | Opcional. Enunciat mostrat al començament del requadre verd quan el prereq es resol. Veure §"Camps de visualització" més avall. |
+| `explanation_steps` | list | Opcional. Línies del cos del requadre verd. Cada element pot ser una string (línia lliure) o una llista de 2 elements `[lhs, rhs]` per equacions amb `=` central alineat. Veure §"Camps de visualització". |
+| `explanation_summary` | str | Opcional. Frase final del requadre verd, abans del CTA. |
 
 ### Patró de redacció per a `question`
 
@@ -255,6 +258,55 @@ patró.
 visualment al `?debug=1` que la pregunta es renderitza en tres línies.
 Si veus la pregunta sencera en una sola línia bold, el regex no l'ha
 trobada i has caigut al fallback.
+
+### Camps de visualització (`initial_equation`, `explanation_steps`, `explanation_summary`)
+
+Aquests tres camps són **opcionals**. Si no hi són, el missatge de
+"prereq resolt" es mostra com un text pla amb `st.success` (fallback).
+Si hi són els tres, l'UI renderitza una caixa verda visualment
+estructurada:
+
+- **Capçalera**: `✓ Correcte.` en bold.
+- **Cos**: el `initial_equation` a la primera línia, seguit de cada
+  element de `explanation_steps` com una línia (o equació alineada,
+  segons el tipus).
+- **Summary**: `explanation_summary` com a text descriptiu.
+- **CTA**: `Ara, torna a resoldre l'equació original.` (en bold).
+
+**Format dels elements de `explanation_steps`**:
+
+- **String** (`"−7 + 3"`, `"Múltiples de 2: 2, 4, 6..."`): línia
+  monospace lliure, sense alineació especial. Pot contenir HTML inline
+  (spans de color, bold). Útil per a text narratiu, llistes, càlculs
+  amb mètrica natural diferent.
+
+- **Llista de 2 elements** (`["3x − 5", "10"]`): equació amb `=`
+  central. Es renderitza amb CSS grid de 3 columnes (LHS | `=` | RHS),
+  garantint que el `=` quedi a la mateixa columna a totes les línies
+  d'equació del prereq. **Equivalent al `&=` de LaTeX**. Tant LHS com
+  RHS poden contenir HTML inline (spans de color, fraccions textuals
+  `x/3` que es renderitzen com a fraccions visuals).
+
+**Fraccions textuals**: dins de qualsevol string (sigui línia lliure o
+LHS/RHS d'una equació), els patrons `a/b` o `(expr)/b` es renderitzen
+automàticament com a fraccions visuals (barra horitzontal, numerador
+sobre denominador) via la funció `_render_fraction_safe`. **No cal HTML
+explícit per a fraccions** — només cal escriure-les amb la `/`.
+
+**Spans HTML inline**: per destacar parts visualment (color blau, bold,
+etc.), s'usa la sintaxi `<span style="color:#1a6fc4;font-weight:700">...</span>`.
+El color `#1a6fc4` és la convenció del projecte per al "destacat
+pedagògic principal".
+
+**Exemples del codi actual**:
+
+| Prereq | Format dels steps | Per què |
+|---|---|---|
+| PRE-EQUIV, PRE-INV | Llistes `[lhs, rhs]` | Equacions amb `=` a alinear |
+| PRE-INV-MULT, PRE-FRAC | Llistes `[lhs, rhs]` | Equacions amb fraccions |
+| PRE-DIST, PRE-SIGNES | Strings lliures | Expressions sense `=` |
+| PRE-MCM | Strings lliures | Llistes de múltiples (no equacions) |
+| PRE-NEG | Strings lliures (4 línies) | Narrativa econòmica |
 
 ---
 

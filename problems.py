@@ -190,12 +190,14 @@ PREREQUISITES = {
         # (sorollós, l'alumnat ja sap què vol dir "multiplicar en creu").
         # Les fraccions a línia 1 es renderitzen com a fraccions visuals
         # via `_render_fraction_safe`. A línia 2 es destaquen els factors
-        # 2· i 3· en blau bold per indicar d'on vénen.
+        # 2· i 3· en blau bold per indicar d'on vénen. Format [lhs, rhs]
+        # per alinear l'igual.
         "initial_equation": "x/3 = 5/2",
         "explanation_steps": [
-            "x/3 = 5/2",
-            '<span style="color:#1a6fc4;font-weight:700">2·</span>x = <span style="color:#1a6fc4;font-weight:700">3·</span>5',
-            "2x = 15",
+            ["x/3", "5/2"],
+            ['<span style="color:#1a6fc4;font-weight:700">2·</span>x',
+             '<span style="color:#1a6fc4;font-weight:700">3·</span>5'],
+            ["2x", "15"],
         ],
         "explanation_summary": "Hem multiplicat en creu.",
     },
@@ -264,12 +266,14 @@ PREREQUISITES = {
         "forbidden_keywords": ["multiplic", "divid"],
         "explanation": "3 + x = 10 → x = 10 − 3 → x = 7",
         # Camps per a la visualització estructurada al requadre verd:
-        # Patró: dual de PRE-EQUIV (resta enlloc de suma).
+        # Patró: dual de PRE-EQUIV (resta enlloc de suma). Format
+        # [lhs, rhs] perquè l'igual quedi alineat (estil LaTeX `&=`).
         "initial_equation": "3 + x = 10",
         "explanation_steps": [
-            "3 + x           = 10",
-            '3 + x <span style="color:#1a6fc4;font-weight:700">−3</span> = 10 <span style="color:#1a6fc4;font-weight:700">−3</span>',
-            "x = 7",
+            ["3 + x", "10"],
+            ['3 + x <span style="color:#1a6fc4;font-weight:700">−3</span>',
+             '10 <span style="color:#1a6fc4;font-weight:700">−3</span>'],
+            ["x", "7"],
         ],
         "explanation_summary": "Hem restat 3 als dos costats de l'equació.",
     },
@@ -292,12 +296,14 @@ PREREQUISITES = {
         # Sintaxi: el span de color envolta `(3·x)/3` o `12/3`; el regex
         # de `_render_fraction_safe` matcha la fracció dins del span i
         # els spans interns (`.eq-frac-*`) hereten el color del pare,
-        # quedant tota la fracció en blau bold.
+        # quedant tota la fracció en blau bold. Format [lhs, rhs] per
+        # alinear l'igual.
         "initial_equation": "3·x = 12",
         "explanation_steps": [
-            "3·x = 12",
-            '<span style="color:#1a6fc4;font-weight:700">(3·x)/3</span> = <span style="color:#1a6fc4;font-weight:700">12/3</span>',
-            "x = 4",
+            ["3·x", "12"],
+            ['<span style="color:#1a6fc4;font-weight:700">(3·x)/3</span>',
+             '<span style="color:#1a6fc4;font-weight:700">12/3</span>'],
+            ["x", "4"],
         ],
         "explanation_summary": "Hem dividit per 3 els dos costats de l'equació.",
     },
@@ -324,11 +330,18 @@ PREREQUISITES = {
         "forbidden_keywords": ["restar", "resto", "resta", "restem", "multiplic", "divid"],
         "explanation": "3x − 5 + 5 = 10 + 5 → 3x = 15. La clau és aplicar la mateixa operació als dos costats. En aquest cas, hem sumat 5 als dos costats.",
         # Camps per a la visualització estructurada al requadre verd:
+        # Cada element de `explanation_steps` pot ser:
+        #   - una string (línia lliure, no alineada)
+        #   - una llista [lhs, rhs] que es renderitza amb `=` central
+        #     (estil LaTeX `&=`), alineat automàticament via CSS grid.
+        # Per a equacions, sempre format [lhs, rhs] perquè l'igual quedi
+        # a la mateixa columna a totes les línies.
         "initial_equation": "3x − 5 = 10",
         "explanation_steps": [
-            "3x − 5           = 10",
-            '3x − 5 <span style="color:#1a6fc4;font-weight:700">+5</span> = 10 <span style="color:#1a6fc4;font-weight:700">+5</span>',
-            "3x = 15",
+            ["3x − 5", "10"],
+            ['3x − 5 <span style="color:#1a6fc4;font-weight:700">+5</span>',
+             '10 <span style="color:#1a6fc4;font-weight:700">+5</span>'],
+            ["3x", "15"],
         ],
         "explanation_summary": "Hem sumat 5 als dos costats de l'equació.",
     },
