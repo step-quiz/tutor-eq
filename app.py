@@ -578,6 +578,22 @@ def render_sidebar():
         # Diàleg de confirmació de canvi d'equació
         pending_id = st.session_state.get("confirm_change_eq")
         if pending_id:
+            # Scroll automàtic del sidebar cap amunt perquè l'alumne
+            # vegi el diàleg de confirmació sense haver de fer scroll manual.
+            import streamlit.components.v1 as _cv1_scroll_confirm
+            _cv1_scroll_confirm.html(
+                """
+                <script>
+                (function() {
+                    var sidebar = window.parent.document.querySelector(
+                        '[data-testid="stSidebar"] > div'
+                    );
+                    if (sidebar) sidebar.scrollTop = 0;
+                })();
+                </script>
+                """,
+                height=0,
+            )
             prob_pend = PB.PROBLEMS.get(pending_id, {})
             st.warning(
                 f"Vols canviar a **{prob_pend.get('equacio_text', pending_id)}**? "
