@@ -1366,7 +1366,35 @@ def _render_prereq_panel(s):
     st.caption(prereq.get("concept", ""))
 
     st.markdown("<hr>", unsafe_allow_html=True)
-    st.markdown(f"**{prereq['question']}**")
+
+    # Reformatem la pregunta per mostrar-la en tres línies:
+    #   [equació]
+    #   [pregunta principal]
+    #   Explica-ho amb les teves paraules.
+    # Patró habitual: "Si tens [EQ], [PREGUNTA]? Explica-ho ..."
+    _q_raw = prereq.get("question", "")
+    import re as _re
+    _q_match = _re.match(
+        r"Si tens\s+(.+?),\s*(.+?\?)\s*Explica-ho[^.]*\.",
+        _q_raw,
+        _re.DOTALL,
+    )
+    if _q_match:
+        _eq_part  = html.escape(_q_match.group(1).strip())
+        _q_part   = html.escape(_q_match.group(2).strip())
+        question_html = (
+            f"<p style='margin:0; font-weight:600; font-size:1.05em; line-height:1.6;'>"
+            f"<span style='font-family:monospace; font-size:1.1em;'>{_eq_part}</span>"
+            f"<br>{_q_part}"
+            f"<br><span style='font-weight:400; color:#78716c;'>"
+            f"Explica-ho amb les teves paraules.</span></p>"
+        )
+    else:
+        # Fallback: mostrem el text original sense transformar
+        question_html = (
+            f"<p style='margin:0; font-weight:600;'>{html.escape(_q_raw)}</p>"
+        )
+    st.markdown(question_html, unsafe_allow_html=True)
 
     # Missatges propis del prerequisit
     prereq_msgs = [m for m in s.get("messages", [])
