@@ -131,7 +131,7 @@ def _recent_errors(state: dict, limit: int = 3) -> list:
 
 
 def _push_msg(state, kind: str, text: str, target: str = "main",
-              persistent: bool = False):
+              persistent: bool = False, extra: dict = None):
     """
     kind:   'system' | 'feedback' | 'hint' | 'warning' | 'prereq' |
             'discrepancy' | 'worked_example' | 'concrete_step' |
@@ -147,6 +147,7 @@ def _push_msg(state, kind: str, text: str, target: str = "main",
     """
     state["messages"].append({"kind": kind, "text": text,
                               "target": target, "persistent": persistent,
+                              "extra": extra or {},
                               "ts": time.time()})
 
 
@@ -695,10 +696,17 @@ def _process_prereq_turn(state, raw_text):
         # l'input buit sense saber que ha de continuar resolent.
         # L'ID intern (PRE-EQUIV, PRE-INV...) no és significatiu per a l'alumne;
         # s'ometi del missatge. L'explicació va en paràgrafs separats per claredat.
+        _extra = {}
+        if prereq.get("initial_equation") and prereq.get("explanation_steps"):
+            _extra = {
+                "initial_equation": prereq["initial_equation"],
+                "steps": prereq["explanation_steps"],
+                "summary": prereq.get("explanation_summary", ""),
+                "cta": "Ara, torna a resoldre l'equació original.",
+            }
         _push_msg(state, "prereq_resolved",
-                  f"Superat correctament.\n\n{explanation}\n\n"
-                  f"**Ara, aplica el que has après a la teva equació original.**",
-                  target="main", persistent=True)
+                  "Correcte.",
+                  target="main", persistent=True, extra=_extra)
     else:
         _push_msg(state, "feedback",
                   f"Encara no és correcte. {explanation}",
