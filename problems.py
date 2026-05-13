@@ -166,6 +166,18 @@ PREREQUISITES = {
         "question": "Calcula el resultat de: −7 + 3",
         "expected_value": -4,            # validació numèrica
         "explanation": "Quan sumem un enter negatiu i un positiu, hem de restar els valors absoluts i el signe del resultat és el del nombre més gran, en valor absolut.",
+        # Camps per a la visualització estructurada al requadre verd:
+        # Pedagogia (professor, 2026-05-13): metàfora econòmica enlloc
+        # de la regla formal de valors absoluts. Quatre línies: enunciat,
+        # narració, conclusió narrativa, resultat formal destacat.
+        "initial_equation": "−7 + 3",
+        "explanation_steps": [
+            "−7 + 3",
+            "gasto 7€ i cobro 3€",
+            "he gastat 4€",
+            '<span style="color:#1a6fc4;font-weight:700">−7 + 3 = −4</span>',
+        ],
+        "explanation_summary": "Sumar un negatiu i un positiu es pot veure com gastar i cobrar.",
     },
     "PRE-FRAC": {
         "id": "PRE-FRAC",
@@ -173,6 +185,19 @@ PREREQUISITES = {
         "question": "Si x/3 = 5/2, quina equació obtens fent el producte creuat?",
         "expected_equation": "2*x = 15",  # validació via SymPy
         "explanation": "Fem el producte creuat i obtenim l'equació: 2·x = 3·5.",
+        # Camps per a la visualització estructurada al requadre verd:
+        # Decisió pedagògica (professor, 2026-05-13): NO fletxes creuades
+        # (sorollós, l'alumnat ja sap què vol dir "multiplicar en creu").
+        # Les fraccions a línia 1 es renderitzen com a fraccions visuals
+        # via `_render_fraction_safe`. A línia 2 es destaquen els factors
+        # 2· i 3· en blau bold per indicar d'on vénen.
+        "initial_equation": "x/3 = 5/2",
+        "explanation_steps": [
+            "x/3 = 5/2",
+            '<span style="color:#1a6fc4;font-weight:700">2·</span>x = <span style="color:#1a6fc4;font-weight:700">3·</span>5',
+            "2x = 15",
+        ],
+        "explanation_summary": "Hem multiplicat en creu.",
     },
     "PRE-MCM": {
         "id": "PRE-MCM",
@@ -180,6 +205,17 @@ PREREQUISITES = {
         "question": "Quin és el mínim comú múltiple de 2 i 3?",
         "expected_value": 6,
         "explanation": "El mínim comú múltiple ha de ser múltiple de tots dos nombres, i a més ha de ser el més petit possible.",
+        # Camps per a la visualització estructurada al requadre verd:
+        # Decisió pedagògica (professor, 2026-05-13): mostrar llistes de
+        # múltiples, NO descomposició factorial. El primer múltiple comú
+        # (el 6) es destaca en blau bold a les dues línies.
+        "initial_equation": "mcm(2, 3)",
+        "explanation_steps": [
+            'Múltiples de 2: 2, 4, <span style="color:#1a6fc4;font-weight:700">6</span>, 8, 10, 12...',
+            'Múltiples de 3: 3, <span style="color:#1a6fc4;font-weight:700">6</span>, 9, 12, 15...',
+            'mcm(2, 3) = <span style="color:#1a6fc4;font-weight:700">6</span>',
+        ],
+        "explanation_summary": "El mínim comú múltiple ha de ser múltiple de 2 i de 3, i també ha de ser el més petit possible.",
     },
     "PRE-DIST": {
         "id": "PRE-DIST",
@@ -190,6 +226,18 @@ PREREQUISITES = {
         # <raó operativa>". L'alumne ha de veure el RESULTAT complet i el
         # PERQUÈ, no només la regla abstracta.
         "explanation": "5·(x + 2) = 5x + 10, perquè el factor 5 multiplica la x però també multiplica el 2.",
+        # Camps per a la visualització estructurada al requadre verd:
+        # Línia 1: el "5·" destacat ja al començament per anticipar el
+        # factor que es distribueix (decisió pedagògica del professor).
+        # Línia 2: el "5·" surt dues vegades en blau, ja distribuït a
+        # banda i banda del "+".
+        "initial_equation": '<span style="color:#1a6fc4;font-weight:700">5·</span>(x + 2)',
+        "explanation_steps": [
+            '<span style="color:#1a6fc4;font-weight:700">5·</span>(x + 2)',
+            '<span style="color:#1a6fc4;font-weight:700">5·</span>x + <span style="color:#1a6fc4;font-weight:700">5·</span>2',
+            "5x + 10",
+        ],
+        "explanation_summary": "El 5 multiplica cada terme: per tant, tenim 5·x i 5·2.",
     },
     "PRE-SIGNES": {
         "id": "PRE-SIGNES",
@@ -197,6 +245,14 @@ PREREQUISITES = {
         "question": "Desenvolupa i escriu sense haver de fer servir el parèntesi: −(x − 3)",
         "expected_equation_or_expr": "-x + 3",
         "explanation": "−(x − 3) = −x + 3, perquè hem de canviar de signe tots els termes. Per tant, x passa a −x i −3 passa a +3.",
+        # Camps per a la visualització estructurada al requadre verd:
+        # Pedagogia: el menys davant del parèntesi = oposat de cada terme.
+        "initial_equation": "−(x − 3)",
+        "explanation_steps": [
+            "−(x − 3)",
+            '<span style="color:#1a6fc4;font-weight:700">−x</span> <span style="color:#1a6fc4;font-weight:700">+3</span>',
+        ],
+        "explanation_summary": "Hem trobat l'oposat de cada terme que hi ha dins del parèntesi.",
     },
     "PRE-INV": {
         "id": "PRE-INV",
@@ -207,6 +263,15 @@ PREREQUISITES = {
         # respostes que parlin de multiplicar o dividir aquí.
         "forbidden_keywords": ["multiplic", "divid"],
         "explanation": "3 + x = 10 → x = 10 − 3 → x = 7",
+        # Camps per a la visualització estructurada al requadre verd:
+        # Patró: dual de PRE-EQUIV (resta enlloc de suma).
+        "initial_equation": "3 + x = 10",
+        "explanation_steps": [
+            "3 + x           = 10",
+            '3 + x <span style="color:#1a6fc4;font-weight:700">−3</span> = 10 <span style="color:#1a6fc4;font-weight:700">−3</span>',
+            "x = 7",
+        ],
+        "explanation_summary": "Hem restat 3 als dos costats de l'equació.",
     },
     "PRE-INV-MULT": {
         "id": "PRE-INV-MULT",
@@ -221,6 +286,20 @@ PREREQUISITES = {
         # encara que de retruc inclogui "/3" o similar.
         "forbidden_keywords": ["multiplic", "sumar", "restar"],
         "explanation": "3·x = 12 → x = 12 : 3 → x = 4",
+        # Camps per a la visualització estructurada al requadre verd:
+        # Decisió pedagògica (professor, 2026-05-13): destacar tota la
+        # fracció en blau per ressaltar la divisió aplicada a banda i banda.
+        # Sintaxi: el span de color envolta `(3·x)/3` o `12/3`; el regex
+        # de `_render_fraction_safe` matcha la fracció dins del span i
+        # els spans interns (`.eq-frac-*`) hereten el color del pare,
+        # quedant tota la fracció en blau bold.
+        "initial_equation": "3·x = 12",
+        "explanation_steps": [
+            "3·x = 12",
+            '<span style="color:#1a6fc4;font-weight:700">(3·x)/3</span> = <span style="color:#1a6fc4;font-weight:700">12/3</span>',
+            "x = 4",
+        ],
+        "explanation_summary": "Hem dividit per 3 els dos costats de l'equació.",
     },
     "PRE-EQUIV": {
         "id": "PRE-EQUIV",

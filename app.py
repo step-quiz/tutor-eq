@@ -507,6 +507,50 @@ def _frac_html(text: str) -> str:
     return _FRAC_RE.sub(_replace, safe_text)
 
 
+def _render_fraction_safe(text: str) -> str:
+    """Renderitza fraccions textuals dins de text que pot contenir HTML
+    legítim (com spans de color escrits pel mateix autor del prereq).
+
+    Diferència amb `_frac_html`:
+      - `_frac_html` escapa tot el text amb `html.escape` (per protegir
+        contra HTML hostil dels alumnes). Bona política per a inputs no
+        controlats.
+      - `_render_fraction_safe` NO escapa res. S'usa només amb text
+        produït pels autors del catàleg (a `problems.py:PREREQUISITES`),
+        que és contingut confiable. Permet barrejar fraccions
+        autorenderitzades (`x/3` → barra horitzontal) amb spans HTML
+        explícits (`<span style="color:#1a6fc4;font-weight:700">+5</span>`).
+
+    Si el contingut del prereq evolucionés mai cap a inputs no
+    controlats, caldria filtrar amb una whitelist d'etiquetes
+    permeses, no canviar aquest helper.
+    """
+    # Captura: (expr_parèntesi | terme_simple) / denominador
+    # Atenció: cal evitar que el regex matchi dins d'un atribut HTML
+    # (per exemple `style="font-family:'Courier New'"`). Una heurística
+    # senzilla: el numerador no pot contenir cometes ni signe `<`.
+    # El regex actual ja exclou aquests caràcters per construcció (només
+    # accepta `[0-9a-zA-Z]` o `(...)` sense `<` ni `"`), per tant no cal
+    # més protecció.
+    _FRAC_RE = re.compile(
+        r'(\([^)]+\)|[−\-]?(?:[0-9]*[a-zA-Z]+|[0-9]+))\s*/\s*([a-zA-Z0-9]+)'
+    )
+
+    def _replace(m: re.Match) -> str:
+        num = m.group(1)
+        den = m.group(2)
+        if num.startswith('(') and num.endswith(')'):
+            num = num[1:-1]
+        return (
+            f"<span class='eq-frac'>"
+            f"<span class='eq-frac-num'>{num}</span>"
+            f"<span class='eq-frac-den'>{den}</span>"
+            f"</span>"
+        )
+
+    return _FRAC_RE.sub(_replace, text)
+
+
 def render_sidebar():
     debug = _is_debug_mode()
     with st.sidebar:
@@ -1556,9 +1600,17 @@ def _render_message(m: dict):
             steps = extra["steps"]
             summary = extra.get("summary", "")
             cta = extra.get("cta", "Ara, torna a resoldre l'equació original.")
+            # `_render_fraction_safe` (helper local) converteix fraccions
+            # textuals com `x/3` en HTML visual sense escapar spans HTML
+            # legítims que l'autor del prereq ja ha escrit (per exemple
+            # spans de color per destacar parts de l'equació). El truc:
+            # si el text ja conté `<span`, assumim que l'autor coneix
+            # l'HTML i no escapem res; només substituïm les fraccions.
+            initial_eq_html = _render_fraction_safe(initial_eq)
+            steps_html = [_render_fraction_safe(s) for s in steps]
             steps_lines = "".join(
                 f'<div style="white-space:pre;font-family:\'Courier New\',Courier,monospace;line-height:1.7">{s}</div>'
-                for s in steps
+                for s in steps_html
             )
             html = f"""
 <div style="background-color:#d1e7dd;border:1px solid #a3cfbb;
@@ -1568,7 +1620,7 @@ def _render_message(m: dict):
   <div style="font-family:'Courier New',Courier,monospace;
               background:rgba(0,0,0,0.06);border-radius:0.25rem;
               padding:0.45rem 0.7rem;margin-bottom:0.55rem;">
-    <div style="white-space:pre;line-height:1.7">{initial_eq}</div>
+    <div style="white-space:pre;line-height:1.7">{initial_eq_html}</div>
 {steps_lines}
   </div>
   <div style="margin-bottom:0.55rem;">{summary}</div>
