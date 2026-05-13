@@ -533,6 +533,23 @@ def render_sidebar():
                 )
                 st.markdown("---")
 
+                # Scroll automàtic del sidebar cap amunt perquè l'alumne
+                # vegi l'equació vàlida sense haver de fer scroll manual.
+                import streamlit.components.v1 as _cv1_scroll
+                _cv1_scroll.html(
+                    """
+                    <script>
+                    (function() {
+                        var sidebar = window.parent.document.querySelector(
+                            '[data-testid="stSidebar"] > div'
+                        );
+                        if (sidebar) sidebar.scrollTop = 0;
+                    })();
+                    </script>
+                    """,
+                    height=0,
+                )
+
         st.markdown("**Selecciona l'equació**")
 
         # CSS dinàmic: ressalta en blau el botó del problema actiu.
