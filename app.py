@@ -1381,7 +1381,8 @@ def _render_prereq_panel(s):
     )
     if _q_match:
         _eq_part  = html.escape(_q_match.group(1).strip())
-        _q_part   = html.escape(_q_match.group(2).strip())
+        _q_raw2   = _q_match.group(2).strip()
+        _q_part   = html.escape(_q_raw2[0].upper() + _q_raw2[1:] if _q_raw2 else _q_raw2)
         question_html = (
             f"<p style='margin:0; font-weight:600; font-size:1.05em; line-height:1.6;'>"
             f"<span style='font-family:monospace; font-size:1.1em;'>{_eq_part}</span>"
