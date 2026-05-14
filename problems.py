@@ -124,7 +124,9 @@ DEPENDENCIES = {
     "def_fraccions_equiv": {
         "description": "fraction equivalence: a/b = c/d ⇔ ad = bc",
         "keywords": ["creuat", "creuada", "producte", "multiplicar", "creu"],
-        "prerequisite": "PRE-FRAC",
+        # Default = producte creuat. _select_prereq_id pot escollir
+        # PRE-FRAC-COEF si detecta coeficient fraccionari aïllat.
+        "prerequisite": "PRE-FRAC-CROSS",
     },
     "def_mcm": {
         "description": "least common multiple",
@@ -140,18 +142,25 @@ DEPENDENCIES = {
     "prop_distributiva": {
         "description": "distributive property: a(b+c) = ab + ac",
         "keywords": ["multiplica", "fora", "tots", "cada", "distribu", "obrir"],
-        "prerequisite": "PRE-DIST",
+        # Default = signe positiu (cas més freqüent). _select_prereq_id
+        # pot escollir PRE-DIST-MINUS si detecta signe negatiu intern.
+        "prerequisite": "PRE-DIST-PLUS",
     },
     "regla_signes_parens": {
         "description": "sign rule before a parenthesis: -(x-3) = -x+3",
         "keywords": ["canvi", "signe", "canvia", "oposat", "menys", "invers"],
-        "prerequisite": "PRE-SIGNES",
+        # Default = parèntesi amb signe negatiu (cas històric). _select_prereq_id
+        # pot escollir PRE-SIGNES-PLUS si detecta signe positiu intern.
+        "prerequisite": "PRE-SIGNES-MINUS",
     },
     # Capa procedimental
     "operacions_inverses": {
         "description": "inverse operations: + ↔ -, × ↔ ÷",
         "keywords": ["inversa", "contrari", "oposat", "restar", "sumar", "dividir", "multiplicar"],
-        "prerequisite": "PRE-INV",
+        # Default = additiu amb signe positiu. _select_prereq_id pot
+        # escollir PRE-INV-SUB, PRE-INV-MULT o PRE-INV-DIV segons la
+        # forma de l'última equació vàlida.
+        "prerequisite": "PRE-INV-ADD",
     },
 }
 
@@ -179,13 +188,13 @@ PREREQUISITES = {
         ],
         "explanation_summary": "Sumar un negatiu i un positiu es pot veure com gastar i cobrar.",
     },
-    "PRE-FRAC": {
-        "id": "PRE-FRAC",
+    "PRE-FRAC-CROSS": {
+        "id": "PRE-FRAC-CROSS",
         "concept": "def_fraccions_equiv",
         "question": "Si x/3 = 5/2, quina equació obtens fent el producte creuat?",
         "expected_equation": "2*x = 15",  # validació via SymPy
         "explanation": "Fem el producte creuat i obtenim l'equació: 2·x = 3·5.",
-        # Camps per a la visualització estructurada al requadre verd:
+        # Variant de PRODUCTE CREUAT: dues fraccions a banda i banda d'=.
         # Decisió pedagògica (professor, 2026-05-13): NO fletxes creuades
         # (sorollós, l'alumnat ja sap què vol dir "multiplicar en creu").
         # Les fraccions a línia 1 es renderitzen com a fraccions visuals
@@ -200,6 +209,26 @@ PREREQUISITES = {
             ["2x", "15"],
         ],
         "explanation_summary": "Hem multiplicat en creu.",
+    },
+    "PRE-FRAC-COEF": {
+        "id": "PRE-FRAC-COEF",
+        "concept": "def_fraccions_equiv",
+        "question": "Si tens 2x/3 = 6, com aïlles la x?",
+        "expected_equation": "x = 9",  # validació via SymPy: també accepta 2*x = 18
+        "explanation": "Multipliquem els dos costats per 3 per eliminar el denominador (2x/3 · 3 = 6 · 3, és a dir, 2x = 18), i després dividim per 2 (x = 18/2 = 9).",
+        # Variant amb COEFICIENT FRACCIONARI: una sola fracció amb un
+        # numerador no trivial (a·x). El pas clau és eliminar el
+        # denominador multiplicant els dos costats; després dividir
+        # pel coeficient.
+        "initial_equation": "2x/3 = 6",
+        "explanation_steps": [
+            ["2x/3", "6"],
+            ['<span style="color:#1a6fc4;font-weight:700">(2x/3)·3</span>',
+             '<span style="color:#1a6fc4;font-weight:700">6·3</span>'],
+            ["2x", "18"],
+            ["x", "9"],
+        ],
+        "explanation_summary": "Primer hem multiplicat per 3 per treure el denominador, i després hem dividit per 2.",
     },
     "PRE-MCM": {
         "id": "PRE-MCM",
@@ -219,8 +248,8 @@ PREREQUISITES = {
         ],
         "explanation_summary": "El mínim comú múltiple ha de ser múltiple de 2 i de 3, i també ha de ser el més petit possible.",
     },
-    "PRE-DIST": {
-        "id": "PRE-DIST",
+    "PRE-DIST-PLUS": {
+        "id": "PRE-DIST-PLUS",
         "concept": "prop_distributiva",
         "question": "Aplica la propietat distributiva i desenvolupa: 5 · (x + 2)",
         "expected_equation_or_expr": "5*x + 10",
@@ -228,7 +257,7 @@ PREREQUISITES = {
         # <raó operativa>". L'alumne ha de veure el RESULTAT complet i el
         # PERQUÈ, no només la regla abstracta.
         "explanation": "5·(x + 2) = 5x + 10, perquè el factor 5 multiplica la x però també multiplica el 2.",
-        # Camps per a la visualització estructurada al requadre verd:
+        # Variant amb signe POSITIU dins del parèntesi.
         # Línia 1: el "5·" destacat ja al començament per anticipar el
         # factor que es distribueix (decisió pedagògica del professor).
         # Línia 2: el "5·" surt dues vegades en blau, ja distribuït a
@@ -241,13 +270,29 @@ PREREQUISITES = {
         ],
         "explanation_summary": "El 5 multiplica cada terme: per tant, tenim 5·x i 5·2.",
     },
-    "PRE-SIGNES": {
-        "id": "PRE-SIGNES",
+    "PRE-DIST-MINUS": {
+        "id": "PRE-DIST-MINUS",
+        "concept": "prop_distributiva",
+        "question": "Aplica la propietat distributiva i desenvolupa: 5 · (x − 2)",
+        "expected_equation_or_expr": "5*x - 10",
+        "explanation": "5·(x − 2) = 5x − 10, perquè el factor 5 multiplica la x però també multiplica el 2, mantenint el signe.",
+        # Variant amb signe NEGATIU dins del parèntesi. El factor 5 es
+        # distribueix igualment a cada terme; el signe del 2 es manté.
+        "initial_equation": '<span style="color:#1a6fc4;font-weight:700">5·</span>(x − 2)',
+        "explanation_steps": [
+            '<span style="color:#1a6fc4;font-weight:700">5·</span>(x − 2)',
+            '<span style="color:#1a6fc4;font-weight:700">5·</span>x − <span style="color:#1a6fc4;font-weight:700">5·</span>2',
+            "5x − 10",
+        ],
+        "explanation_summary": "El 5 multiplica cada terme: per tant, tenim 5·x i 5·2 (el signe es manté).",
+    },
+    "PRE-SIGNES-MINUS": {
+        "id": "PRE-SIGNES-MINUS",
         "concept": "regla_signes_parens",
         "question": "Desenvolupa i escriu sense haver de fer servir el parèntesi: −(x − 3)",
         "expected_equation_or_expr": "-x + 3",
         "explanation": "−(x − 3) = −x + 3, perquè hem de canviar de signe tots els termes. Per tant, x passa a −x i −3 passa a +3.",
-        # Camps per a la visualització estructurada al requadre verd:
+        # Variant amb signe NEGATIU dins del parèntesi.
         # Pedagogia: el menys davant del parèntesi = oposat de cada terme.
         "initial_equation": "−(x − 3)",
         "explanation_steps": [
@@ -256,8 +301,22 @@ PREREQUISITES = {
         ],
         "explanation_summary": "Hem trobat l'oposat de cada terme que hi ha dins del parèntesi.",
     },
-    "PRE-INV": {
-        "id": "PRE-INV",
+    "PRE-SIGNES-PLUS": {
+        "id": "PRE-SIGNES-PLUS",
+        "concept": "regla_signes_parens",
+        "question": "Desenvolupa i escriu sense haver de fer servir el parèntesi: −(x + 3)",
+        "expected_equation_or_expr": "-x - 3",
+        "explanation": "−(x + 3) = −x − 3, perquè hem de canviar de signe tots els termes. Per tant, x passa a −x i +3 passa a −3.",
+        # Variant amb signe POSITIU dins del parèntesi.
+        "initial_equation": "−(x + 3)",
+        "explanation_steps": [
+            "−(x + 3)",
+            '<span style="color:#1a6fc4;font-weight:700">−x</span> <span style="color:#1a6fc4;font-weight:700">−3</span>',
+        ],
+        "explanation_summary": "Hem trobat l'oposat de cada terme que hi ha dins del parèntesi.",
+    },
+    "PRE-INV-ADD": {
+        "id": "PRE-INV-ADD",
         "concept": "operacions_inverses",
         "question": "Si tens 3 + x = 10, quina operació fas als dos costats de l'equació, per poder aïllar la x? Explica-ho en català.",
         "keywords_required": ["restar", "resta", "−3", "-3", "menys 3", "treure"],
@@ -266,8 +325,8 @@ PREREQUISITES = {
         "forbidden_keywords": ["multiplic", "divid"],
         "explanation": "3 + x = 10 → x = 10 − 3 → x = 7",
         # Camps per a la visualització estructurada al requadre verd:
-        # Patró: dual de PRE-EQUIV (resta enlloc de suma). Format
-        # [lhs, rhs] perquè l'igual quedi alineat (estil LaTeX `&=`).
+        # Variant additiva amb constant POSITIVA al costat de la x.
+        # L'operació inversa correcta és RESTAR.
         "initial_equation": "3 + x = 10",
         "explanation_steps": [
             ["3 + x", "10"],
@@ -276,6 +335,27 @@ PREREQUISITES = {
             ["x", "7"],
         ],
         "explanation_summary": "Hem restat 3 als dos costats de l'equació.",
+    },
+    "PRE-INV-SUB": {
+        "id": "PRE-INV-SUB",
+        "concept": "operacions_inverses",
+        "question": "Si tens x − 3 = 10, quina operació fas als dos costats de l'equació, per poder aïllar la x? Explica-ho en català.",
+        "keywords_required": ["sumar", "suma", "sumo", "sumem", "+3", "+ 3", "més 3", "afegir", "afegeix", "afegim"],
+        # Operacions equivocades per a aquest cas (additiu, signe negatiu):
+        # rebutgem multiplicar/dividir, i també "restar" (l'alumne s'ha
+        # confós si pensa que cal restar més).
+        "forbidden_keywords": ["multiplic", "divid", "restar", "resta", "resto"],
+        "explanation": "x − 3 = 10 → x = 10 + 3 → x = 13",
+        # Variant additiva amb constant NEGATIVA al costat de la x.
+        # L'operació inversa correcta és SUMAR.
+        "initial_equation": "x − 3 = 10",
+        "explanation_steps": [
+            ["x − 3", "10"],
+            ['x − 3 <span style="color:#1a6fc4;font-weight:700">+3</span>',
+             '10 <span style="color:#1a6fc4;font-weight:700">+3</span>'],
+            ["x", "13"],
+        ],
+        "explanation_summary": "Hem sumat 3 als dos costats de l'equació.",
     },
     "PRE-INV-MULT": {
         "id": "PRE-INV-MULT",
@@ -290,9 +370,8 @@ PREREQUISITES = {
         # encara que de retruc inclogui "/3" o similar.
         "forbidden_keywords": ["multiplic", "sumar", "restar"],
         "explanation": "3·x = 12 → x = 12 : 3 → x = 4",
-        # Camps per a la visualització estructurada al requadre verd:
-        # Decisió pedagògica (professor, 2026-05-13): destacar tota la
-        # fracció en blau per ressaltar la divisió aplicada a banda i banda.
+        # Variant multiplicativa: coeficient enter K davant de la x.
+        # L'operació inversa correcta és DIVIDIR per K.
         # Sintaxi: el span de color envolta `(3·x)/3` o `12/3`; el regex
         # de `_render_fraction_safe` matcha la fracció dins del span i
         # els spans interns (`.eq-frac-*`) hereten el color del pare,
@@ -306,6 +385,29 @@ PREREQUISITES = {
             ["x", "4"],
         ],
         "explanation_summary": "Hem dividit per 3 els dos costats de l'equació.",
+    },
+    "PRE-INV-DIV": {
+        "id": "PRE-INV-DIV",
+        "concept": "operacions_inverses",
+        "question": "Si tens x/3 = 4, quina operació fas als dos membres de l'equació, per poder aïllar la x? Explica-ho en català.",
+        # Aquí "per 3" SÍ que és inequívoc — l'única opció correcta és
+        # multiplicar. Ho incloem per cobrir l'ús natural de l'alumne.
+        "keywords_required": ["multiplicar", "multiplico", "multiplica", "·3", "x3", "*3", "per 3"],
+        # Operacions equivocades per al cas divisori: rebutgem dividir
+        # (ja està dividit), sumar, restar.
+        "forbidden_keywords": ["divid", "sumar", "restar"],
+        "explanation": "x/3 = 4 → x = 4 · 3 → x = 12",
+        # Variant divisòria: la x dividida per K. L'operació inversa
+        # correcta és MULTIPLICAR per K. Visualment, tota la fracció
+        # i el factor multiplicador es destaquen en blau bold.
+        "initial_equation": "x/3 = 4",
+        "explanation_steps": [
+            ["x/3", "4"],
+            ['<span style="color:#1a6fc4;font-weight:700">(x/3)·3</span>',
+             '<span style="color:#1a6fc4;font-weight:700">4·3</span>'],
+            ["x", "12"],
+        ],
+        "explanation_summary": "Hem multiplicat per 3 els dos costats de l'equació.",
     },
     "PRE-EQUIV": {
         "id": "PRE-EQUIV",

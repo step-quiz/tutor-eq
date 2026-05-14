@@ -408,7 +408,7 @@ class TestPrerequisiteBacktrack(ScenarioCase):
             ["3x − 4 = 9"],
             script=script,
         )
-        self.assertEqual(state["active_prereq"], "PRE-DIST")
+        self.assertEqual(state["active_prereq"], "PRE-DIST-MINUS")
         self.assertEqual(state["active_prereq_depth"], 1)
         self.assertEqual(state["backtrack_count"], 1)
 
@@ -424,7 +424,7 @@ class TestPrerequisiteBacktrack(ScenarioCase):
         )
         # PRE-DIST espera una resposta concreta — mirem què demana
         import problems as PB
-        pq = PB.get_prerequisite("PRE-DIST")
+        pq = PB.get_prerequisite("PRE-DIST-MINUS")
         # PRE-DIST té expected_equation o expected_value: en busquem el camp
         if "expected_value" in pq:
             correct_answer = str(pq["expected_value"])
@@ -468,7 +468,7 @@ class TestConceptFailureEscalation(ScenarioCase):
         # error, primer hem de tancar el prereq (responent malament,
         # cosa que continua però no torna a obrir prereq).
         import problems as PB
-        pq = PB.get_prerequisite("PRE-DIST")
+        pq = PB.get_prerequisite("PRE-DIST-MINUS")
         wrong_for_prereq = "resposta_incorrecta_qualsevol"
 
         state = self.run_scenario(
@@ -635,7 +635,7 @@ class TestPostIAConsistencyVerifier(ScenarioCase):
         # L'etiqueta legítima s'ha de mantenir
         self.assertLastErrorLabel(state, "L3_distribution_partial")
         # I el prereq s'activa (no s'ha descartat la conceptualitat)
-        self.assertEqual(state["active_prereq"], "PRE-DIST")
+        self.assertEqual(state["active_prereq"], "PRE-DIST-MINUS")
 
     def test_revision_metadata_recorded_on_history(self):
         # Quan es descarta, el rastre ha d'incloure la metadata
@@ -709,6 +709,103 @@ class TestInvariantsTriggerOnBrokenState(unittest.TestCase):
         # No hi ha avisos acumulats ⇒ no quadra
         with self.assertRaises(INV.InvariantViolation):
             INV.check_state_invariants(state)
+
+
+class TestPrereqVariantSelection(unittest.TestCase):
+    """Cobreix `_select_prereq_id`: triar la variant adequada del prereq
+    segons la forma de `last_correct_text`. Aquest selector és la palanca
+    arquitectural que permet als prereqs cobrir tots els casos visuals
+    (suma/resta, multiplicació/divisió, etc.) sense duplicar la lògica.
+
+    Aquests tests són unitaris (sense passar pel cicle de Streamlit ni la
+    IA), per tant cobreixen el selector aïllat. Si el comportament d'un
+    cas falla, mirar si la regex/heurística s'ha trencat per regressió.
+    """
+
+    def _sel(self, dep_name, last_correct_text, error_label="L1_inverse_op"):
+        import problems as PB
+        dep = PB.DEPENDENCIES[dep_name]
+        return tutor._select_prereq_id(error_label, dep, last_correct_text)
+
+    # ─── operacions_inverses ──────────────────────────────────────────
+    def test_inv_add_with_positive_constant(self):
+        self.assertEqual(self._sel("operacions_inverses", "3 + x = 10"), "PRE-INV-ADD")
+        self.assertEqual(self._sel("operacions_inverses", "x + 7 = 12"), "PRE-INV-ADD")
+
+    def test_inv_sub_with_negative_constant(self):
+        self.assertEqual(self._sel("operacions_inverses", "x − 4 = 9"), "PRE-INV-SUB")
+        # També accepta ASCII '-':
+        self.assertEqual(self._sel("operacions_inverses", "x - 4 = 9"), "PRE-INV-SUB")
+
+    def test_inv_mult_with_integer_coefficient(self):
+        self.assertEqual(self._sel("operacions_inverses", "3·x = 12"), "PRE-INV-MULT")
+        self.assertEqual(self._sel("operacions_inverses", "5x = 20"), "PRE-INV-MULT")
+
+    def test_inv_div_with_denominator(self):
+        self.assertEqual(self._sel("operacions_inverses", "x/3 = 4"), "PRE-INV-DIV")
+
+    # ─── prop_distributiva ────────────────────────────────────────────
+    def test_dist_plus_with_positive_inside(self):
+        self.assertEqual(
+            self._sel("prop_distributiva", "3(x + 4) = 9", "L3_distribution_partial"),
+            "PRE-DIST-PLUS",
+        )
+
+    def test_dist_minus_with_negative_inside(self):
+        self.assertEqual(
+            self._sel("prop_distributiva", "3(x − 4) = 9", "L3_distribution_partial"),
+            "PRE-DIST-MINUS",
+        )
+
+    def test_dist_first_parenthesis_wins_when_mixed(self):
+        # Si hi ha múltiples parèntesis amb signes diferents, triem el
+        # primer. 2(x + 1) apareix primer → PRE-DIST-PLUS.
+        self.assertEqual(
+            self._sel("prop_distributiva", "2(x + 1) = 3(x − 2)",
+                      "L3_distribution_partial"),
+            "PRE-DIST-PLUS",
+        )
+
+    # ─── regla_signes_parens ──────────────────────────────────────────
+    def test_signes_plus_with_positive_inside(self):
+        self.assertEqual(
+            self._sel("regla_signes_parens", "7 − (x + 2) = 4", "L3_minus_paren"),
+            "PRE-SIGNES-PLUS",
+        )
+
+    def test_signes_minus_with_negative_inside(self):
+        self.assertEqual(
+            self._sel("regla_signes_parens", "5 − (x − 3) = 0", "L3_minus_paren"),
+            "PRE-SIGNES-MINUS",
+        )
+
+    # ─── def_fraccions_equiv ──────────────────────────────────────────
+    def test_frac_cross_with_two_fractions(self):
+        self.assertEqual(
+            self._sel("def_fraccions_equiv", "x/3 = 5/2", "L4_illegal_cancel"),
+            "PRE-FRAC-CROSS",
+        )
+
+    def test_frac_coef_with_integer_rhs(self):
+        self.assertEqual(
+            self._sel("def_fraccions_equiv", "2x/3 = 6", "L4_illegal_cancel"),
+            "PRE-FRAC-COEF",
+        )
+
+    # ─── fallbacks ─────────────────────────────────────────────────────
+    def test_unparseable_returns_default(self):
+        # Si l'equació no parseja, retornem el default.
+        self.assertEqual(
+            self._sel("operacions_inverses", "això no és una equació"),
+            "PRE-INV-ADD",  # default
+        )
+
+    def test_x_on_both_sides_returns_default(self):
+        # Cas ambigu: x als dos costats. Retornem el default.
+        self.assertEqual(
+            self._sel("operacions_inverses", "2x + 5 = x + 8"),
+            "PRE-INV-ADD",  # default
+        )
 
 
 if __name__ == "__main__":

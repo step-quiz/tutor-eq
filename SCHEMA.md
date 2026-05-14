@@ -173,6 +173,46 @@ existents són suficients.
 Cada `prerequisite` té un mini-problema associat per al retrocés.
 N'hi ha **dos formats** segons com es valida la resposta:
 
+### Convenció de variants: prereqs múltiples per dependència
+
+Algunes dependències tenen **variants** per cobrir casos visualment
+diferents. Per exemple, `operacions_inverses` cobreix 4 casos:
+suma, resta, multiplicació, divisió. Si un alumne s'equivoca a
+`x − 4 = 9` (operació inversa: sumar), no té sentit mostrar-li un
+prereq amb suma (`3 + x = 10`); ha de veure un cas amb resta (`x − 3 = 10`)
+perquè la transferència pedagògica sigui directa.
+
+Convenció de nomenclatura:
+
+```
+PRE-<CONCEPTE>-<VARIANT>
+```
+
+Variants per dependència actual:
+
+| Dependència | Variants | Discriminador |
+|---|---|---|
+| `operacions_inverses` | PRE-INV-ADD, PRE-INV-SUB, PRE-INV-MULT, PRE-INV-DIV | Forma de l'última equació: `x+K`, `x−K`, `K·x`, `x/K` |
+| `prop_distributiva` | PRE-DIST-PLUS, PRE-DIST-MINUS | Signe dins del parèntesi: `(x+K)` o `(x−K)` |
+| `regla_signes_parens` | PRE-SIGNES-PLUS, PRE-SIGNES-MINUS | Signe dins del parèntesi: `−(x+K)` o `−(x−K)` |
+| `def_fraccions_equiv` | PRE-FRAC-CROSS, PRE-FRAC-COEF | Estructura: `a/b = c/d` o `ax/b = c` |
+| `def_aritm_negatius` | (única: PRE-NEG) | n/a |
+| `def_mcm` | (única: PRE-MCM) | n/a |
+| `principi_equiv` | (única: PRE-EQUIV) | n/a |
+
+La lògica que tria la variant viu a `tutor.py:_select_prereq_id`. Aquesta
+funció rep l'última equació vàlida (`last_correct_text`), la inspecciona,
+i retorna l'ID concret. Si la detecció falla (equació amb x als dos
+costats, parseja malament, etc.), retorna el **default** indicat al camp
+`prerequisite` de la dependència.
+
+Defaults per dependència (per quan la detecció no és concloent):
+
+- `operacions_inverses` → `PRE-INV-ADD`
+- `prop_distributiva` → `PRE-DIST-PLUS`
+- `regla_signes_parens` → `PRE-SIGNES-MINUS`
+- `def_fraccions_equiv` → `PRE-FRAC-CROSS`
+
 ### Format A: validació numèrica/simbòlica (SymPy)
 
 ```python

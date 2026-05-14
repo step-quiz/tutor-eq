@@ -612,26 +612,149 @@ def _handle_help(state):
 # ------------------------------------------------------------
 def _select_prereq_id(error_label: str, dep: dict, last_correct_text: str) -> str:
     """
-    Tria el prerequisit més adequat per a aquest error concret. Per
-    defecte, la dependència té un sol prerequisit (`dep["prerequisite"]`),
-    però algunes dependències com `operacions_inverses` cobreixen dos
-    casos diferents (additiu i multiplicatiu) i necessiten triar variant
-    segons la forma de l'última equació vàlida:
+    Tria el prerequisit més adequat per a aquest error concret, segons la
+    forma de l'última equació vàlida (`last_correct_text`). Cada concepte
+    pedagògic (`dep["prerequisite"]`) pot tenir VARIANTS, i cal triar
+    la que coincideix millor amb el cas que l'alumne té al davant.
 
-      Última equació: 3x = 21  → operació pendent: dividir → PRE-INV-MULT
-      Última equació: x + 5 = 12 → operació pendent: restar → PRE-INV
+    Mapatge de variants:
 
-    Així evitem el mismatch pedagògic en què l'alumne confon dividir amb
-    restar però el sistema li pregunta com aïllar la x d'una suma.
+      operacions_inverses:
+        x + K = M  (K > 0)  → PRE-INV-ADD  (cal restar)
+        x − K = M  (K > 0)  → PRE-INV-SUB  (cal sumar)
+        K·x = M             → PRE-INV-MULT (cal dividir)
+        x/K = M             → PRE-INV-DIV  (cal multiplicar)
+
+      prop_distributiva:
+        a·(x + K)  → PRE-DIST-PLUS   (signe positiu dins)
+        a·(x − K)  → PRE-DIST-MINUS  (signe negatiu dins)
+
+      regla_signes_parens:
+        −(x − K)  → PRE-SIGNES-MINUS (signe negatiu dins)
+        −(x + K)  → PRE-SIGNES-PLUS  (signe positiu dins)
+
+      def_fraccions_equiv:
+        a/b = c/d         → PRE-FRAC-CROSS (producte creuat)
+        ax/b = c          → PRE-FRAC-COEF  (coeficient fraccionari)
+
+    Si la detecció falla (equació amb x als dos costats, parseja malament,
+    casos ambigus), retorna el `dep["prerequisite"]` per defecte.
+
+    NOTA IMPLEMENTATIVA: SymPy expandeix automàticament els parèntesis al
+    parsejar (ex: '3(x − 4) = 9' es converteix en lhs=3*x − 12). Per tant,
+    per a la detecció de prop_distributiva i regla_signes_parens cal
+    inspeccionar el TEXT ORIGINAL via regex, no l'expressió parsejada.
     """
     default = dep["prerequisite"]
+    concept = dep.get("description", "")
+    text = (last_correct_text or "").strip()
 
-    if error_label == "L1_inverse_op":
-        eq = V.parse_equation(last_correct_text)
+    # Importacions locals (només necessàries en aquesta funció)
+    from verifier import X
+    from sympy import Poly
+    import re
+
+    # ─── operacions_inverses ──────────────────────────────────────────
+    if default in ("PRE-INV-ADD", "PRE-INV", "PRE-INV-SUB",
+                   "PRE-INV-MULT", "PRE-INV-DIV"):
+        eq = V.parse_equation(text)
+        if eq is None:
+            return default
+        lhs, rhs = eq
+        # Quin costat té la x?
+        if X in lhs.free_symbols and X not in rhs.free_symbols:
+            x_side, const_side = lhs, rhs
+        elif X in rhs.free_symbols and X not in lhs.free_symbols:
+            x_side, const_side = rhs, lhs
+        else:
+            return default  # ambigu
+
         op_type = V.next_operation_type(eq)
-        if op_type == "multiplicative" and PB.get_prerequisite("PRE-INV-MULT"):
+
+        if op_type == "additive":
+            # x + K = M (K > 0)  → PRE-INV-ADD
+            # x − K = M (K > 0)  → PRE-INV-SUB
+            # Per saber el signe de K, agafem el terme constant del
+            # costat x i mirem si és positiu o negatiu.
+            try:
+                p = Poly(x_side, X)
+                # all_coeffs() retorna [a, b] per a a*x + b
+                coeffs = p.all_coeffs()
+                if len(coeffs) == 2:
+                    b = coeffs[1]
+                    if b > 0:
+                        return "PRE-INV-ADD"
+                    if b < 0:
+                        return "PRE-INV-SUB"
+            except Exception:
+                pass
+            return "PRE-INV-ADD"  # fallback per a casos rars
+
+        if op_type == "multiplicative":
+            # K·x = M  → PRE-INV-MULT
+            # x/K = M  → PRE-INV-DIV
+            # SymPy normalitza `x/3` com `x/3` (Mul amb Rational), però
+            # `3·x` com `3*x`. Distingim mirant si el text original conté
+            # `x/` (cas divisió) o no (cas multiplicació). Comprovació
+            # textual perquè SymPy a vegades ho amaga.
+            if re.search(r'\bx\s*/\s*\d', text):
+                return "PRE-INV-DIV"
             return "PRE-INV-MULT"
-        # Additiu o indeterminat: ens quedem amb el prerequisit per defecte.
+
+        return default
+
+    # ─── prop_distributiva ────────────────────────────────────────────
+    if default in ("PRE-DIST-PLUS", "PRE-DIST", "PRE-DIST-MINUS"):
+        # Cerquem un parèntesi amb forma `(x ± K)` al text original.
+        # Convencions de signe: SymPy usa `-` ASCII, l'editor pot usar
+        # `−` Unicode (U+2212). Acceptem tots dos.
+        # Patró: a·(x + K) o a·(x − K), o (x ± K)·a, o variants amb números.
+        # Si trobem `(x +` clarament → PLUS; si `(x −` → MINUS.
+        # Si hi ha múltiples parèntesis, prioritzem el primer.
+        m_plus = re.search(r'\(\s*[\-−]?\s*\d*\s*x\s*\+\s*\d', text)
+        m_minus = re.search(r'\(\s*[\-−]?\s*\d*\s*x\s*[\-−]\s*\d', text)
+        if m_plus and m_minus:
+            # Múltiples parèntesis amb signes diferents: triem el primer.
+            return "PRE-DIST-PLUS" if m_plus.start() < m_minus.start() else "PRE-DIST-MINUS"
+        if m_plus:
+            return "PRE-DIST-PLUS"
+        if m_minus:
+            return "PRE-DIST-MINUS"
+        return default
+
+    # ─── regla_signes_parens ──────────────────────────────────────────
+    if default in ("PRE-SIGNES-MINUS", "PRE-SIGNES", "PRE-SIGNES-PLUS"):
+        # Cerquem un parèntesi precedit per menys: −(x ± K).
+        # `[\-−]\s*\(\s*x\s*[\+]\s*\d`  → PRE-SIGNES-PLUS
+        # `[\-−]\s*\(\s*x\s*[\-−]\s*\d` → PRE-SIGNES-MINUS
+        m_plus = re.search(r'[\-−]\s*\(\s*x\s*\+\s*\d', text)
+        m_minus = re.search(r'[\-−]\s*\(\s*x\s*[\-−]\s*\d', text)
+        if m_plus and m_minus:
+            return "PRE-SIGNES-PLUS" if m_plus.start() < m_minus.start() else "PRE-SIGNES-MINUS"
+        if m_plus:
+            return "PRE-SIGNES-PLUS"
+        if m_minus:
+            return "PRE-SIGNES-MINUS"
+        return default
+
+    # ─── def_fraccions_equiv ──────────────────────────────────────────
+    if default in ("PRE-FRAC-CROSS", "PRE-FRAC", "PRE-FRAC-COEF"):
+        eq = V.parse_equation(text)
+        if eq is None:
+            return default
+        lhs, rhs = eq
+        # PRE-FRAC-CROSS: dues fraccions a banda i banda d'=, sense x
+        # multiplicador (a/b = c/d).
+        # PRE-FRAC-COEF: una fracció amb coeficient (ax/b = c) i el
+        # RHS és un nombre senzill.
+        # Heurística: si almenys un costat és enter sencer (sense
+        # fracció), és coef-fractionari. Si tots dos tenen forma
+        # fraccionària, és producte creuat clàssic.
+        rhs_is_int = rhs.is_number and rhs.is_integer
+        lhs_is_int = lhs.is_number and lhs.is_integer
+        if rhs_is_int or lhs_is_int:
+            return "PRE-FRAC-COEF"
+        return "PRE-FRAC-CROSS"
 
     return default
 

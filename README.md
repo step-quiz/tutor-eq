@@ -2,7 +2,7 @@
 
 > Mètriques vives (verificades per `test_docs_match_code.py`):
 > `len(PROBLEMS)` = <!-- problem-count -->25<!-- /problem-count --> · 
-> `len(PREREQUISITES)` = <!-- prereq-count -->8<!-- /prereq-count -->
+> `len(PREREQUISITES)` = <!-- prereq-count -->13<!-- /prereq-count -->
 
 Prototip mínim viable del tutor Socràtic determinista descrit a la Fase 0.
 Aplicat a 2n d'ESO, interfície Streamlit.
