@@ -717,10 +717,25 @@ def _process_prereq_turn(state, raw_text):
         # tancar-ho com si no hagués passat res — l'alumne ha de veure
         # explícitament que la seva resposta no era correcta, l'explicació
         # esperada, i la indicació de què fer ara.
+        #
+        # Si el prereq té els camps de visualització estructurada
+        # (`initial_equation`, `explanation_steps`, `explanation_summary`),
+        # passem-los també al missatge `prereq_failed` perquè l'UI els
+        # renderitzi simètricament al cas de resolt: caixa amb passos
+        # alineats, fraccions visuals, etc. La diferència és només el
+        # color (groc enlloc de verd) i la frase de capçalera ("La
+        # resposta no era correcta" enlloc de "Correcte").
+        _failed_extra = {}
+        if prereq.get("initial_equation") and prereq.get("explanation_steps"):
+            _failed_extra = {
+                "initial_equation": prereq["initial_equation"],
+                "steps": prereq["explanation_steps"],
+                "summary": prereq.get("explanation_summary", ""),
+                "cta": "Ara ja pots intentar resoldre l'equació original.",
+            }
         _push_msg(state, "prereq_failed",
-                  f"La resposta no era correcta.\n\n{explanation}\n\n"
-                  f"**Ara ja pots intentar resoldre l'equació original.**",
-                  target="main", persistent=True)
+                  "La resposta no era correcta.",
+                  target="main", persistent=True, extra=_failed_extra)
     return state
 
 

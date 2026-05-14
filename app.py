@@ -551,6 +551,118 @@ def _render_fraction_safe(text: str) -> str:
     return _FRAC_RE.sub(_replace, text)
 
 
+# ───── Caixes visuals per als prereqs (resolved / failed) ─────
+# Paletes de color: verd (resolt) per a `kind="resolved"`, groc/taronja
+# (warning) per a `kind="failed"`. La paleta groga és compatible amb
+# l'estil de `st.warning` però amb una mica més d'intensitat als marges
+# perquè la caixa "interna" (passos monospace) es distingeixi del fons.
+_PREREQ_BOX_PALETTES = {
+    "resolved": {
+        "bg": "#d1e7dd", "border": "#a3cfbb", "fg": "#0a3622",
+    },
+    "failed": {
+        "bg": "#fff3cd", "border": "#ffe69c", "fg": "#664d03",
+    },
+}
+
+
+def _render_prereq_visual_box(extra: dict, kind: str, header: str) -> str:
+    """Construeix l'HTML d'una caixa visual estructurada per a prereqs.
+
+    Usada tant per al cas "prereq resolt" (verd) com per al cas
+    "prereq fallat" (groc). El contingut és simètric: ambdós casos
+    mostren `initial_equation`, `explanation_steps` (amb alineació
+    `=` central via grid quan els elements són `[lhs, rhs]`),
+    `explanation_summary`, i un CTA. La diferència és la capçalera
+    i el color.
+
+    Mostrar la solució correcta també en cas de fracàs és intencionat:
+    l'alumne ha de poder veure el procediment correcte per aprendre de
+    l'error, encara que ara hagi de tornar a intentar el problema
+    original.
+
+    Arguments:
+        extra: dict amb claus `initial_equation`, `steps`, `summary`,
+               `cta`. Vegeu SCHEMA.md per al format.
+        kind: "resolved" o "failed". Determina la paleta de colors.
+        header: text de capçalera (per exemple "✓ Correcte." o
+                "✗ La resposta no era correcta.").
+    """
+    initial_eq = extra["initial_equation"]
+    steps = extra["steps"]
+    summary = extra.get("summary", "")
+    cta = extra.get("cta", "Ara, torna a resoldre l'equació original.")
+
+    # `_render_fraction_safe` converteix fraccions textuals (`x/3`) en
+    # HTML visual sense escapar spans HTML legítims que l'autor del
+    # prereq ja ha escrit.
+    initial_eq_html = _render_fraction_safe(initial_eq)
+
+    # Cada element de `steps` pot ser:
+    #   - str: línia lliure (cas PRE-MCM, PRE-NEG, primera línia).
+    #   - [lhs, rhs]: equació amb `=` central; les dues bandes
+    #     s'alineen automàticament a una columna fixa via CSS grid
+    #     (equivalent al `&=` de LaTeX).
+    #
+    # Per garantir que els `=` quedin a la mateixa columna entre línies,
+    # totes les línies en format [lhs, rhs] CONTÍGUES comparteixen un
+    # MATEIX contenidor grid. Si una línia lliure trenca la seqüència,
+    # el grid es tanca i se'n comença un de nou per a les pairs següents.
+    html_parts = []
+    current_pairs = []  # buffer de (lhs_html, rhs_html)
+
+    def _flush_pairs():
+        if not current_pairs:
+            return ""
+        cells = []
+        for lhs_html, rhs_html in current_pairs:
+            cells.append(f'<div style="white-space:pre">{lhs_html}</div>')
+            cells.append('<div>=</div>')
+            cells.append(f'<div style="white-space:pre">{rhs_html}</div>')
+        out = (
+            '<div style="display:grid;'
+            'grid-template-columns:max-content max-content 1fr;'
+            'column-gap:0.4rem;row-gap:0;line-height:1.7;'
+            'font-family:\'Courier New\',Courier,monospace;">'
+            + "".join(cells)
+            + '</div>'
+        )
+        current_pairs.clear()
+        return out
+
+    for s in steps:
+        if isinstance(s, (list, tuple)) and len(s) == 2:
+            lhs = _render_fraction_safe(s[0])
+            rhs = _render_fraction_safe(s[1])
+            current_pairs.append((lhs, rhs))
+        else:
+            html_parts.append(_flush_pairs())
+            txt = _render_fraction_safe(s)
+            html_parts.append(
+                '<div style="white-space:pre;'
+                'font-family:\'Courier New\',Courier,monospace;'
+                f'line-height:1.7">{txt}</div>'
+            )
+    html_parts.append(_flush_pairs())
+    steps_lines = "".join(html_parts)
+
+    palette = _PREREQ_BOX_PALETTES[kind]
+    return f"""
+<div style="background-color:{palette['bg']};border:1px solid {palette['border']};
+            border-radius:0.375rem;padding:0.85rem 1.1rem;color:{palette['fg']};
+            margin-top:0.25rem;">
+  <div style="font-weight:600;margin-bottom:0.55rem;">{header}</div>
+  <div style="font-family:'Courier New',Courier,monospace;
+              background:rgba(0,0,0,0.06);border-radius:0.25rem;
+              padding:0.45rem 0.7rem;margin-bottom:0.55rem;">
+    <div style="white-space:pre;line-height:1.7">{initial_eq_html}</div>
+{steps_lines}
+  </div>
+  <div style="margin-bottom:0.55rem;">{summary}</div>
+  <div style="font-weight:700;">{cta}</div>
+</div>"""
+
+
 def render_sidebar():
     debug = _is_debug_mode()
     with st.sidebar:
@@ -1609,86 +1721,11 @@ def _render_message(m: dict):
         # ha resolt una tasca paral·lera, no un pas de l'equació original.
         extra = m.get("extra", {})
         if extra and extra.get("initial_equation") and extra.get("steps"):
-            initial_eq = extra["initial_equation"]
-            steps = extra["steps"]
-            summary = extra.get("summary", "")
-            cta = extra.get("cta", "Ara, torna a resoldre l'equació original.")
-
-            # `_render_fraction_safe` converteix fraccions textuals
-            # (`x/3`) en HTML visual sense escapar spans HTML legítims
-            # que l'autor del prereq ja ha escrit.
-            initial_eq_html = _render_fraction_safe(initial_eq)
-
-            # Cada element de `steps` pot ser:
-            #   - str: línia lliure (cas PRE-MCM, PRE-NEG, primera línia).
-            #   - [lhs, rhs]: equació amb `=` central; les dues bandes
-            #     s'alineen automàticament a una columna fixa via CSS
-            #     grid (equivalent al `&=` de LaTeX).
-            #
-            # Implementació: per garantir que els `=` quedin a la mateixa
-            # columna entre línies, totes les línies en format [lhs, rhs]
-            # comparteixen un MATEIX contenidor grid. Si el grid fos
-            # individual per cada línia, l'amplada de cada LHS seria
-            # independent. Per tant agrupem les línies contínues del
-            # mateix tipus en un únic block.
-            html_parts = []
-            current_pairs = []  # buffer de [lhs_html, rhs_html]
-
-            def _flush_pairs():
-                """Volca el buffer de parells [lhs,rhs] com a un únic
-                grid amb totes les línies, alineades a la mateixa
-                columna `=`."""
-                if not current_pairs:
-                    return ""
-                cells = []
-                for lhs_html, rhs_html in current_pairs:
-                    cells.append(f'<div style="white-space:pre">{lhs_html}</div>')
-                    cells.append('<div>=</div>')
-                    cells.append(f'<div style="white-space:pre">{rhs_html}</div>')
-                out = (
-                    '<div style="display:grid;'
-                    'grid-template-columns:max-content max-content 1fr;'
-                    'column-gap:0.4rem;row-gap:0;line-height:1.7;'
-                    'font-family:\'Courier New\',Courier,monospace;">'
-                    + "".join(cells)
-                    + '</div>'
-                )
-                current_pairs.clear()
-                return out
-
-            for s in steps:
-                if isinstance(s, (list, tuple)) and len(s) == 2:
-                    lhs = _render_fraction_safe(s[0])
-                    rhs = _render_fraction_safe(s[1])
-                    current_pairs.append((lhs, rhs))
-                else:
-                    # Línia lliure (string) — primer descarregar el
-                    # buffer de parells (si n'hi havia) i després
-                    # afegir la línia lliure.
-                    html_parts.append(_flush_pairs())
-                    txt = _render_fraction_safe(s)
-                    html_parts.append(
-                        '<div style="white-space:pre;'
-                        'font-family:\'Courier New\',Courier,monospace;'
-                        f'line-height:1.7">{txt}</div>'
-                    )
-            # Descarrega el buffer final
-            html_parts.append(_flush_pairs())
-            steps_lines = "".join(html_parts)
-            html = f"""
-<div style="background-color:#d1e7dd;border:1px solid #a3cfbb;
-            border-radius:0.375rem;padding:0.85rem 1.1rem;color:#0a3622;
-            margin-top:0.25rem;">
-  <div style="font-weight:600;margin-bottom:0.55rem;">✓ Correcte.</div>
-  <div style="font-family:'Courier New',Courier,monospace;
-              background:rgba(0,0,0,0.06);border-radius:0.25rem;
-              padding:0.45rem 0.7rem;margin-bottom:0.55rem;">
-    <div style="white-space:pre;line-height:1.7">{initial_eq_html}</div>
-{steps_lines}
-  </div>
-  <div style="margin-bottom:0.55rem;">{summary}</div>
-  <div style="font-weight:700;">{cta}</div>
-</div>"""
+            html = _render_prereq_visual_box(
+                extra,
+                kind="resolved",
+                header="✓ Correcte.",
+            )
             st.markdown(html, unsafe_allow_html=True)
         else:
             st.success(f"✓ {text}")
@@ -1696,7 +1733,20 @@ def _render_message(m: dict):
         # Caixa auxiliar de "fracàs al prereq". Persistent al viewport
         # (a diferència del missatge dins del panell del prereq, que es
         # tanca). Amb l'explicació de la resposta correcta.
-        st.warning(f"✗ {text}")
+        # Mateix render visual que `prereq_resolved` però en color groc/
+        # taronja (warning) i capçalera diferent. L'alumne veu la solució
+        # correcta encara que ell hagi fallat, perquè pugui aprendre de
+        # l'error.
+        extra = m.get("extra", {})
+        if extra and extra.get("initial_equation") and extra.get("steps"):
+            html = _render_prereq_visual_box(
+                extra,
+                kind="failed",
+                header="✗ La resposta no era correcta.",
+            )
+            st.markdown(html, unsafe_allow_html=True)
+        else:
+            st.warning(f"✗ {text}")
     elif kind == "warning":
         st.warning(text)
     elif kind == "system":
