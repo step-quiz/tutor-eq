@@ -148,6 +148,15 @@ st.markdown(
          per la classe st-key-{key} que Streamlit afegeix automàticament
          al div wrapper del botó. Així evitem servir type="primary"
          (que afectaria també el botó Enviar i altres). */
+      .st-key-example_btn button {
+          background-color: #16a34a !important;   /* verd */
+          color: #ffffff !important;
+          border: 1px solid #15803d !important;
+      }
+      .st-key-example_btn button:hover {
+          background-color: #15803d !important;
+          border-color: #166534 !important;
+      }
       .st-key-hint_btn button {
           background-color: #f59e0b !important;   /* taronja càlid */
           color: #ffffff !important;
@@ -439,6 +448,8 @@ def init_state():
         st.session_state.test_problem_id = None
     if "confirm_exit" not in st.session_state:
         st.session_state.confirm_exit = False
+    if "show_example" not in st.session_state:
+        st.session_state.show_example = False
     if "equation_changes" not in st.session_state:
         st.session_state.equation_changes = 0   # canvis d'equació amb sessió activa
     if "confirm_change_eq" not in st.session_state:
@@ -459,6 +470,9 @@ def start_session(problem_id: str):
     # anterior i ara comença un problema nou, neteja la flag perquè
     # el botó torni al seu estat inicial.
     st.session_state.confirm_exit = False
+    # Tancar també el panell d'exemple si havia quedat obert
+    # d'una sessió anterior.
+    st.session_state.show_example = False
     # Reseteja el marcador del prereq resolt per a la nova sessió.
     st.session_state.prereq_resolved_history_len = None
     # Si canviem de problema, els resultats del test anterior ja no
@@ -686,6 +700,56 @@ def _render_prereq_visual_box(extra: dict, kind: str, header: str) -> str:
 </div>"""
 
 
+def _render_action_buttons(s):
+    """Renderitza els 3 botons d'acció al top de la sidebar:
+       verd ('Vull un exemple'), taronja ('Vull una pista'),
+       gris fosc ('Vull sortir de la sessió').
+
+    Pre-condició: la funció només es crida quan hi ha una sessió
+    activa (s no és None i verdict_final és None). El caller s'encarrega
+    de comprovar-ho per evitar mostrar botons sense sentit.
+    """
+    # Botó verd: obre el panell d'exemple. No tanca la sessió ni
+    # consumeix res — és un recurs explicatiu opcional.
+    if st.button("Vull un exemple",
+                 key="example_btn",
+                 use_container_width=True):
+        st.session_state.show_example = True
+        st.rerun()
+
+    # Botó taronja: demana una pista al tutor (equivalent al senyal "?").
+    if st.button("Vull una pista",
+                 key="hint_btn",
+                 use_container_width=True):
+        T.process_turn(s, "?")
+        st.rerun()
+
+    # Botó gris fosc: sortir de la sessió amb confirmació en dos
+    # passos per evitar tancaments accidentals.
+    if not st.session_state.get("confirm_exit"):
+        if st.button("Vull sortir de la sessió",
+                     key="exit_btn",
+                     use_container_width=True):
+            st.session_state.confirm_exit = True
+            st.rerun()
+    else:
+        st.warning("Vols confirmar que surts de la sessió?")
+        col_ok, col_cancel = st.columns(2)
+        with col_ok:
+            if st.button("Acceptar",
+                         key="exit_confirm_btn",
+                         use_container_width=True):
+                st.session_state.confirm_exit = False
+                T.process_turn(s, "!!")
+                st.rerun()
+        with col_cancel:
+            if st.button("Cancel·lar",
+                         key="exit_cancel_btn",
+                         use_container_width=True):
+                st.session_state.confirm_exit = False
+                st.rerun()
+
+
 def render_sidebar():
     debug = _is_debug_mode()
     with st.sidebar:
@@ -732,6 +796,14 @@ def render_sidebar():
                     """,
                     height=0,
                 )
+
+        # Botons d'acció per a l'alumne. Col·locats al top de la sidebar
+        # perquè quedin sempre accessibles sense fer scroll (especialment
+        # important en mòbil i en sessions amb molts torns).
+        s = st.session_state.session
+        if s is not None and s.get("verdict_final") is None:
+            _render_action_buttons(s)
+            st.markdown("---")
 
         st.markdown("**Selecciona l'equació**")
 
@@ -880,44 +952,11 @@ def render_sidebar():
                     st.text(f"En prerequisit:  {s['active_prereq']}")
                 st.markdown("")  # petit espai abans dels botons d'acció
 
-            # Accions de l'alumne durant la sessió. Visibles tant en
-            # mode normal com en debug — són la substitució accessible
-            # dels senyals tècnics ?, !!. El color (CSS .st-key-...)
-            # els distingeix visualment: taronja per la pista (acció
-            # constructiva), gris fosc per sortir (acció definitiva).
-            if s["verdict_final"] is None:
-                if st.button("Vull una pista",
-                             key="hint_btn",
-                             use_container_width=True):
-                    T.process_turn(s, "?")
-                    st.rerun()
+            # Accions de l'alumne (Vull un exemple / Vull una pista /
+            # Vull sortir) s'han mogut al top de la sidebar (veure crida
+            # a _render_action_buttons més amunt) perquè quedin sempre
+            # accessibles sense fer scroll.
 
-                # Sortir té confirmació en dos passos: el primer clic
-                # activa la flag, el rerun mostra Acceptar / Cancel·lar.
-                # Així evitem tancaments accidentals.
-                if not st.session_state.get("confirm_exit"):
-                    if st.button("Vull sortir de la sessió",
-                                 key="exit_btn",
-                                 use_container_width=True):
-                        st.session_state.confirm_exit = True
-                        st.rerun()
-                else:
-                    st.warning("Vols confirmar que surts de la sessió?")
-                    col_ok, col_cancel = st.columns(2)
-                    with col_ok:
-                        if st.button("Acceptar",
-                                     key="exit_confirm_btn",
-                                     use_container_width=True):
-                            st.session_state.confirm_exit = False
-                            T.process_turn(s, "!!")
-                            st.rerun()
-                    with col_cancel:
-                        if st.button("Cancel·lar",
-                                     key="exit_cancel_btn",
-                                     use_container_width=True):
-                            st.session_state.confirm_exit = False
-                            st.rerun()
-                    
             # Mode debug: test exhaustiu (im2 part 2).
             if debug:
                 st.markdown("---")
@@ -1299,9 +1338,76 @@ def render_main():
         _render_test_results(st.session_state.test_results)
 
 
+def _render_example_panel():
+    """Panell temporal amb un exemple resolt pas a pas.
+
+    Es mostra al cap de la columna principal quan
+    st.session_state.show_example és True. L'alumne pot tancar-lo
+    amb el botó "Tanca l'exemple" dins del panell.
+
+    L'exemple s'alinea verticalment pel signe "=" mitjançant una
+    taula HTML de 3 columnes (LHS / "=" / RHS).
+    """
+    # Llista de passos a mostrar. Cada element és (lhs, rhs).
+    # El signe "=" el dibuixa la taula al mig.
+    steps = [
+        ("3x + 2",      "23"),
+        ("3x + 2 − 2",  "23 − 2"),
+        ("3x",          "21"),
+        ("x",           "7"),
+    ]
+
+    # Construcció de les files. La columna del centre porta el "=" amb
+    # una mica d'espai horitzontal perquè respiri.
+    rows_html = "\n".join(
+        f"<tr>"
+        f"<td style='text-align:right; padding:0.18rem 0;'>{lhs}</td>"
+        f"<td style='text-align:center; padding:0 0.6rem;'>=</td>"
+        f"<td style='text-align:left; padding:0.18rem 0;'>{rhs}</td>"
+        f"</tr>"
+        for lhs, rhs in steps
+    )
+
+    st.markdown(
+        f"""
+        <div style="background-color:#f0fdf4;
+                    border:1px solid #86efac;
+                    border-left:4px solid #16a34a;
+                    border-radius:6px;
+                    padding:1rem 1.2rem;
+                    margin-bottom:1rem;">
+          <div style="font-weight:700; color:#166534;
+                      margin-bottom:0.6rem; font-size:1.05em;">
+            Exemple resolt
+          </div>
+          <table style="font-family:'Courier New', Courier, monospace;
+                        font-size:1.15em; border-collapse:collapse;
+                        margin:0.4rem auto;">
+            {rows_html}
+          </table>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Botó per tancar el panell. Va just sota del bloc verd.
+    if st.button("Tanca l'exemple",
+                 key="close_example_btn",
+                 use_container_width=False):
+        st.session_state.show_example = False
+        st.rerun()
+
+
 def _render_problem_main(s, input_disabled: bool):
     """Renderitza el problema principal: capçalera, cadena, missatges, input."""
     debug = _is_debug_mode()
+
+    # Panell d'exemple resolt. Apareix al cap de la columna principal
+    # quan l'alumne ha clicat "Vull un exemple" a la sidebar. Es tanca
+    # amb el botó "Tanca l'exemple" del propi panell.
+    if st.session_state.get("show_example"):
+        _render_example_panel()
+
     # Capçalera del problema
     # En mode debug mostrem l'ID intern; a l'alumne li mostrem la forma canònica.
     _FAMILIA_FORMA = {
@@ -1501,34 +1607,6 @@ def _render_prereq_panel(s):
     """Panell dret per a la sub-tasca del prerequisit."""
     prereq = PB.get_prerequisite(s["active_prereq"])
 
-    # Millora 2: injectar CSS per al contenidor del panell de reforç.
-    # Streamlit no permet passar estils directament a st.container(),
-    # però podem injectar un bloc CSS que seleccioni el div pel data-testid
-    # que Streamlit afegeix automàticament a cada contenidor amb key.
-    st.markdown(
-        """
-        <style>
-        [data-testid="stVerticalBlock"] > [data-testid="stVerticalBlock"]:has(
-            [data-testid="stMarkdownContainer"] > p > strong
-        ) {}
-        /* Classe per al contenidor del prereq via key CSS */
-        .prereq-panel-wrapper {
-            background-color: #fffbeb;
-            border-left: 4px solid #f59e0b;
-            border-radius: 6px;
-            padding: 1rem 1.2rem;
-            margin-top: 0.4rem;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        "<div class='prereq-panel-wrapper'>",
-        unsafe_allow_html=True,
-    )
-
     # Avís d'obligatorietat
     st.markdown(
         "<div style='background:#fef3c7; border:1px solid #f59e0b; "
@@ -1537,9 +1615,6 @@ def _render_prereq_panel(s):
         "Respon aquest exercici abans de continuar.</div>",
         unsafe_allow_html=True,
     )
-
-    st.markdown("**Exercici de reforç**")
-    st.caption(prereq.get("concept", ""))
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
@@ -1593,8 +1668,6 @@ def _render_prereq_panel(s):
     st.markdown("<hr>", unsafe_allow_html=True)
     _render_input_form(s, key_prefix="prereq")
 
-    st.markdown("</div>", unsafe_allow_html=True)
-
 
 def _render_input_form(s, key_prefix: str):
     """Form d'input. Comú al fil principal i al prerequisit."""
@@ -1632,10 +1705,17 @@ def _render_input_form(s, key_prefix: str):
     # i només es buida quan el rerun final renderitza un nou camp (gràcies
     # a `input_counter` que canvia el key del widget).
     with st.form(key=key_form, clear_on_submit=False):
-        # Etiqueta amb més pes visual (Millora 5)
+        # Etiqueta amb més pes visual (Millora 5).
+        # Al fil principal demanem l'equació equivalent del pas següent;
+        # al panell de reforç demanem una resposta en text lliure.
+        label_text = (
+            "Escriu la frase en català:"
+            if key_prefix == "prereq"
+            else "Escriu una equació equivalent:"
+        )
         st.markdown(
             "<p style='font-weight:600; font-size:1em; color:#1e293b; margin-bottom:0.3rem;'>"
-            "Escriu una equació equivalent:</p>",
+            f"{label_text}</p>",
             unsafe_allow_html=True,
         )
         # `autocomplete="off"` ja s'aplica també des del JS injectat al cap
@@ -1643,7 +1723,7 @@ def _render_input_form(s, key_prefix: str):
         # i un name aleatori). El passem aquí com a defensa redundant per
         # si el script no s'arriba a executar.
         raw = st.text_input(
-            "Escriu una equació equivalent:",
+            label_text,
             label_visibility="collapsed",
             key=key_in,
             autocomplete="off",

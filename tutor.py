@@ -721,21 +721,18 @@ def _contextualize_error_message(error_label: str,
                         K = a
                         if v == M - K:
                             return (
-                                f"Crec que has restat {K} a {M}, "
-                                f"però calia DIVIDIR per {K}. "
-                                f"Revisa l'operació."
+                                f"crec que has restat {K} a {M}, "
+                                f"però calia DIVIDIR per {K}."
                             )
                         if v == M + K:
                             return (
-                                f"Crec que has sumat {K} a {M}, "
-                                f"però calia DIVIDIR per {K}. "
-                                f"Revisa l'operació."
+                                f"crec que has sumat {K} més {M}, "
+                                f"però calia DIVIDIR per {K}."
                             )
                         if v == M * K:
                             return (
-                                f"Crec que has multiplicat {M} per {K}, "
-                                f"però calia DIVIDIR per {K}. "
-                                f"Revisa l'operació."
+                                f"crec que has multiplicat {M} per {K}, "
+                                f"però calia DIVIDIR per {K}."
                             )
                     # Cas 2: x + b (a == 1), alumne ha sumat b en lloc de restar
                     if a == 1 and b != 0:
@@ -765,21 +762,18 @@ def _contextualize_error_message(error_label: str,
                         try:
                             if v == M / K:
                                 return (
-                                    f"Crec que has dividit {M} per {K}, "
-                                    f"però calia MULTIPLICAR per {K}. "
-                                    f"Revisa l'operació."
+                                    f"crec que has dividit {M} per {K}, "
+                                    f"però calia MULTIPLICAR per {K}."
                                 )
                             if v == M - K:
                                 return (
-                                    f"Crec que has restat {K} a {M}, "
-                                    f"però calia MULTIPLICAR per {K}. "
-                                    f"Revisa l'operació."
+                                    f"crec que has restat {K} a {M}, "
+                                    f"però calia MULTIPLICAR per {K}."
                                 )
                             if v == M + K:
                                 return (
-                                    f"Crec que has sumat {K} a {M}, "
-                                    f"però calia MULTIPLICAR per {K}. "
-                                    f"Revisa l'operació."
+                                    f"crec que has sumat {K} més {M}, "
+                                    f"però calia MULTIPLICAR per {K}."
                                 )
                         except (ZeroDivisionError, TypeError):
                             pass
@@ -1012,7 +1006,7 @@ def _start_prereq(state, prereq_id, dep_id):
 
     prereq = PB.get_prerequisite(prereq_id)
     _push_msg(state, "prereq",
-              "Cal practicar, abans, un exercici de reforç.",
+              "Cal practicar un exercici de reforç.",
               target="main")
 
 
