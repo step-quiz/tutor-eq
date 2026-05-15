@@ -394,20 +394,26 @@ PREREQUISITES = {
         #     (que és el snare de "fer la mateixa cosa als dos costats").
         #   - L2_one_side_only: aplicar una operació només a un costat.
         # La pregunta força explicitar l'operació I la simetria.
-        "question": "Tens 3x − 5 = 10 i vols passar el −5 a l'altre costat de l'equació. Quina operació fas? Explica-ho en català.",
+        #
+        # NOTA (2026-05-14): l'equació del prereq es va canviar de
+        # `3x − 5 = 10` (idèntica a EQ2-A-001) a `2x − 7 = 9` per evitar
+        # la coincidència visual amb un problema real. Si en algun pilot
+        # l'equació real del problema també és `2x − 7 = 9`, caldria
+        # tornar a canviar-la per a un altre conjunt de números.
+        "question": "Tens 2x − 7 = 9 i vols passar el −7 a l'altre costat de l'equació. Quina operació fas? Explica-ho en català.",
         # Conjugacions comunes del verb "sumar" en respostes d'alumne:
         # infinitiu, 1a persona present (la més freqüent), 2a, 3a, 1a plural,
-        # més sinònim "afegir" en diverses formes, més notació "+5".
+        # més sinònim "afegir" en diverses formes, més notació "+7".
         "keywords_required": [
             "sumar", "sumo", "sumes", "suma", "sumem",
             "afegir", "afegeix", "afegim", "afegeixo",
-            "+5", "+ 5",
+            "+7", "+ 7",
         ],
         # Operacions equivocades: cal incloure conjugacions explícites de
         # "restar" perquè els altres stems ("multiplic", "divid") ja cobreixen
         # totes les seves variants.
         "forbidden_keywords": ["restar", "resto", "resta", "restem", "multiplic", "divid"],
-        "explanation": "3x − 5 + 5 = 10 + 5 → 3x = 15. La clau és aplicar la mateixa operació als dos costats. En aquest cas, hem sumat 5 als dos costats.",
+        "explanation": "2x − 7 + 7 = 9 + 7 → 2x = 16. La clau és aplicar la mateixa operació als dos costats. En aquest cas, hem sumat 7 als dos costats.",
         # Camps per a la visualització estructurada al requadre verd:
         # Cada element de `explanation_steps` pot ser:
         #   - una string (línia lliure, no alineada)
@@ -415,11 +421,11 @@ PREREQUISITES = {
         #     (estil LaTeX `&=`), alineat automàticament via CSS grid.
         # Per a equacions, sempre format [lhs, rhs] perquè l'igual quedi
         # a la mateixa columna a totes les línies.
-        "initial_equation": "3x − 5 = 10",
+        "initial_equation": "2x − 7 = 9",
         "explanation_steps": [
-            ['3x − 5 <span style="color:#1a6fc4;font-weight:700">+5</span>',
-             '10 <span style="color:#1a6fc4;font-weight:700">+5</span>'],
-            ["3x", "15"],
+            ['2x − 7 <span style="color:#1a6fc4;font-weight:700">+7</span>',
+             '9 <span style="color:#1a6fc4;font-weight:700">+7</span>'],
+            ["2x", "16"],
         ],
     },
 }

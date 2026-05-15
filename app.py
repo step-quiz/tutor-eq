@@ -1580,14 +1580,16 @@ def _render_prereq_panel(s):
 
     if _eq_m and _qm:
         _eq_part = html.escape(_eq_m.group(1).strip())
-        _qtext   = _qm.group(0).strip()
-        _qtext   = _qtext[0].upper() + _qtext[1:]   # primera lletra en majúscula
-        _q_part  = html.escape(_qtext)
+        # NOTA: la línia bold central "Quina operació fas?" (extreta del
+        # camp `question` via _qm) s'ometia abans i ara s'omet del tot:
+        # és redundant amb la línia grisa final ("Explica, amb una frase
+        # en català, quina operació fas."). Mantenim la captura del regex
+        # `_qm` perquè detectem si el `question` segueix el patró
+        # esperat — si no hi ha pregunta "Quina...?", caiem al fallback.
         question_html = (
             f"<p style='margin:0; line-height:1.7;'>"
             f"<span style='font-family:monospace; font-size:1.1em; "
             f"font-weight:600;'>{_eq_part}</span><br>"
-            f"<span style='font-weight:600;'>{_q_part}</span><br>"
             f"<span style='color:#78716c;'>Explica, amb una frase en català, quina operació fas.</span>"
             f"</p>"
         )

@@ -808,5 +808,111 @@ class TestPrereqVariantSelection(unittest.TestCase):
         )
 
 
+class TestContextualizedErrorMessages(unittest.TestCase):
+    """Cobreix `_contextualize_error_message`: generació determinista de
+    missatges d'error amb els números reals del moment, en lloc del text
+    genèric del catàleg.
+
+    Aquests tests són unitaris (sense passar pel cicle de Streamlit ni la
+    IA). Si un cas falla, mirar si:
+      - El parsing de SymPy ha canviat (poc probable, però possible).
+      - El patró de detecció s'ha trencat.
+    Si un label no cobert avui s'incorpora al futur, afegir un test aquí.
+    """
+
+    def _ctx(self, label, last, attempt):
+        return tutor._contextualize_error_message(label, last, attempt)
+
+    # ─── L1_sign_error ───────────────────────────────────────────────
+    def test_sign_error_negative_coefficient(self):
+        # Cas paradigmàtic: -3x = 9 → x = 3 (havia de ser -3)
+        msg = self._ctx("L1_sign_error", "-3x = 9", "x = 3")
+        self.assertIsNotNone(msg)
+        self.assertIn("dividit per 3", msg)
+        self.assertIn("−3", msg)
+
+    def test_sign_error_x_on_rhs(self):
+        # La x al RHS: 9 = -3x → x = 3 (mateix patró)
+        msg = self._ctx("L1_sign_error", "9 = -3x", "x = 3")
+        self.assertIsNotNone(msg)
+        self.assertIn("−3", msg)
+
+    def test_sign_error_positive_k_negative_m(self):
+        # K positiu, M negatiu: 5x = -20 → x = 4 (havia de ser -4)
+        msg = self._ctx("L1_sign_error", "5x = -20", "x = 4")
+        self.assertIsNotNone(msg)
+        self.assertIn("signe", msg)
+
+    def test_sign_error_correct_answer_returns_none(self):
+        # Resposta correcta: no és error real, retornar None
+        self.assertIsNone(self._ctx("L1_sign_error", "2x = 10", "x = 5"))
+
+    # ─── L1_inverse_op ───────────────────────────────────────────────
+    def test_inverse_op_subtracted_instead_of_divided(self):
+        # 3x = 21 → x = 18 (alumne ha restat 3)
+        msg = self._ctx("L1_inverse_op", "3x = 21", "x = 18")
+        self.assertIsNotNone(msg)
+        self.assertIn("restat", msg)
+        self.assertIn("DIVIDIR", msg)
+
+    def test_inverse_op_added_instead_of_subtracted(self):
+        # x + 5 = 12 → x = 17 (alumne ha sumat 5 enlloc de restar)
+        msg = self._ctx("L1_inverse_op", "x + 5 = 12", "x = 17")
+        self.assertIsNotNone(msg)
+        self.assertIn("sumat", msg)
+        self.assertIn("restar", msg)
+
+    def test_inverse_op_x_on_rhs(self):
+        # 21 = 3x → x = 18 (mateix patró, x al RHS)
+        msg = self._ctx("L1_inverse_op", "21 = 3x", "x = 18")
+        self.assertIsNotNone(msg)
+        self.assertIn("restat", msg)
+
+    # ─── L2_transpose_sign ───────────────────────────────────────────
+    def test_transpose_sign_lhs_positive_constant(self):
+        # 3x - 5 = 10 → 3x = 5 (transposat -5 sense canvi de signe)
+        msg = self._ctx("L2_transpose_sign", "3x - 5 = 10", "3x = 5")
+        self.assertIsNotNone(msg)
+        self.assertIn("−5", msg)
+        self.assertIn("+5", msg)
+
+    def test_transpose_sign_x_on_rhs(self):
+        # 12 = 2x + 4 → 2x = 16 (cas que motivava el refactor de variants)
+        msg = self._ctx("L2_transpose_sign", "12 = 2x + 4", "2x = 16")
+        self.assertIsNotNone(msg)
+        self.assertIn("+4", msg)
+        self.assertIn("−4", msg)
+
+    # ─── L4_illegal_cancel ───────────────────────────────────────────
+    def test_illegal_cancel_simple(self):
+        # (x+1)/3 = 4 → x + 1 = 4 (denominador eliminat sense multiplicar)
+        msg = self._ctx("L4_illegal_cancel", "(x+1)/3 = 4", "x + 1 = 4")
+        self.assertIsNotNone(msg)
+        self.assertIn("3", msg)
+        self.assertIn("denominador", msg)
+
+    def test_illegal_cancel_with_coefficient(self):
+        # 2x/3 = 6 → 2x = 6 (mateix patró)
+        msg = self._ctx("L4_illegal_cancel", "2x/3 = 6", "2x = 6")
+        self.assertIsNotNone(msg)
+        self.assertIn("3", msg)
+
+    # ─── Labels no coberts (han de retornar None) ────────────────────
+    def test_uncovered_labels_return_none(self):
+        # Aquests labels no estan implementats al contextualitzador:
+        # han de retornar None perquè caigui al missatge genèric.
+        self.assertIsNone(
+            self._ctx("GEN_arithmetic", "3x = 15", "3x = 13"))
+        self.assertIsNone(
+            self._ctx("L3_distribution_partial", "3(x-2) = 9", "3x - 2 = 9"))
+        self.assertIsNone(
+            self._ctx("L2_like_terms", "2x + 5x = 21", "10x = 21"))
+
+    def test_unparseable_returns_none(self):
+        # Si una de les equacions no parseja, retornem None.
+        self.assertIsNone(self._ctx("L1_sign_error", "no és equació", "x = 3"))
+        self.assertIsNone(self._ctx("L1_sign_error", "3x = 9", "tampoc"))
+
+
 if __name__ == "__main__":
     unittest.main()

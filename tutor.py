@@ -472,7 +472,16 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
     # apareix quan ha hagut revisió.
     if revision_info is not None:
         state["history"][-1]["error_label_revised"] = revision_info
-    _push_msg(state, "feedback", ce["short_msg"])
+
+    # Intent de contextualitzar el missatge d'error amb els números reals
+    # de `last_correct` i de l'atemptp. Funció determinista: parseja amb
+    # SymPy i només retorna text si està segura del patró. Si no pot,
+    # retorna None i caiem al `short_msg` genèric de la IA. Veure
+    # `_contextualize_error_message` més avall.
+    _ctx_msg = _contextualize_error_message(
+        ce["error_label"], last_correct, raw_text,
+    )
+    _push_msg(state, "feedback", _ctx_msg or ce["short_msg"])
 
     # Fallback determinista per al retrocés a prerequisits.
     # Si l'etiqueta d'error implica clarament un concepte (per exemple
@@ -605,6 +614,193 @@ def _handle_help(state):
     })
     state["pending_proactive_offer"] = False
     return state
+
+
+# ------------------------------------------------------------
+# Contextualització de missatges d'error
+# ------------------------------------------------------------
+def _contextualize_error_message(error_label: str,
+                                  last_correct_text: str,
+                                  attempt_text: str) -> str | None:
+    """
+    Genera un missatge d'error contextualitzat amb els números reals del
+    moment, en lloc del text genèric del catàleg.
+
+    Estratègia DETERMINISTA: parsejem `last_correct_text` i `attempt_text`
+    amb SymPy, identifiquem el patró específic de l'error, i construïm
+    una frase. Cap crida a la IA — sense risc d'al·lucinació.
+
+    Cobreix els 4 labels més pedagògicament rics:
+        - L1_sign_error   ("dividit per K en lloc de per -K")
+        - L1_inverse_op   ("restat K en lloc de dividir per K")
+        - L2_transpose_sign ("mogut +b sense canviar el signe")
+        - L4_illegal_cancel ("tret el denominador d sense multiplicar...")
+
+    Per a la resta de labels, retorna None i el sistema usa el missatge
+    genèric de la IA (a `ce["short_msg"]`).
+
+    Si la detecció falla (equació no parseja, patró inesperat), retorna
+    None — fallback al missatge genèric. Mai produeix un missatge incorrecte:
+    només produeix res quan està segur del que diu.
+    """
+    from verifier import X, parse_equation
+    from sympy import Poly, Rational
+
+    last_eq = parse_equation(last_correct_text)
+    att_eq = parse_equation(attempt_text)
+    if last_eq is None or att_eq is None:
+        return None
+    last_lhs, last_rhs = last_eq
+    att_lhs, att_rhs = att_eq
+
+    try:
+        # ─── L1_sign_error ─────────────────────────────────────────────
+        # Patró: de Kx = M, l'alumne ha calculat un x amb el signe equivocat
+        # (magnitud correcta). El cas paradigmàtic és:
+        #   −3x = 9  → x = 3  (havia de ser −3; signe oposat al correcte)
+        #   5x = −20 → x = 4  (havia de ser −4)
+        #   2x = −10 → x = 5  (havia de ser −5)
+        # La x pot estar a qualsevol costat.
+        if error_label == "L1_sign_error":
+            if X in last_lhs.free_symbols and X not in last_rhs.free_symbols:
+                x_side, const_side = last_lhs, last_rhs
+            elif X in last_rhs.free_symbols and X not in last_lhs.free_symbols:
+                x_side, const_side = last_rhs, last_lhs
+            else:
+                x_side = None
+            if x_side is not None:
+                p_xside = Poly(x_side, X)
+                coeffs = p_xside.all_coeffs()
+                if len(coeffs) == 2 and coeffs[1] == 0:  # Kx (sense terme indep.)
+                    K = coeffs[0]
+                    M = const_side
+                    if att_lhs == X and X not in att_rhs.free_symbols:
+                        v = att_rhs
+                        try:
+                            correct = M / K
+                            if v == -correct and v != correct:
+                                K_str = str(K).replace('-', '−')
+                                absK_str = str(abs(K))
+                                if K_str == absK_str:
+                                    return (
+                                        f"El resultat té el signe equivocat. "
+                                        f"Si {K_str}·x = {M}, x ha de ser "
+                                        f"{correct} (no {v}). Revisa el signe."
+                                    )
+                                return (
+                                    f"Crec que has dividit per {absK_str}, "
+                                    f"però calia dividir per {K_str}. "
+                                    f"Revisa el signe."
+                                )
+                        except (ZeroDivisionError, TypeError):
+                            pass
+
+        # ─── L1_inverse_op ─────────────────────────────────────────────
+        # Patró 1: Kx = M → x = M ± K (additiu en lloc de divisió)
+        # Patró 2: x + K = M → x = K + M (no inverteix l'additiu)
+        # Patró 3: x/K = M → x = M/K (divideix en lloc de multiplicar)
+        # La x pot estar a qualsevol costat de l'última correcta.
+        if error_label == "L1_inverse_op":
+            if X in last_lhs.free_symbols and X not in last_rhs.free_symbols:
+                x_side, const_side = last_lhs, last_rhs
+            elif X in last_rhs.free_symbols and X not in last_lhs.free_symbols:
+                x_side, const_side = last_rhs, last_lhs
+            else:
+                x_side = None
+            if x_side is not None and att_lhs == X and X not in att_rhs.free_symbols:
+                p_xside = Poly(x_side, X)
+                coeffs = p_xside.all_coeffs()  # [a, b] per a a*x + b
+                v = att_rhs
+                M = const_side
+                if len(coeffs) == 2:
+                    a, b = coeffs
+                    # Cas 1: Kx (b == 0), alumne ha fet x = M - K o M + K
+                    if b == 0 and a != 0:
+                        K = a
+                        if v == M - K:
+                            return (
+                                f"Crec que has restat {K} a {M}, "
+                                f"però calia DIVIDIR per {K}. "
+                                f"Revisa l'operació."
+                            )
+                        if v == M + K:
+                            return (
+                                f"Crec que has sumat {K} a {M}, "
+                                f"però calia DIVIDIR per {K}. "
+                                f"Revisa l'operació."
+                            )
+                    # Cas 2: x + b (a == 1), alumne ha sumat b en lloc de restar
+                    if a == 1 and b != 0:
+                        if v == M + b:
+                            b_str = f"+{b}" if b > 0 else f"{b}"
+                            return (
+                                f"Has sumat {b_str.lstrip('+')} a {M} en lloc de "
+                                f"restar-lo. Recorda que l'operació inversa de "
+                                f"sumar és restar."
+                            )
+                        if v == M - b and b < 0:
+                            return (
+                                f"Has restat {abs(b)} en lloc de sumar-lo. "
+                                f"Recorda que l'operació inversa de restar és sumar."
+                            )
+
+        # ─── L2_transpose_sign ─────────────────────────────────────────
+        # Patró: ax + b = c → ax = c + b (mantingut el signe en lloc d'invertir-lo).
+        # La x pot ser a qualsevol costat. Normalitzem perquè la x estigui
+        # sempre a un dels costats; el terme constant a transposar és el
+        # que apareix al costat amb x.
+        if error_label == "L2_transpose_sign":
+            # Identifiquem quin costat té x i quin no
+            if X in last_lhs.free_symbols and X not in last_rhs.free_symbols:
+                x_side, _const_side = last_lhs, last_rhs
+            elif X in last_rhs.free_symbols and X not in last_lhs.free_symbols:
+                x_side, _const_side = last_rhs, last_lhs
+            else:
+                x_side = None
+
+            if x_side is not None:
+                p_xside = Poly(x_side, X)
+                coeffs = p_xside.all_coeffs()
+                if len(coeffs) == 2:
+                    a, b = coeffs
+                    if b != 0:
+                        # El terme transposat és b (amb el seu signe original
+                        # a x_side). Si b > 0, l'alumne hauria de passar-ho
+                        # com a "−b" a l'altre costat. Si b < 0, com a "+|b|".
+                        if b > 0:
+                            term_str = f"+{b}"
+                            inverse_str = f"−{b}"
+                        else:
+                            term_str = f"−{abs(b)}"
+                            inverse_str = f"+{abs(b)}"
+                        return (
+                            f"Has passat el {term_str} a l'altre costat, "
+                            f"però havies de canviar-li el signe a {inverse_str}. "
+                            f"Quan un terme canvia de costat, el signe s'inverteix."
+                        )
+
+        # ─── L4_illegal_cancel ─────────────────────────────────────────
+        # Patró: a/d = c (last) → a = c (att, sense multiplicar el RHS per d).
+        # Detecció: l'última té denominador, l'atemptp no, i el RHS és el mateix.
+        if error_label == "L4_illegal_cancel":
+            # Si l'última té x dividit per algo i l'atemptp no, és aquest patró.
+            # Comprovem si `last_lhs * d == att_lhs` per algun enter `d`.
+            # Heurística: si l'atemptp_rhs == last_rhs (sense canvi), és illegal cancel.
+            if att_rhs == last_rhs:
+                # Cerquem el denominador. Sympy simplifica `(x+1)/3` com
+                # `(x+1)*Rational(1,3)`. Mirem la forma `last_lhs`.
+                from sympy import together, fraction
+                num, den = fraction(together(last_lhs))
+                if den != 1 and num == att_lhs:
+                    return (
+                        f"Has eliminat el denominador {den} d'un costat, "
+                        f"però havies de multiplicar l'altre costat per {den} "
+                        f"perquè els dos costats segueixin sent iguals."
+                    )
+    except Exception:
+        # Qualsevol fallada de SymPy o tipus → fallback al missatge genèric
+        return None
+    return None
 
 
 # ------------------------------------------------------------
