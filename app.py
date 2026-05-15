@@ -1346,27 +1346,70 @@ def _render_example_panel():
     amb el botó "Tanca l'exemple" dins del panell.
 
     L'exemple s'alinea verticalment pel signe "=" mitjançant una
-    taula HTML de 3 columnes (LHS / "=" / RHS).
+    taula HTML de 3 columnes (LHS / "=" / RHS). Cada fila té un
+    format pedagògic propi:
+      - Pas 1 (equació original): en negreta perquè es destaqui com
+        el punt de partida.
+      - Pas 2 (operació equivalent): el "− 2" en blau a banda i
+        banda perquè es vegi clarament què s'ha sumat a cada membre.
+      - Pas 3: format normal.
+      - Pas 4 (solució): emmarcada (\\boxed) per indicar la
+        resposta final.
     """
-    # Llista de passos a mostrar. Cada element és (lhs, rhs).
-    # El signe "=" el dibuixa la taula al mig.
-    steps = [
-        ("3x + 2",      "23"),
-        ("3x + 2 − 2",  "23 − 2"),
-        ("3x",          "21"),
-        ("x",           "7"),
-    ]
+    # Color del "− 2" del pas 2. Blau intens amb bon contrast sobre
+    # el fons verd-claríssim del panell.
+    HIGHLIGHT_BLUE = "#1d4ed8"
 
-    # Construcció de les files. La columna del centre porta el "=" amb
-    # una mica d'espai horitzontal perquè respiri.
-    rows_html = "\n".join(
+    # Estils repetits per a les 3 cel·les d'una fila estàndard.
+    td_l = "text-align:right; padding:0.18rem 0;"
+    td_c = "text-align:center; padding:0 0.6rem;"
+    td_r = "text-align:left; padding:0.18rem 0;"
+
+    # Pas 1: equació original, en negreta.
+    row_1 = (
         f"<tr>"
-        f"<td style='text-align:right; padding:0.18rem 0;'>{lhs}</td>"
-        f"<td style='text-align:center; padding:0 0.6rem;'>=</td>"
-        f"<td style='text-align:left; padding:0.18rem 0;'>{rhs}</td>"
+        f"<td style='{td_l} font-weight:700;'>3x + 2</td>"
+        f"<td style='{td_c} font-weight:700;'>=</td>"
+        f"<td style='{td_r} font-weight:700;'>23</td>"
         f"</tr>"
-        for lhs, rhs in steps
     )
+
+    # Pas 2: "− 2" ressaltat en blau a banda i banda.
+    blue_minus_2 = f"<span style='color:{HIGHLIGHT_BLUE};'>− 2</span>"
+    row_2 = (
+        f"<tr>"
+        f"<td style='{td_l}'>3x + 2 {blue_minus_2}</td>"
+        f"<td style='{td_c}'>=</td>"
+        f"<td style='{td_r}'>23 {blue_minus_2}</td>"
+        f"</tr>"
+    )
+
+    # Pas 3: simplificació, format normal.
+    row_3 = (
+        f"<tr>"
+        f"<td style='{td_l}'>3x</td>"
+        f"<td style='{td_c}'>=</td>"
+        f"<td style='{td_r}'>21</td>"
+        f"</tr>"
+    )
+
+    # Pas 4: solució final dins d'una caixa (\\boxed). Es centra a
+    # tota l'amplada de la taula (colspan=3) perquè la caixa es
+    # mostri com a conclusió i no estigui restringida a l'alineació
+    # pel "=" de les files anteriors.
+    row_4 = (
+        "<tr>"
+        "<td colspan='3' style='text-align:center; padding-top:0.7rem;'>"
+        "<span style='display:inline-block; padding:0.35rem 0.9rem;"
+        " border:2px solid #166534; border-radius:4px;"
+        " background-color:#ffffff; font-weight:700;'>"
+        "x = 7"
+        "</span>"
+        "</td>"
+        "</tr>"
+    )
+
+    rows_html = row_1 + row_2 + row_3 + row_4
 
     st.markdown(
         f"""
