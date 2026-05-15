@@ -167,57 +167,6 @@ st.markdown(
           border-color: #1a1a1a !important;
       }
 
-      /* ─────────────────────────────────────────────────────────────
-       * Sidebar collapse/expand — control "obrir sidebar".
-       *
-       * El control natiu de Streamlit per re-obrir el sidebar col·lapsat
-       * té comportament inconsistent: a vegades no es renderitza, a
-       * vegades apareix petit i amagat, i el seu `data-testid` canvia
-       * entre versions. Per estabilitat injectem un control propi via
-       * JavaScript (veure cv1_sidebar_toggle a baix), però també forcem
-       * estils per al control natiu en els casos que sí existeix —
-       * així no veiem dos botons quan Streamlit en renderitza un.
-       *
-       * El control propi viu al cantó superior esquerre i toggle-eja
-       * la classe que Streamlit usa per col·lapsar el sidebar.
-       * ───────────────────────────────────────────────────────────── */
-      /* Amaga el control natiu per evitar duplicació quan Streamlit
-         decideix renderitzar-lo: el nostre control propi és més fiable. */
-      [data-testid="stSidebarCollapsedControl"],
-      [data-testid="collapsedControl"],
-      [data-testid="stExpandSidebarButton"] {
-          display: none !important;
-      }
-      /* Control propi: sempre visible top-left quan el sidebar està
-         col·lapsat. S'inserta via JS al body (veure injecció a sota). */
-      #custom-sidebar-toggle {
-          position: fixed;
-          top: 0.6rem;
-          left: 0.6rem;
-          z-index: 999999;
-          background-color: #ffffff;
-          border: 1px solid #cbd5e1;
-          border-radius: 6px;
-          padding: 6px 10px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-          cursor: pointer;
-          font-family: inherit;
-          font-size: 18px;
-          color: #475569;
-          line-height: 1;
-          font-weight: bold;
-          user-select: none;
-      }
-      #custom-sidebar-toggle:hover {
-          background-color: #f1f5f9;
-          border-color: #94a3b8;
-      }
-      /* Quan el sidebar està obert, amaguem el nostre control
-         (l'usuari ja té les fletxes natives << per col·lapsar). */
-      body.sidebar-is-open #custom-sidebar-toggle {
-          display: none;
-      }
-
       /* Augment del 20% del text al panell principal per millor
          lectura per a l'Aran. El sidebar (que usa altres contenidors)
          no es veu afectat. */
@@ -238,126 +187,27 @@ st.markdown(
           color: #ffffff !important;
           border: 2px solid #1a1a1a !important;
       }
+
+      /* ─────────────────────────────────────────────────────────────
+       * Sidebar sempre obert (decisió pilot 2n d'ESO, 2026-05-14).
+       *
+       * Amaguem les fletxes natives `<<` del header del sidebar, així
+       * l'alumne no pot col·lapsar-lo i evitem el bug recurrent que el
+       * control de "tornar a obrir" no apareix sempre al DOM de
+       * Streamlit. El sidebar conté info útil per a la sessió (selector
+       * d'equació, equació vàlida fins ara) que val la pena tenir
+       * sempre visible. El panell principal viu amb max-width:720px
+       * (.main-narrow), per tant l'amplada del sidebar no és un coll
+       * d'ampolla per al contingut central.
+       * ───────────────────────────────────────────────────────────── */
+      [data-testid="stSidebarCollapseButton"],
+      [data-testid="stSidebarCollapsedControl"],
+      [data-testid="collapsedControl"] {
+          display: none !important;
+      }
     </style>
     """,
     unsafe_allow_html=True,
-)
-
-# JavaScript: injecta un botó propi per re-obrir el sidebar quan està
-# col·lapsat. El control natiu de Streamlit té comportament inconsistent
-# (no es renderitza sempre, canvia de `data-testid` entre versions). El
-# botó injectat aquí és independent del DOM intern de Streamlit i només
-# necessita poder modificar la classe del body i clicar l'element nadiu
-# de toggle quan existeix. Si Streamlit canvia internament, aquest
-# control continua funcionant perquè és HTML pur.
-#
-# Funcionament:
-#   - Observem el sidebar via MutationObserver per detectar quan
-#     canvia el seu estat (obert / col·lapsat).
-#   - Marquem el body amb la classe `sidebar-is-open` o no.
-#   - El CSS de més amunt mostra/amaga el botó propi en funció d'aquesta
-#     classe.
-#   - Quan l'usuari clica el botó, simulem un clic al control natiu (si
-#     existeix) o, en últim recurs, modifiquem l'amplada del sidebar
-#     directament.
-import streamlit.components.v1 as _components
-_components.html(
-    """
-    <script>
-    (function() {
-        const parentDoc = window.parent.document;
-        const parentWin = window.parent;
-
-        // Crea el botó si no existeix encara
-        function ensureButton() {
-            let btn = parentDoc.getElementById('custom-sidebar-toggle');
-            if (btn) return btn;
-            btn = parentDoc.createElement('button');
-            btn.id = 'custom-sidebar-toggle';
-            btn.innerHTML = '&raquo;';
-            btn.title = 'Obre la barra lateral';
-            btn.setAttribute('aria-label', 'Obre la barra lateral');
-            btn.addEventListener('click', function() {
-                // Intent 1: clicar el control natiu de Streamlit si existeix
-                const nativeSelectors = [
-                    '[data-testid="stSidebarCollapsedControl"]',
-                    '[data-testid="collapsedControl"]',
-                    '[data-testid="stExpandSidebarButton"]',
-                ];
-                for (const sel of nativeSelectors) {
-                    const el = parentDoc.querySelector(sel);
-                    if (el) {
-                        // Pot ser que `el` sigui el contenidor: buscar el botó dins
-                        const innerBtn = el.tagName === 'BUTTON' ? el : el.querySelector('button');
-                        if (innerBtn) { innerBtn.click(); return; }
-                        el.click();
-                        return;
-                    }
-                }
-                // Intent 2 (fallback): forçar el sidebar a estar visible
-                // modificant directament la seva CSS. Streamlit usa
-                // `aria-expanded` o classes per controlar el col·lapse,
-                // així que provem unes quantes coses.
-                const sidebar = parentDoc.querySelector(
-                    '[data-testid="stSidebar"], section[data-testid="stSidebar"]'
-                );
-                if (sidebar) {
-                    sidebar.style.transform = 'translateX(0)';
-                    sidebar.style.visibility = 'visible';
-                    sidebar.style.width = '';  // resetejar a default
-                    sidebar.setAttribute('aria-expanded', 'true');
-                }
-            });
-            parentDoc.body.appendChild(btn);
-            return btn;
-        }
-
-        // Observa l'estat del sidebar (obert / col·lapsat) i actualitza
-        // la classe del body en conseqüència.
-        function updateBodyClass() {
-            const sidebar = parentDoc.querySelector(
-                '[data-testid="stSidebar"], section[data-testid="stSidebar"]'
-            );
-            if (!sidebar) {
-                // Sidebar no existeix encara: assumim col·lapsat
-                parentDoc.body.classList.remove('sidebar-is-open');
-                return;
-            }
-            // Streamlit usa `aria-expanded="true/false"` al sidebar o,
-            // en versions noves, controla via amplada/transform.
-            // Heurística robusta: si l'amplada visible del sidebar és
-            // significativa (> 50px), considerem que està obert.
-            const rect = sidebar.getBoundingClientRect();
-            const isOpen = rect.width > 50 && rect.left >= -10;
-            if (isOpen) {
-                parentDoc.body.classList.add('sidebar-is-open');
-            } else {
-                parentDoc.body.classList.remove('sidebar-is-open');
-            }
-        }
-
-        // Inicialització: crea el botó i observa canvis
-        function init() {
-            ensureButton();
-            updateBodyClass();
-        }
-        init();
-
-        // Observador: el DOM de Streamlit pot canviar (rerun), així que
-        // re-creem el botó i refresquem l'estat amb un MutationObserver.
-        const obs = new MutationObserver(function() {
-            ensureButton();
-            updateBodyClass();
-        });
-        obs.observe(parentDoc.body, {
-            childList: true, subtree: true,
-            attributes: true, attributeFilter: ['style', 'class', 'aria-expanded']
-        });
-    })();
-    </script>
-    """,
-    height=0,
-    width=0,
 )
 
 # Amaga elements de chrome de Streamlit (menú de tres punts amb tema /
