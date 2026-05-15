@@ -825,7 +825,7 @@ def _process_prereq_turn(state, raw_text):
                 "initial_equation": prereq["initial_equation"],
                 "steps": prereq["explanation_steps"],
                 "summary": prereq.get("explanation_summary", ""),
-                "cta": "Ara, torna a resoldre l'equació original.",
+                "cta": "Continua amb la resolució de l'equació.",
             }
         _push_msg(state, "prereq_resolved",
                   "Correcte.",
@@ -854,7 +854,7 @@ def _process_prereq_turn(state, raw_text):
                 "initial_equation": prereq["initial_equation"],
                 "steps": prereq["explanation_steps"],
                 "summary": prereq.get("explanation_summary", ""),
-                "cta": "Ara ja pots intentar resoldre l'equació original.",
+                "cta": "Continua amb la resolució de l'equació.",
             }
         _push_msg(state, "prereq_failed",
                   "La resposta no era correcta.",

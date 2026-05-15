@@ -181,12 +181,10 @@ PREREQUISITES = {
         # narració, conclusió narrativa, resultat formal destacat.
         "initial_equation": "−7 + 3",
         "explanation_steps": [
-            "−7 + 3",
             "gasto 7€ i cobro 3€",
             "he gastat 4€",
             '<span style="color:#1a6fc4;font-weight:700">−7 + 3 = −4</span>',
         ],
-        "explanation_summary": "Sumar un negatiu i un positiu es pot veure com gastar i cobrar.",
     },
     "PRE-FRAC-CROSS": {
         "id": "PRE-FRAC-CROSS",
@@ -203,12 +201,10 @@ PREREQUISITES = {
         # per alinear l'igual.
         "initial_equation": "x/3 = 5/2",
         "explanation_steps": [
-            ["x/3", "5/2"],
             ['<span style="color:#1a6fc4;font-weight:700">2·</span>x',
              '<span style="color:#1a6fc4;font-weight:700">3·</span>5'],
             ["2x", "15"],
         ],
-        "explanation_summary": "Hem multiplicat en creu.",
     },
     "PRE-FRAC-COEF": {
         "id": "PRE-FRAC-COEF",
@@ -222,13 +218,11 @@ PREREQUISITES = {
         # pel coeficient.
         "initial_equation": "2x/3 = 6",
         "explanation_steps": [
-            ["2x/3", "6"],
             ['<span style="color:#1a6fc4;font-weight:700">(2x/3)·3</span>',
              '<span style="color:#1a6fc4;font-weight:700">6·3</span>'],
             ["2x", "18"],
             ["x", "9"],
         ],
-        "explanation_summary": "Primer hem multiplicat per 3 per treure el denominador, i després hem dividit per 2.",
     },
     "PRE-MCM": {
         "id": "PRE-MCM",
@@ -246,7 +240,6 @@ PREREQUISITES = {
             'Múltiples de 3: 3, <span style="color:#1a6fc4;font-weight:700">6</span>, 9, 12, 15...',
             'mcm(2, 3) = <span style="color:#1a6fc4;font-weight:700">6</span>',
         ],
-        "explanation_summary": "El mínim comú múltiple ha de ser múltiple de 2 i de 3, i també ha de ser el més petit possible.",
     },
     "PRE-DIST-PLUS": {
         "id": "PRE-DIST-PLUS",
@@ -264,11 +257,9 @@ PREREQUISITES = {
         # banda i banda del "+".
         "initial_equation": '<span style="color:#1a6fc4;font-weight:700">5·</span>(x + 2)',
         "explanation_steps": [
-            '<span style="color:#1a6fc4;font-weight:700">5·</span>(x + 2)',
             '<span style="color:#1a6fc4;font-weight:700">5·</span>x + <span style="color:#1a6fc4;font-weight:700">5·</span>2',
             "5x + 10",
         ],
-        "explanation_summary": "El 5 multiplica cada terme: per tant, tenim 5·x i 5·2.",
     },
     "PRE-DIST-MINUS": {
         "id": "PRE-DIST-MINUS",
@@ -280,11 +271,9 @@ PREREQUISITES = {
         # distribueix igualment a cada terme; el signe del 2 es manté.
         "initial_equation": '<span style="color:#1a6fc4;font-weight:700">5·</span>(x − 2)',
         "explanation_steps": [
-            '<span style="color:#1a6fc4;font-weight:700">5·</span>(x − 2)',
             '<span style="color:#1a6fc4;font-weight:700">5·</span>x − <span style="color:#1a6fc4;font-weight:700">5·</span>2',
             "5x − 10",
         ],
-        "explanation_summary": "El 5 multiplica cada terme: per tant, tenim 5·x i 5·2 (el signe es manté).",
     },
     "PRE-SIGNES-MINUS": {
         "id": "PRE-SIGNES-MINUS",
@@ -296,10 +285,8 @@ PREREQUISITES = {
         # Pedagogia: el menys davant del parèntesi = oposat de cada terme.
         "initial_equation": "−(x − 3)",
         "explanation_steps": [
-            "−(x − 3)",
             '<span style="color:#1a6fc4;font-weight:700">−x</span> <span style="color:#1a6fc4;font-weight:700">+3</span>',
         ],
-        "explanation_summary": "Hem trobat l'oposat de cada terme que hi ha dins del parèntesi.",
     },
     "PRE-SIGNES-PLUS": {
         "id": "PRE-SIGNES-PLUS",
@@ -310,10 +297,8 @@ PREREQUISITES = {
         # Variant amb signe POSITIU dins del parèntesi.
         "initial_equation": "−(x + 3)",
         "explanation_steps": [
-            "−(x + 3)",
             '<span style="color:#1a6fc4;font-weight:700">−x</span> <span style="color:#1a6fc4;font-weight:700">−3</span>',
         ],
-        "explanation_summary": "Hem trobat l'oposat de cada terme que hi ha dins del parèntesi.",
     },
     "PRE-INV-ADD": {
         "id": "PRE-INV-ADD",
@@ -329,12 +314,10 @@ PREREQUISITES = {
         # L'operació inversa correcta és RESTAR.
         "initial_equation": "3 + x = 10",
         "explanation_steps": [
-            ["3 + x", "10"],
             ['3 + x <span style="color:#1a6fc4;font-weight:700">−3</span>',
              '10 <span style="color:#1a6fc4;font-weight:700">−3</span>'],
             ["x", "7"],
         ],
-        "explanation_summary": "Hem restat 3 als dos costats de l'equació.",
     },
     "PRE-INV-SUB": {
         "id": "PRE-INV-SUB",
@@ -350,12 +333,10 @@ PREREQUISITES = {
         # L'operació inversa correcta és SUMAR.
         "initial_equation": "x − 3 = 10",
         "explanation_steps": [
-            ["x − 3", "10"],
             ['x − 3 <span style="color:#1a6fc4;font-weight:700">+3</span>',
              '10 <span style="color:#1a6fc4;font-weight:700">+3</span>'],
             ["x", "13"],
         ],
-        "explanation_summary": "Hem sumat 3 als dos costats de l'equació.",
     },
     "PRE-INV-MULT": {
         "id": "PRE-INV-MULT",
@@ -379,12 +360,10 @@ PREREQUISITES = {
         # alinear l'igual.
         "initial_equation": "3·x = 12",
         "explanation_steps": [
-            ["3·x", "12"],
             ['<span style="color:#1a6fc4;font-weight:700">(3·x)/3</span>',
              '<span style="color:#1a6fc4;font-weight:700">12/3</span>'],
             ["x", "4"],
         ],
-        "explanation_summary": "Hem dividit per 3 els dos costats de l'equació.",
     },
     "PRE-INV-DIV": {
         "id": "PRE-INV-DIV",
@@ -402,12 +381,10 @@ PREREQUISITES = {
         # i el factor multiplicador es destaquen en blau bold.
         "initial_equation": "x/3 = 4",
         "explanation_steps": [
-            ["x/3", "4"],
             ['<span style="color:#1a6fc4;font-weight:700">(x/3)·3</span>',
              '<span style="color:#1a6fc4;font-weight:700">4·3</span>'],
             ["x", "12"],
         ],
-        "explanation_summary": "Hem multiplicat per 3 els dos costats de l'equació.",
     },
     "PRE-EQUIV": {
         "id": "PRE-EQUIV",
@@ -440,12 +417,10 @@ PREREQUISITES = {
         # a la mateixa columna a totes les línies.
         "initial_equation": "3x − 5 = 10",
         "explanation_steps": [
-            ["3x − 5", "10"],
             ['3x − 5 <span style="color:#1a6fc4;font-weight:700">+5</span>',
              '10 <span style="color:#1a6fc4;font-weight:700">+5</span>'],
             ["3x", "15"],
         ],
-        "explanation_summary": "Hem sumat 5 als dos costats de l'equació.",
     },
 }
 

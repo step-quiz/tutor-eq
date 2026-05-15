@@ -609,7 +609,7 @@ def _render_prereq_visual_box(extra: dict, kind: str, header: str) -> str:
     initial_eq = extra["initial_equation"]
     steps = extra["steps"]
     summary = extra.get("summary", "")
-    cta = extra.get("cta", "Ara, torna a resoldre l'equació original.")
+    cta = extra.get("cta", "Continua amb la resolució de l'equació.")
 
     # `_render_fraction_safe` converteix fraccions textuals (`x/3`) en
     # HTML visual sense escapar spans HTML legítims que l'autor del
@@ -665,6 +665,11 @@ def _render_prereq_visual_box(extra: dict, kind: str, header: str) -> str:
     steps_lines = "".join(html_parts)
 
     palette = _PREREQ_BOX_PALETTES[kind]
+    # El `summary` és opcional: si l'autor del prereq no n'ha posat,
+    # ometem el `<div>` per evitar un espai en blanc innecessari.
+    summary_html = (
+        f'<div style="margin-bottom:0.55rem;">{summary}</div>' if summary else ""
+    )
     return f"""
 <div style="background-color:{palette['bg']};border:1px solid {palette['border']};
             border-radius:0.375rem;padding:0.85rem 1.1rem;color:{palette['fg']};
@@ -676,7 +681,7 @@ def _render_prereq_visual_box(extra: dict, kind: str, header: str) -> str:
     <div style="white-space:pre;line-height:1.7">{initial_eq_html}</div>
 {steps_lines}
   </div>
-  <div style="margin-bottom:0.55rem;">{summary}</div>
+  {summary_html}
   <div style="font-weight:700;">{cta}</div>
 </div>"""
 
@@ -1583,7 +1588,7 @@ def _render_prereq_panel(s):
             f"<span style='font-family:monospace; font-size:1.1em; "
             f"font-weight:600;'>{_eq_part}</span><br>"
             f"<span style='font-weight:600;'>{_q_part}</span><br>"
-            f"<span style='color:#78716c;'>Explica-ho amb les teves paraules.</span>"
+            f"<span style='color:#78716c;'>Explica, amb una frase en català, quina operació fas.</span>"
             f"</p>"
         )
     else:
