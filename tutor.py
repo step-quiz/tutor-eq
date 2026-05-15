@@ -360,7 +360,7 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
                              verdict="correcte_progres")
                 state["verdict_final"] = "resolt"
                 _push_msg(state, "feedback",
-                          f"Correcte. x = {sol}. Equació resolta, felicitats!")
+                          "Has resolt l'equació, felicitats!")
                 # F4 (2026-05-11): cridem bookkeeping per resetejar
                 # comptadors d'estancament i streaks conceptuals al
                 # moment de resoldre. No té efecte funcional ara mateix

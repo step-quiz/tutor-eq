@@ -1330,15 +1330,15 @@ def _render_problem_main(s, input_disabled: bool):
     n_steps = len([h for h in s["history"] if h["step"] > 0])
     if n_steps == 0:
         st.markdown(
-            "Has de simplificar l'equació per poder estar més a prop d'aïllar la "
-            "incògnita `x`. Atenció, no has de donar directament la solució, sinó "
-            "avançar pas a pas."
+            "Has de simplificar l'equació per poder aïllar la incògnita.<br>"
+            "Atenció, no has de donar directament la solució, sinó "
+            "avançar pas a pas.",
+            unsafe_allow_html=True,
         )
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
     # Cadena d'equacions
-    st.markdown("**Cadena d'equacions**")
     visible_history = _filter_superseded_errors(s["history"])
 
     # Millora 4: indicador de progrés (punts + text)
@@ -1367,31 +1367,18 @@ def _render_problem_main(s, input_disabled: bool):
             )
         st.markdown(progress_html, unsafe_allow_html=True)
 
-    # Millora 3: injectar CSS per a l'espaiat i el grid de numeració
+    # Millora 3: injectar CSS per a l'espaiat
     st.markdown(
         """
         <style>
         .eq-chain-step, .eq-chain-original {
             margin-bottom: 0.55rem;
         }
-        .eq-chain-numbered {
-            display: grid;
-            grid-template-columns: 2.5rem 1fr;
-            align-items: start;
-            margin-bottom: 0.55rem;
-        }
-        .eq-chain-step-num {
-            color: #94a3b8;
-            font-size: 0.85em;
-            font-family: monospace;
-            padding-top: 2px;
-        }
         </style>
         """,
         unsafe_allow_html=True,
     )
 
-    step_display_counter = 0
     for h in visible_history:
         if h["step"] == 0:
             st.markdown(
@@ -1401,7 +1388,6 @@ def _render_problem_main(s, input_disabled: bool):
                 unsafe_allow_html=True,
             )
         else:
-            step_display_counter += 1
             badge = _verdict_badge(h["verdict"])
             err_label = h.get("error_label") if _is_debug_mode() else None
             err = f"<span class='err-label'> · {err_label}</span>" if err_label else ""
@@ -1412,11 +1398,9 @@ def _render_problem_main(s, input_disabled: bool):
             else:
                 css_class = ""
             st.markdown(
-                f"<div class='eq-chain-numbered'>"
-                f"<span class='eq-chain-step-num'>{step_display_counter}.</span>"
                 f"<div class='eq-chain-step {css_class}'>"
                 f"<code>{_frac_html(h['text'])}</code>  · {badge}{err}"
-                f"</div></div>",
+                f"</div>",
                 unsafe_allow_html=True,
             )
 
@@ -1651,7 +1635,7 @@ def _render_input_form(s, key_prefix: str):
         # Etiqueta amb més pes visual (Millora 5)
         st.markdown(
             "<p style='font-weight:600; font-size:1em; color:#1e293b; margin-bottom:0.3rem;'>"
-            "Escriu el pas següent:</p>",
+            "Escriu una equació equivalent:</p>",
             unsafe_allow_html=True,
         )
         # `autocomplete="off"` ja s'aplica també des del JS injectat al cap
@@ -1659,18 +1643,12 @@ def _render_input_form(s, key_prefix: str):
         # i un name aleatori). El passem aquí com a defensa redundant per
         # si el script no s'arriba a executar.
         raw = st.text_input(
-            "Escriu el pas següent:",
+            "Escriu una equació equivalent:",
             label_visibility="collapsed",
             key=key_in,
             autocomplete="off",
         )
         submit = st.form_submit_button("Enviar", type="primary")
-
-    # Helper inicial: desapareix després del primer pas correcte (Millora 5)
-    if n_steps_done == 0 and key_prefix == "main":
-        st.caption(
-            "Escriu l'equació equivalent al primer pas de la resolució."
-        )
 
     if submit and raw:
         st.session_state.retry_messages = []
