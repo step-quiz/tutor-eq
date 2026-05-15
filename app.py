@@ -167,6 +167,50 @@ st.markdown(
           border-color: #1a1a1a !important;
       }
 
+      /* ─────────────────────────────────────────────────────────────
+       * Sidebar collapse/expand: el botó natural de Streamlit per
+       * tornar a obrir el sidebar quan està col·lapsat tenia un
+       * comportament inconsistent — segons context, no apareixia o
+       * apareixia només en hover en una zona difícil de descobrir.
+       *
+       * Els seleccionadors aquí cobreixen les variants conegudes que
+       * Streamlit ha usat per al control col·lapsat ("rerun"-resistent).
+       * Si Streamlit canvia el nom del data-testid en una versió futura,
+       * cal afegir el nou aquí.
+       *
+       * Estil: quadrat top-left, fons clar amb una vora subtil, sempre
+       * visible. Sense això, alumnes (especialment menors o amb poca
+       * experiència UI) queden "atrapats" amb el sidebar col·lapsat.
+       * ───────────────────────────────────────────────────────────── */
+      [data-testid="stSidebarCollapsedControl"],
+      [data-testid="collapsedControl"] {
+          display: flex !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+          position: fixed !important;
+          top: 0.6rem !important;
+          left: 0.6rem !important;
+          z-index: 999999 !important;
+          background-color: #ffffff !important;
+          border: 1px solid #cbd5e1 !important;
+          border-radius: 6px !important;
+          padding: 4px !important;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.08) !important;
+      }
+      [data-testid="stSidebarCollapsedControl"]:hover,
+      [data-testid="collapsedControl"]:hover {
+          background-color: #f1f5f9 !important;
+          border-color: #94a3b8 !important;
+      }
+      /* Els SVG/botons fills també han de ser visibles */
+      [data-testid="stSidebarCollapsedControl"] button,
+      [data-testid="collapsedControl"] button,
+      [data-testid="stSidebarCollapsedControl"] svg,
+      [data-testid="collapsedControl"] svg {
+          opacity: 1 !important;
+          visibility: visible !important;
+      }
+
       /* Augment del 20% del text al panell principal per millor
          lectura per a l'Aran. El sidebar (que usa altres contenidors)
          no es veu afectat. */
