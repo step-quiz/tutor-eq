@@ -868,6 +868,27 @@ class TestContextualizedErrorMessages(unittest.TestCase):
         self.assertIsNotNone(msg)
         self.assertIn("restat", msg)
 
+    def test_inverse_op_multiplied_instead_of_divided(self):
+        # 5x = 20 → x = 100 (alumne ha multiplicat 20*5)
+        msg = self._ctx("L1_inverse_op", "5x = 20", "x = 100")
+        self.assertIsNotNone(msg)
+        self.assertIn("multiplicat", msg)
+        self.assertIn("DIVIDIR", msg)
+
+    def test_inverse_op_divided_instead_of_multiplied(self):
+        # x/3 = 4 → x = 4/3 (alumne ha dividit en lloc de multiplicar)
+        msg = self._ctx("L1_inverse_op", "x/3 = 4", "x = 4/3")
+        self.assertIsNotNone(msg)
+        self.assertIn("dividit", msg)
+        self.assertIn("MULTIPLICAR", msg)
+
+    def test_inverse_op_subtracted_in_division_case(self):
+        # x/3 = 4 → x = 1 (alumne ha restat 3 a 4)
+        msg = self._ctx("L1_inverse_op", "x/3 = 4", "x = 1")
+        self.assertIsNotNone(msg)
+        self.assertIn("restat", msg)
+        self.assertIn("MULTIPLICAR", msg)
+
     # ─── L2_transpose_sign ───────────────────────────────────────────
     def test_transpose_sign_lhs_positive_constant(self):
         # 3x - 5 = 10 → 3x = 5 (transposat -5 sense canvi de signe)

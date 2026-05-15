@@ -1735,7 +1735,25 @@ def _render_message(m: dict):
     elif kind == "worked_example":
         # Escalada nivell 1: l'alumne ha tornat a fallar el mateix concepte
         # després del prereq. Mostrem un exemple resolt anàleg.
-        st.info(f"📌 **Exemple resolt:** {text}")
+        #
+        # La IA genera el text amb la següent estructura (veure llm.py
+        # generate_worked_example): 5 línies separades per '<br>' literal,
+        # amb fragments LaTeX (`$...$`) per a les equacions i resultat
+        # dins de `\boxed{}`. Caixa estil "st.info" però amb HTML i LaTeX
+        # respectats (st.info els eliminaria).
+        st.markdown(
+            f"""
+<div style="background-color:#e7f3fe;border-left:4px solid #1a6fc4;
+            border-radius:0.375rem;padding:0.85rem 1.1rem;color:#084298;
+            margin-top:0.25rem;line-height:1.7;">
+  <div style="font-weight:600;margin-bottom:0.55rem;">
+    📌 Exemple resolt
+  </div>
+  <div>{text}</div>
+</div>
+""",
+            unsafe_allow_html=True,
+        )
     elif kind == "concrete_step":
         # Escalada nivell 2: ni el prereq ni l'exemple no han desencallat
         # l'alumne. Donem el pas concret de manera molt directa.

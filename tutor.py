@@ -714,8 +714,10 @@ def _contextualize_error_message(error_label: str,
                 M = const_side
                 if len(coeffs) == 2:
                     a, b = coeffs
-                    # Cas 1: Kx (b == 0), alumne ha fet x = M - K o M + K
-                    if b == 0 and a != 0:
+                    # Cas 1: Kx (b == 0) amb K enter, alumne ha fet
+                    # x = M - K, M + K o M * K. Excloem coeficients
+                    # fraccionaris (1/3, etc.) — els tractem al Cas 3.
+                    if b == 0 and a != 0 and a.is_integer:
                         K = a
                         if v == M - K:
                             return (
@@ -726,6 +728,12 @@ def _contextualize_error_message(error_label: str,
                         if v == M + K:
                             return (
                                 f"Crec que has sumat {K} a {M}, "
+                                f"però calia DIVIDIR per {K}. "
+                                f"Revisa l'operació."
+                            )
+                        if v == M * K:
+                            return (
+                                f"Crec que has multiplicat {M} per {K}, "
                                 f"però calia DIVIDIR per {K}. "
                                 f"Revisa l'operació."
                             )
@@ -743,6 +751,38 @@ def _contextualize_error_message(error_label: str,
                                 f"Has restat {abs(b)} en lloc de sumar-lo. "
                                 f"Recorda que l'operació inversa de restar és sumar."
                             )
+                # Cas 3: x/K = M (coef. fraccionari 1/K). SymPy normalitza
+                # `x/3` com `Rational(1,3)*x`, per tant Poly.all_coeffs()
+                # retorna [Rational(1,K), 0]. Si l'alumne ha posat v = M/K
+                # (dividit en lloc de multiplicar) o v = M - K / v = M + K
+                # (additiu en lloc de multiplicatiu), és error d'op. inversa.
+                if len(coeffs) == 2 and coeffs[1] == 0:
+                    a = coeffs[0]
+                    from sympy import Rational
+                    # Detecta `Rational(1, K)` amb K enter > 1
+                    if isinstance(a, Rational) and a.p == 1 and a.q > 1:
+                        K = a.q  # denominador
+                        try:
+                            if v == M / K:
+                                return (
+                                    f"Crec que has dividit {M} per {K}, "
+                                    f"però calia MULTIPLICAR per {K}. "
+                                    f"Revisa l'operació."
+                                )
+                            if v == M - K:
+                                return (
+                                    f"Crec que has restat {K} a {M}, "
+                                    f"però calia MULTIPLICAR per {K}. "
+                                    f"Revisa l'operació."
+                                )
+                            if v == M + K:
+                                return (
+                                    f"Crec que has sumat {K} a {M}, "
+                                    f"però calia MULTIPLICAR per {K}. "
+                                    f"Revisa l'operació."
+                                )
+                        except (ZeroDivisionError, TypeError):
+                            pass
 
         # ─── L2_transpose_sign ─────────────────────────────────────────
         # Patró: ax + b = c → ax = c + b (mantingut el signe en lloc d'invertir-lo).
