@@ -72,6 +72,16 @@ def new_session_state(problem_id: str, student_id: str = "anon") -> dict:
         "inappropriate_warnings": 0,
         "active_prereq": None,          # PRE-XXX si estem en una sessió de prerequisit
         "active_prereq_depth": 0,
+        # Proposta pendent de prereq: dict {prereq_id, dep_id} quan el
+        # sistema vol oferir un exercici de reforç però encara no l'ha
+        # iniciat (espera que l'alumne accepti o cancel·li). None si no
+        # hi ha cap proposta visible. Veure offer_prereq /
+        # accept_prereq_offer / decline_prereq_offer.
+        "prereq_offer_pending": None,
+        # Si l'alumne cancel·la una proposta de reforç, no se li'n
+        # tornen a oferir durant la resta de la sessió (decisió
+        # producte per evitar fatiga). Es reseteja amb la sessió.
+        "prereq_declined": False,
         # Comptador d'errors consecutius del mateix concepte dins el
         # problema (clau = dep_id, valor = comptador). Es reseteja amb un
         # pas correcte. S'usa per escalar l'ajuda quan un prereq no és
@@ -511,12 +521,19 @@ def _evaluate_equation_step(state: dict, raw_text: str) -> dict:
             concept_desc = dep.get("description", ce["dep_id"])
 
             if streak == 1:
-                # 1a errada: retrocés a prereq, com fins ara
-                if state["active_prereq_depth"] < MAX_BACKTRACK_DEPTH:
+                # 1a errada: el sistema vol proposar un retrocés a un
+                # prereq, però ja no l'inicia directament. En lloc d'això
+                # plantegem la pregunta a l'alumne perquè confirmi (veure
+                # offer_prereq). Si l'alumne ja ha cancel·lat una proposta
+                # anterior dins de la mateixa sessió, no se li'n torna a
+                # plantejar — la decisió queda respectada fins al final.
+                if (state["active_prereq_depth"] < MAX_BACKTRACK_DEPTH
+                        and not state.get("prereq_declined")
+                        and state.get("prereq_offer_pending") is None):
                     prereq_id = _select_prereq_id(
                         ce["error_label"], dep, last_correct
                     )
-                    _start_prereq(state, prereq_id, ce["dep_id"])
+                    offer_prereq(state, prereq_id, ce["dep_id"])
             elif streak == 2:
                 # 2a errada del mateix concepte: el prereq no ha
                 # desbloquejat l'alumne; canvi de tàctica a exemple resolt.
@@ -987,6 +1004,56 @@ def _select_prereq_id(error_label: str, dep: dict, last_correct_text: str) -> st
         return "PRE-FRAC-CROSS"
 
     return default
+
+
+def offer_prereq(state, prereq_id, dep_id):
+    """Planteja una proposta de prereq sense iniciar-lo encara.
+
+    Emmagatzema la proposta a state["prereq_offer_pending"] i empeny un
+    missatge tipus "prereq_offer" perquè la capa de UI sàpiga que ha de
+    renderitzar el panell de confirmació (Acceptar / Cancel·lar).
+
+    Aquesta funció substitueix la crida directa a _start_prereq al
+    moment del 1r error conceptual. El _start_prereq només s'executa
+    més tard, si i només si l'alumne accepta (veure
+    accept_prereq_offer).
+    """
+    state["prereq_offer_pending"] = {
+        "prereq_id": prereq_id,
+        "dep_id": dep_id,
+    }
+    _push_msg(state, "prereq_offer",
+              "Vols fer un exercici de reforç?",
+              target="prereq_offer")
+
+
+def accept_prereq_offer(state):
+    """L'alumne accepta la proposta: iniciem el prereq com sempre."""
+    offer = state.get("prereq_offer_pending")
+    if not offer:
+        return
+    state["prereq_offer_pending"] = None
+    # Netegem els missatges d'oferta perquè no es barregin amb els
+    # missatges del prereq que comença a continuació.
+    state["messages"] = [m for m in state.get("messages", [])
+                         if m.get("kind") != "prereq_offer"]
+    _start_prereq(state, offer["prereq_id"], offer["dep_id"])
+
+
+def decline_prereq_offer(state):
+    """L'alumne cancel·la la proposta: marquem la sessió com a
+    declinada i ja no se'n proposaran més.
+
+    L'efecte és definitiu dins de la sessió: encara que apareguin
+    nous candidats a prereq, la branca del streak == 1 no els
+    plantejarà més (veure flag prereq_declined al disparador).
+    """
+    state["prereq_offer_pending"] = None
+    state["prereq_declined"] = True
+    # Netegem el missatge d'oferta i n'empenyem un de confirmació
+    # discret per donar feedback que la decisió s'ha registrat.
+    state["messages"] = [m for m in state.get("messages", [])
+                         if m.get("kind") != "prereq_offer"]
 
 
 def _start_prereq(state, prereq_id, dep_id):

@@ -133,6 +133,17 @@ class ScenarioCase(unittest.TestCase):
         `script` de LLM mockejat. Retorna l'estat final.
 
         Els invariants s'apliquen a cada torn (via tutor.process_turn).
+
+        Nota: després del flux de confirmació de prereq introduït al
+        novembre 2026, tutor.py ja no inicia automàticament un prereq
+        en el 1r error conceptual — primer planteja una oferta a
+        l'alumne. El simulador imita un alumne que sempre accepta la
+        proposta perquè tots els tests d'escalada conceptual escrits
+        abans (que assumeixen prereq immediat) segueixin essent vàlids
+        sense haver d'inserir un torn d'acceptació explícit a cada
+        seqüència d'inputs. Els tests específics del nou flux
+        (acceptar/cancel·lar) usen els helpers de tutor.py
+        directament, sense passar per run_scenario.
         """
         if script is None:
             script = LLMScript()
@@ -143,6 +154,8 @@ class ScenarioCase(unittest.TestCase):
             state = tutor.new_session_state(problem_id, student_id="__sim__")
             for raw in inputs:
                 tutor.process_turn(state, raw)
+                if state.get("prereq_offer_pending") is not None:
+                    tutor.accept_prereq_offer(state)
             return state
         finally:
             for p in patchers:

@@ -72,6 +72,7 @@ def check_state_invariants(state: dict, label: str = "") -> None:
         "discrepancies", "inappropriate_warnings", "active_prereq",
         "active_prereq_depth", "concept_failure_streak",
         "pending_proactive_offer", "verdict_final", "messages",
+        "prereq_offer_pending", "prereq_declined",
     }
     missing = required_keys - set(state.keys())
     if missing:
@@ -140,6 +141,22 @@ def check_state_invariants(state: dict, label: str = "") -> None:
     if active is not None and depth == 0:
         fail("prereq_consistency_active",
              f"active_prereq={active!r} però active_prereq_depth=0")
+
+    # --- Coherència del flux d'oferta de prereq ---
+    # prereq_offer_pending i active_prereq són mútuament excloents:
+    # mentre hi ha una oferta esperant resposta, no hi pot haver un
+    # prereq ja iniciat, i viceversa.
+    offer = state.get("prereq_offer_pending")
+    if offer is not None and active is not None:
+        fail("prereq_offer_vs_active",
+             "prereq_offer_pending i active_prereq actius alhora")
+    if offer is not None:
+        if not isinstance(offer, dict):
+            fail("prereq_offer_shape",
+                 f"prereq_offer_pending no és dict ({type(offer).__name__})")
+        elif "prereq_id" not in offer or "dep_id" not in offer:
+            fail("prereq_offer_keys",
+                 f"prereq_offer_pending sense les claus esperades: {offer!r}")
 
     # backtrack_depth_max ha de ser ≥ depth actual (és el màxim històric)
     if state["backtrack_depth_max"] < depth:

@@ -1295,10 +1295,16 @@ def render_main():
         st.write("Escull una equació a la barra lateral.")
         return
 
-    # Decidim layout: si hi ha prerequisit actiu, partim en dues columnes.
+    # Decidim layout: si hi ha prerequisit actiu o una proposta de
+    # reforç pendent de confirmar, partim en dues columnes. Quan només
+    # hi ha proposta, l'input principal també es deshabilita perquè
+    # l'alumne decideixi primer si vol fer el reforç o no.
     has_prereq = s["active_prereq"] is not None and s["verdict_final"] is None
+    has_prereq_offer = (s.get("prereq_offer_pending") is not None
+                        and s["verdict_final"] is None)
+    show_right_col = has_prereq or has_prereq_offer
 
-    if has_prereq:
+    if show_right_col:
         # Scroll automàtic de la pàgina principal cap amunt perquè l'alumne
         # vegi la capçalera del panell de reforç sense haver de fer scroll.
         # Provem els dos selectors més habituals del contenidor scrollable
@@ -1321,7 +1327,10 @@ def render_main():
         with col_main:
             _render_problem_main(s, input_disabled=True)
         with col_prereq:
-            _render_prereq_panel(s)
+            if has_prereq:
+                _render_prereq_panel(s)
+            else:
+                _render_prereq_offer_panel(s)
     else:
         # Una sola columna centrada (no full-width amb layout=wide)
         _, col_center, _ = st.columns([1, 3, 1])
@@ -1644,6 +1653,54 @@ def _render_problem_main(s, input_disabled: bool):
     # Input principal
     st.markdown("<hr>", unsafe_allow_html=True)
     _render_input_form(s, key_prefix="main")
+
+
+def _render_prereq_offer_panel(s):
+    """Panell dret amb la proposta de fer un exercici de reforç.
+
+    Es renderitza quan tutor.py ha decidit que cal un retrocés però
+    encara no l'ha iniciat: en lloc d'imposar-lo, demanem confirmació
+    a l'alumne. Té dos botons:
+      - Acceptar:  inicia el prereq normalment (T.accept_prereq_offer).
+      - Cancel·lar: marca la sessió com a 'prereq_declined' i no se'n
+                    tornaran a proposar fins al final
+                    (T.decline_prereq_offer).
+    """
+    # Avís principal: la pregunta a l'alumne, amb el mateix estil de
+    # caixa groga forta que abans tenia "Respon aquest exercici abans
+    # de continuar" — així visualment l'alumne reconeix que el panell
+    # dret demana acció.
+    st.markdown(
+        "<div style='background:#fef3c7; border:1px solid #f59e0b; "
+        "border-radius:4px; padding:0.7rem 1rem; margin-bottom:0.8rem; "
+        "color:#92400e;'>"
+        "<div style='font-weight:700; font-size:1.05em; "
+        "margin-bottom:0.3rem;'>Vols fer un exercici de reforç?</div>"
+        "<div style='font-size:0.92em; line-height:1.45;'>"
+        "Podria ajudar-te a entendre millor el pas que estàs intentant. "
+        "Si ho prefereixes, pots continuar amb l'equació actual."
+        "</div>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+    # Botons d'acció. Els donem una key específica perquè es puguin
+    # estilitzar via CSS si calgués, i use_container_width=True perquè
+    # ocupin tota la columna i siguin fàcils de prémer.
+    col_ok, col_cancel = st.columns(2)
+    with col_ok:
+        if st.button("Acceptar",
+                     key="prereq_offer_accept_btn",
+                     use_container_width=True,
+                     type="primary"):
+            T.accept_prereq_offer(s)
+            st.rerun()
+    with col_cancel:
+        if st.button("Cancel·lar",
+                     key="prereq_offer_decline_btn",
+                     use_container_width=True):
+            T.decline_prereq_offer(s)
+            st.rerun()
 
 
 def _render_prereq_panel(s):
